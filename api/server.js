@@ -2,40 +2,78 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 
-// Initialize a single pool instance to be reused across invocations
+// A Vercel agora usa frequentemente POSTGRES_URL em vez de DATABASE_URL
+const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+
 let pool;
-if (!pool) {
+if (!pool && connectionString) {
   pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: connectionString,
     ssl: { rejectUnauthorized: false }
   });
+}
+
+// Função para garantir que as tabelas existem (Criação automática)
+async function ensureTables() {
+  if (!pool) return;
+  const client = await pool.connect();
+  try {
+    // Tabela de Configuração
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS system_config (
+        id INTEGER PRIMARY KEY,
+        public_url TEXT,
+        public_title TEXT,
+        public_description TEXT,
+        private_url TEXT,
+        private_title TEXT,
+        private_description TEXT,
+        is_private_mode BOOLEAN DEFAULT false
+      )
+    `);
+    
+    // Inserir linha padrão se não existir
+    await client.query(`
+      INSERT INTO system_config (id, public_title, public_description)
+      SELECT 1, 'LoveWorld TV Angola', 'Transmissão pública'
+      WHERE NOT EXISTS (SELECT 1 FROM system_config WHERE id = 1)
+    `);
+
+    // Tabela de Utilizadores
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS managed_users (
+        id SERIAL PRIMARY KEY,
+        fullname TEXT,
+        username TEXT UNIQUE,
+        password TEXT,
+        status TEXT DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  } finally {
+    client.release();
+  }
 }
 
 export default async function handler(req, res) {
   const { method } = req;
   const path = req.url.split('?')[0];
-
-  // Set default content type to JSON
   res.setHeader('Content-Type', 'application/json');
 
-  try {
-    if (!process.env.DATABASE_URL) {
-      return res.status(500).json({ error: 'DATABASE_URL environment variable is missing' });
-    }
+  if (!connectionString) {
+    return res.status(500).json({ 
+      error: 'DATABASE_URL_MISSING',
+      message: 'A ligação com o banco de dados foi perdida após a mudança de nome do projeto. Re-conecte o Postgres no painel da Vercel.' 
+    });
+  }
 
-    // 1. SYSTEM CONFIG (GET/POST)
+  try {
+    await ensureTables();
+
+    // 1. SYSTEM CONFIG
     if (path === '/api/system' && method === 'GET') {
       const result = await pool.query('SELECT * FROM system_config WHERE id = 1');
-      const data = result.rows[0] || {
-        public_url: '',
-        public_title: 'LoveWorld TV Angola',
-        public_description: 'Transmissão pública e gratuita.',
-        private_url: '',
-        private_title: 'Conferência Ministerial',
-        private_description: 'Acesso restrito para parceiros.',
-        is_private_mode: false
-      };
-      return res.status(200).json(data);
+      return res.status(200).json(result.rows[0]);
     }
 
     if (path === '/api/system' && method === 'POST') {
@@ -56,7 +94,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 2. AUTH
+    // 2. AUTH LOGIN
     if (path === '/api/login' && method === 'POST') {
       const { username, pass } = req.body;
       const result = await pool.query(
@@ -66,17 +104,17 @@ export default async function handler(req, res) {
       if (result.rows.length > 0) {
         const user = result.rows[0];
         return res.status(200).json({ 
-          id: user.id, 
+          id: user.id.toString(), 
           fullName: user.fullname, 
           username: user.username,
           role: 'user',
           hasLiveAccess: true 
         });
       }
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'Credenciais Inválidas' });
     }
 
-    // 3. ADMIN USERS (GET/POST/PUT/DELETE)
+    // 3. ADMIN USERS
     if (path === '/api/admin/users' && method === 'GET') {
       const result = await pool.query('SELECT id, fullname as name, username, password, status FROM managed_users ORDER BY created_at DESC');
       return res.status(200).json(result.rows);
@@ -107,12 +145,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    return res.status(404).json({ error: 'Endpoint not found', path });
+    return res.status(404).json({ error: 'Not Found' });
   } catch (error) {
-    console.error('API Server Error:', error);
+    console.error('SERVER ERROR:', error);
     return res.status(500).json({ 
-      error: 'Internal Server Error', 
-      message: error.message 
+      error: 'DB_ERROR', 
+      message: error.message,
+      detail: 'Verifique se o banco de dados Postgres está ativo no Storage da Vercel.'
     });
   }
 }

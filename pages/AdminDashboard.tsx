@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Video, Globe, Lock, Check, X, Plus, Trash2, Edit2, Copy, Radio, MessageSquare, Info, Layout, AlertTriangle
+  Users, Video, Globe, Lock, Check, X, Plus, Trash2, Edit2, Copy, Radio, AlertTriangle, Database, Link2
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
@@ -21,25 +21,13 @@ const AdminDashboard: React.FC = () => {
   const [isUsersLoading, setIsUsersLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Modais
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editMode, setEditMode] = useState<string | null>(null);
   const [userForm, setUserForm] = useState({ name: '', username: '', password: '' });
   
-  // Stream Forms - Inicializados com valores do sistema
-  const [publicStream, setPublicStream] = useState({
-    url: '',
-    title: '',
-    description: ''
-  });
+  const [publicStream, setPublicStream] = useState({ url: '', title: '', description: '' });
+  const [privateStream, setPrivateStream] = useState({ url: '', title: '', description: '' });
 
-  const [privateStream, setPrivateStream] = useState({
-    url: '',
-    title: '',
-    description: ''
-  });
-
-  // Sincronizar formulários quando o sistema carregar da API
   useEffect(() => {
     if (system) {
       setPublicStream({
@@ -57,25 +45,17 @@ const AdminDashboard: React.FC = () => {
 
   const fetchUsers = async () => {
     setIsUsersLoading(true);
-    setError(null);
     try {
       const res = await fetch('/api/admin/users');
-      if (!res.ok) throw new Error(`Erro do servidor: ${res.status}`);
-      
       const data = await res.json();
-      
-      // SEGURANÇA: Garante que 'users' seja sempre um array para não crashar o .map()
-      if (Array.isArray(data)) {
+      if (res.ok && Array.isArray(data)) {
         setUsers(data);
+        setError(null);
       } else {
-        console.error("Dados de utilizadores inválidos:", data);
-        setUsers([]);
-        if (data.error) setError(data.error);
+        setError(data.message || "Erro ao carregar dados.");
       }
     } catch (e: any) { 
-      console.error("Fetch users failed:", e);
-      setError(e.message);
-      setUsers([]);
+      setError("Conexão falhou. A base de dados pode ter sido desligada após a mudança do nome do projeto.");
     } finally {
       setIsUsersLoading(false);
     }
@@ -88,48 +68,20 @@ const AdminDashboard: React.FC = () => {
   const handleUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const url = editMode ? `/api/admin/users/${editMode}` : '/api/admin/users';
-    const method = editMode ? 'PUT' : 'POST';
-
     try {
       const res = await fetch(url, {
-        method,
+        method: editMode ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userForm)
       });
-      
       if (res.ok) {
-        setUserForm({ name: '', username: '', password: '' });
-        setEditMode(null);
         setIsModalOpen(false);
         fetchUsers();
       } else {
-        const errData = await res.json();
-        alert(`Erro ao salvar: ${errData.error || 'Desconhecido'}`);
+        alert("Erro ao salvar. Verifique o Storage da Vercel.");
       }
     } catch (e) {
-      alert("Falha na comunicação com o servidor.");
-    }
-  };
-
-  const handleEditClick = (user: ManagedUser) => {
-    setEditMode(user.id);
-    setUserForm({ name: user.name, username: user.username, password: user.password || '' });
-    setIsModalOpen(true);
-  };
-
-  const handleCopy = (user: ManagedUser) => {
-    const text = `Acesso Christ Embassy Angola\nUtilizador: ${user.username}\nSenha: ${user.password}\nLink: ${window.location.origin}/#/login`;
-    navigator.clipboard.writeText(text);
-    alert(`Credenciais de ${user.name} copiadas!`);
-  };
-
-  const handleDeleteUser = async (id: string) => {
-    if (!confirm("Remover acesso deste membro permanentemente?")) return;
-    try {
-      await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
-      fetchUsers();
-    } catch (e) {
-      alert("Erro ao eliminar utilizador.");
+      alert("Erro de conexão.");
     }
   };
 
@@ -143,9 +95,9 @@ const AdminDashboard: React.FC = () => {
         privateTitle: privateStream.title,
         privateDescription: privateStream.description
       });
-      alert("Configurações de Satélite atualizadas com sucesso!");
+      alert("Canais atualizados!");
     } catch (e) {
-      alert("Erro ao atualizar canais.");
+      alert("Erro ao salvar canais. Base de dados não responde.");
     }
   };
 
@@ -169,13 +121,48 @@ const AdminDashboard: React.FC = () => {
       </aside>
 
       <main className="flex-grow p-10 lg:p-16 overflow-y-auto">
+        {error && (
+          <div className="mb-12 p-10 bg-white border-2 border-red-100 rounded-[3rem] shadow-2xl animate-in slide-in-from-top duration-500">
+            <div className="flex flex-col md:flex-row items-start md:items-center space-y-6 md:space-y-0 md:space-x-8">
+              <div className="w-20 h-20 bg-red-50 text-red-500 rounded-[2rem] flex items-center justify-center flex-shrink-0 shadow-inner">
+                <Database size={40} />
+              </div>
+              <div className="flex-grow">
+                <div className="flex items-center space-x-2 mb-2">
+                  <h3 className="text-2xl font-black text-red-600">Erro de Configuração Master</h3>
+                  <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter">Status 500</span>
+                </div>
+                <p className="text-slate-600 leading-relaxed mb-6 font-medium">
+                  Parece que o projeto foi renomeado para <strong className="text-ministry-blue">ce-angola-app-cnbx</strong>. 
+                  Quando isso acontece, a Vercel desliga a base de dados do projeto antigo.
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <div className="text-ministry-gold mb-3"><Link2 size={24} /></div>
+                    <p className="text-xs font-black text-slate-400 uppercase mb-2">Passo 1</p>
+                    <p className="text-sm text-slate-700 font-bold">Vai ao painel da Vercel e entra no novo projeto.</p>
+                  </div>
+                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <div className="text-ministry-gold mb-3"><Database size={24} /></div>
+                    <p className="text-xs font-black text-slate-400 uppercase mb-2">Passo 2</p>
+                    <p className="text-sm text-slate-700 font-bold">Clica em "Storage" e escolhe o Postgres existente.</p>
+                  </div>
+                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <div className="text-ministry-gold mb-3"><Check size={24} /></div>
+                    <p className="text-xs font-black text-slate-400 uppercase mb-2">Passo 3</p>
+                    <p className="text-sm text-slate-700 font-bold">Clica em "Connect" e faz um novo Deploy.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <header className="flex justify-between items-center mb-16">
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center text-ministry-blue border border-slate-100">
-               {activeTab === 'users' ? <Users size={24} /> : <Radio size={24} />}
-            </div>
-            <h1 className="text-3xl font-display font-black text-ministry-blue">
-              {activeTab === 'users' ? 'Gestão de Identidades' : 'Controlo de Satélite'}
+            <h1 className="text-3xl font-display font-black text-ministry-blue uppercase tracking-tight">
+              {activeTab === 'users' ? 'Identidades Master' : 'Satélite Angola'}
             </h1>
           </div>
           <button 
@@ -183,32 +170,22 @@ const AdminDashboard: React.FC = () => {
             className={`px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center space-x-3 shadow-xl transition active:scale-95 ${system.isPrivateMode ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}
           >
             <Lock size={16} />
-            <span>{system.isPrivateMode ? 'Modo de Segurança Ativo' : 'Modo Público Ativo'}</span>
+            <span>{system.isPrivateMode ? 'SEGURANÇA ATIVA' : 'SESSÃO PÚBLICA'}</span>
           </button>
         </header>
 
-        {error && (
-          <div className="mb-10 p-6 bg-red-50 border border-red-100 rounded-[2rem] flex items-center space-x-4 text-red-600">
-            <AlertTriangle size={24} />
-            <div>
-              <p className="font-bold">Atenção ao Sistema</p>
-              <p className="text-sm opacity-80">{error}. Verifique se a DATABASE_URL está configurada na Vercel.</p>
-            </div>
-          </div>
-        )}
-
         {activeTab === 'users' && (
-          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
             <div className="p-10 flex justify-between items-center bg-slate-50/50 border-b border-slate-100">
               <div>
-                <h3 className="text-xl font-black text-ministry-blue">Membros Autorizados</h3>
-                <p className="text-sm text-gray-500 mt-1">Gerencie quem tem acesso às transmissões exclusivas.</p>
+                <h3 className="text-xl font-black text-ministry-blue">Membros com Acesso</h3>
+                <p className="text-xs text-slate-400 mt-1 uppercase font-bold tracking-widest">Base de Dados Centralizada</p>
               </div>
               <button 
                 onClick={() => { setEditMode(null); setUserForm({ name: '', username: '', password: '' }); setIsModalOpen(true); }} 
-                className="bg-ministry-blue text-white px-8 py-4 rounded-2xl font-black text-xs uppercase flex items-center space-x-3 hover:bg-opacity-90 shadow-xl shadow-blue-900/10 transition"
+                className="bg-ministry-blue text-white px-8 py-4 rounded-2xl font-black text-xs uppercase flex items-center space-x-3 shadow-xl hover:bg-opacity-90 transition"
               >
-                <Plus size={16} /> <span>Nova Credencial</span>
+                <Plus size={16} /> <span>Gerar Novo Acesso</span>
               </button>
             </div>
             
@@ -216,39 +193,35 @@ const AdminDashboard: React.FC = () => {
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    <th className="px-10 py-6">Nome do Membro</th>
-                    <th className="px-10 py-6">Utilizador</th>
-                    <th className="px-10 py-6">Senha Master</th>
-                    <th className="px-10 py-6 text-center">Gestão</th>
+                    <th className="px-10 py-6">Membro</th>
+                    <th className="px-10 py-6">ID de Acesso</th>
+                    <th className="px-10 py-6">Chave Mestra</th>
+                    <th className="px-10 py-6 text-center">Controlo</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {isUsersLoading ? (
-                    <tr><td colSpan={4} className="py-20 text-center text-slate-400">Carregando lista de membros...</td></tr>
-                  ) : users.length > 0 ? (
-                    users.map(u => (
-                      <tr key={u.id} className="hover:bg-slate-50/30 transition">
-                        <td className="px-10 py-6">
-                          <div className="font-bold text-ministry-blue">{u.name}</div>
-                          <div className="text-[10px] text-green-500 font-bold uppercase mt-0.5 flex items-center">
-                            <Check size={10} className="mr-1" /> Acesso Ativo
-                          </div>
-                        </td>
-                        <td className="px-10 py-6 text-sm font-medium text-slate-600 font-mono bg-slate-50/20">{u.username}</td>
-                        <td className="px-10 py-6 text-sm text-slate-400 font-mono tracking-tighter">{u.password}</td>
-                        <td className="px-10 py-6">
-                          <div className="flex items-center justify-center space-x-2">
-                            <button onClick={() => handleCopy(u)} className="p-3 text-slate-400 hover:text-ministry-gold bg-slate-50 rounded-xl transition" title="Copiar Dados"><Copy size={16} /></button>
-                            <button onClick={() => handleEditClick(u)} className="p-3 text-slate-400 hover:text-blue-500 bg-slate-50 rounded-xl transition" title="Editar"><Edit2 size={16} /></button>
-                            <button onClick={() => handleDeleteUser(u.id)} className="p-3 text-slate-400 hover:text-red-500 bg-slate-50 rounded-xl transition" title="Remover"><Trash2 size={16} /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={4} className="py-20 text-center text-slate-400 italic">Nenhum membro autorizado no sistema.</td>
+                  {users.length > 0 ? users.map(u => (
+                    <tr key={u.id} className="hover:bg-slate-50/30 transition group">
+                      <td className="px-10 py-6">
+                        <div className="font-bold text-ministry-blue">{u.name}</div>
+                        <div className="text-[10px] text-green-500 font-bold uppercase mt-1">Sinal Ativo</div>
+                      </td>
+                      <td className="px-10 py-6 text-sm font-mono font-bold text-slate-600">{u.username}</td>
+                      <td className="px-10 py-6 text-sm font-mono text-slate-400">{u.password}</td>
+                      <td className="px-10 py-6 text-center">
+                        <div className="flex justify-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                           <button onClick={() => { setEditMode(u.id); setUserForm({ name: u.name, username: u.username, password: u.password || '' }); setIsModalOpen(true); }} className="p-3 text-blue-500 hover:bg-blue-50 rounded-xl transition"><Edit2 size={16}/></button>
+                           <button onClick={async () => { if(confirm("Remover este acesso permanentemente?")) { await fetch(`/api/admin/users/${u.id}`, {method:'DELETE'}); fetchUsers(); } }} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition"><Trash2 size={16}/></button>
+                        </div>
+                      </td>
                     </tr>
+                  )) : (
+                    <tr><td colSpan={4} className="py-24 text-center">
+                      <div className="flex flex-col items-center opacity-30">
+                        <Users size={48} className="mb-4" />
+                        <p className="text-sm font-bold uppercase tracking-widest">A aguardar conexão com o Postgres...</p>
+                      </div>
+                    </td></tr>
                   )}
                 </tbody>
               </table>
@@ -257,91 +230,87 @@ const AdminDashboard: React.FC = () => {
         )}
 
         {activeTab === 'stream' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Canal Público */}
-            <div className="bg-white rounded-[3rem] shadow-xl p-10 border border-slate-100">
-              <div className="flex items-center space-x-3 mb-8">
-                 <div className="w-10 h-10 bg-green-50 text-green-500 rounded-xl flex items-center justify-center"><Globe size={20} /></div>
-                 <h3 className="text-xl font-black text-ministry-blue">Canal Público (Aberto)</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-in fade-in duration-500">
+            <div className="bg-white rounded-[3rem] shadow-xl p-10 border border-slate-100 flex flex-col h-full">
+              <div className="flex items-center space-x-4 mb-8">
+                <div className="w-12 h-12 bg-blue-50 text-ministry-blue rounded-2xl flex items-center justify-center">
+                  <Globe size={24} />
+                </div>
+                <h3 className="text-xl font-black text-ministry-blue">Transmissão Aberta</h3>
               </div>
-              <div className="space-y-6">
+              <div className="space-y-6 flex-grow">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Link da Transmissão (YouTube / OBS)</label>
-                  <input type="text" value={publicStream.url} onChange={e => setPublicStream({...publicStream, url: e.target.value})} placeholder="Ex: https://youtube.com/live/..." className="w-full bg-slate-50 border-0 rounded-2xl p-5 focus:ring-2 focus:ring-ministry-gold text-sm font-medium" />
+                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-1">Link Global (YouTube / HLS)</label>
+                  <input type="text" value={publicStream.url} onChange={e => setPublicStream({...publicStream, url: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 border-0 focus:ring-2 focus:ring-ministry-gold transition" placeholder="https://..." />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Título da Transmissão</label>
-                  <input type="text" value={publicStream.title} onChange={e => setPublicStream({...publicStream, title: e.target.value})} placeholder="Ex: Culto de Domingo Online" className="w-full bg-slate-50 border-0 rounded-2xl p-5 focus:ring-2 focus:ring-ministry-gold text-sm font-medium" />
+                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-1">Título do Evento</label>
+                  <input type="text" value={publicStream.title} onChange={e => setPublicStream({...publicStream, title: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 border-0 focus:ring-2 focus:ring-ministry-gold transition" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Descrição</label>
-                  <textarea rows={3} value={publicStream.description} onChange={e => setPublicStream({...publicStream, description: e.target.value})} placeholder="Mensagem para os visitantes..." className="w-full bg-slate-50 border-0 rounded-2xl p-5 focus:ring-2 focus:ring-ministry-gold text-sm font-medium" />
+                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-1">Descrição</label>
+                  <textarea rows={3} value={publicStream.description} onChange={e => setPublicStream({...publicStream, description: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 border-0 focus:ring-2 focus:ring-ministry-gold transition" />
                 </div>
               </div>
             </div>
 
-            {/* Canal Exclusivo */}
-            <div className="bg-white rounded-[3rem] shadow-xl p-10 border border-slate-100">
-              <div className="flex items-center space-x-3 mb-8">
-                 <div className="w-10 h-10 bg-ministry-gold/10 text-ministry-gold rounded-xl flex items-center justify-center"><Lock size={20} /></div>
-                 <h3 className="text-xl font-black text-ministry-blue">Canal Exclusivo (Obreiros)</h3>
+            <div className="bg-white rounded-[3rem] shadow-xl p-10 border border-slate-100 flex flex-col h-full">
+              <div className="flex items-center space-x-4 mb-8">
+                <div className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center">
+                  <Lock size={24} />
+                </div>
+                <h3 className="text-xl font-black text-ministry-blue">Transmissão Restrita</h3>
               </div>
-              <div className="space-y-6">
+              <div className="space-y-6 flex-grow">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Link Restrito (OBS / m3u8)</label>
-                  <input type="text" value={privateStream.url} onChange={e => setPrivateStream({...privateStream, url: e.target.value})} placeholder="Ex: https://meu-servidor.com/stream.m3u8" className="w-full bg-slate-50 border-0 rounded-2xl p-5 focus:ring-2 focus:ring-ministry-gold text-sm font-medium" />
+                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-1">Link Exclusivo (Obreiros)</label>
+                  <input type="text" value={privateStream.url} onChange={e => setPrivateStream({...privateStream, url: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 border-0 focus:ring-2 focus:ring-ministry-gold transition" placeholder="https://..." />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Título Privado</label>
-                  <input type="text" value={privateStream.title} onChange={e => setPrivateStream({...privateStream, title: e.target.value})} placeholder="Ex: Conferência de Pastores" className="w-full bg-slate-50 border-0 rounded-2xl p-5 focus:ring-2 focus:ring-ministry-gold text-sm font-medium" />
+                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-1">Título Privado</label>
+                  <input type="text" value={privateStream.title} onChange={e => setPrivateStream({...privateStream, title: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 border-0 focus:ring-2 focus:ring-ministry-gold transition" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Descrição Restrita</label>
-                  <textarea rows={3} value={privateStream.description} onChange={e => setPrivateStream({...privateStream, description: e.target.value})} placeholder="Informações exclusivas..." className="w-full bg-slate-50 border-0 rounded-2xl p-5 focus:ring-2 focus:ring-ministry-gold text-sm font-medium" />
+                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-1">Informação Restrita</label>
+                  <textarea rows={3} value={privateStream.description} onChange={e => setPrivateStream({...privateStream, description: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 border-0 focus:ring-2 focus:ring-ministry-gold transition" />
                 </div>
               </div>
             </div>
 
             <div className="lg:col-span-2">
-              <button 
-                onClick={handleStreamSave}
-                className="w-full py-6 bg-ministry-blue text-white rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl hover:bg-opacity-95 transition active:scale-[0.98]"
-              >
+              <button onClick={handleStreamSave} className="w-full py-8 bg-ministry-blue text-white rounded-[2.5rem] font-black text-sm uppercase tracking-[0.3em] shadow-2xl shadow-blue-900/20 hover:scale-[1.01] active:scale-[0.99] transition">
                 PUBLICAR ALTERAÇÕES NOS CANAIS
               </button>
             </div>
           </div>
         )}
 
-        {/* Modal Utilizador */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-lg rounded-[3.5rem] overflow-hidden shadow-2xl border border-white/20">
-              <div className="bg-ministry-blue p-10 text-white flex justify-between items-center">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/70 backdrop-blur-xl animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-lg rounded-[4rem] overflow-hidden shadow-2xl">
+              <div className="bg-ministry-blue p-12 text-white flex justify-between items-center">
                 <div>
-                  <h3 className="font-bold uppercase text-xs tracking-[0.3em] opacity-60 mb-1">{editMode ? 'Atualizar Membro' : 'Novo Membro'}</h3>
-                  <p className="text-xl font-display font-bold">{editMode ? 'Editar Identidade' : 'Criar Credencial'}</p>
+                   <h4 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 mb-1">Identificação</h4>
+                   <p className="text-2xl font-display font-bold">{editMode ? 'Editar Acesso' : 'Gerar Acesso'}</p>
                 </div>
-                <button onClick={() => setIsModalOpen(false)} className="bg-white/10 p-2 rounded-full hover:bg-white/20 transition"><X /></button>
+                <button onClick={() => setIsModalOpen(false)} className="bg-white/10 p-3 rounded-full hover:bg-white/20 transition"><X /></button>
               </div>
-              <form onSubmit={handleUserSubmit} className="p-10 space-y-6">
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Nome Completo</label>
-                  <input type="text" placeholder="Irmão / Pastor..." required value={userForm.name} onChange={(e) => setUserForm({...userForm, name: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 border-0 focus:ring-2 focus:ring-ministry-gold transition" />
+              <form onSubmit={handleUserSubmit} className="p-12 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Nome do Membro</label>
+                  <input type="text" placeholder="Ex: Pastor José" required value={userForm.name} onChange={(e) => setUserForm({...userForm, name: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 border-0 focus:ring-2 focus:ring-ministry-gold" />
                 </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Nome de Utilizador</label>
-                  <input type="text" placeholder="username_identidade" required value={userForm.username} onChange={(e) => setUserForm({...userForm, username: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 border-0 focus:ring-2 focus:ring-ministry-gold transition font-mono" />
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2">ID de Acesso (Username)</label>
+                  <input type="text" placeholder="Utilizador" required value={userForm.username} onChange={(e) => setUserForm({...userForm, username: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 border-0 focus:ring-2 focus:ring-ministry-gold font-mono" />
                 </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Senha de Acesso</label>
-                  <input type="text" placeholder="Crie uma senha forte" required value={userForm.password} onChange={(e) => setUserForm({...userForm, password: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 border-0 focus:ring-2 focus:ring-ministry-gold transition font-mono" />
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Chave Mestra (Senha)</label>
+                  <input type="text" placeholder="Chave de segurança" required value={userForm.password} onChange={(e) => setUserForm({...userForm, password: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 border-0 focus:ring-2 focus:ring-ministry-gold font-mono" />
                 </div>
-                <div className="pt-4">
-                  <button type="submit" className="w-full py-5 bg-ministry-gold text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:opacity-95 transition">
-                    {editMode ? 'SALVAR ALTERAÇÕES' : 'GERAR ACESSO IMEDIATO'}
-                  </button>
-                </div>
+                <button type="submit" className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:opacity-95 transition">
+                  {editMode ? 'ATUALIZAR DADOS' : 'DESBLOQUEAR ACESSO AGORA'}
+                </button>
               </form>
             </div>
           </div>
