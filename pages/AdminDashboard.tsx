@@ -55,7 +55,7 @@ const AdminDashboard: React.FC = () => {
         setError(data.message || "Erro ao carregar dados.");
       }
     } catch (e: any) { 
-      setError("Conexão falhou. A base de dados pode ter sido desligada após a mudança do nome do projeto.");
+      setError("Conexão falhou. A base de dados Neon precisa de ser ligada ao novo projeto.");
     } finally {
       setIsUsersLoading(false);
     }
@@ -133,25 +133,24 @@ const AdminDashboard: React.FC = () => {
                   <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter">Status 500</span>
                 </div>
                 <p className="text-slate-600 leading-relaxed mb-6 font-medium">
-                  Parece que o projeto foi renomeado para <strong className="text-ministry-blue">ce-angola-app-cnbx</strong>. 
-                  Quando isso acontece, a Vercel desliga a base de dados do projeto antigo.
+                  Parece que o projeto foi renomeado. A base de dados precisa de ser conectada novamente ao novo projeto.
                 </p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                     <div className="text-ministry-gold mb-3"><Link2 size={24} /></div>
                     <p className="text-xs font-black text-slate-400 uppercase mb-2">Passo 1</p>
-                    <p className="text-sm text-slate-700 font-bold">Vai ao painel da Vercel e entra no novo projeto.</p>
+                    <p className="text-sm text-slate-700 font-bold">Clica em "Storage" no painel da Vercel.</p>
                   </div>
                   <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                     <div className="text-ministry-gold mb-3"><Database size={24} /></div>
                     <p className="text-xs font-black text-slate-400 uppercase mb-2">Passo 2</p>
-                    <p className="text-sm text-slate-700 font-bold">Clica em "Storage" e escolhe o Postgres existente.</p>
+                    <p className="text-sm text-slate-700 font-bold">Escolhe "Neon (Serverless Postgres)".</p>
                   </div>
                   <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                     <div className="text-ministry-gold mb-3"><Check size={24} /></div>
                     <p className="text-xs font-black text-slate-400 uppercase mb-2">Passo 3</p>
-                    <p className="text-sm text-slate-700 font-bold">Clica em "Connect" e faz um novo Deploy.</p>
+                    <p className="text-sm text-slate-700 font-bold">Clica em "Connect" e faz o "Redeploy".</p>
                   </div>
                 </div>
               </div>
@@ -179,7 +178,7 @@ const AdminDashboard: React.FC = () => {
             <div className="p-10 flex justify-between items-center bg-slate-50/50 border-b border-slate-100">
               <div>
                 <h3 className="text-xl font-black text-ministry-blue">Membros com Acesso</h3>
-                <p className="text-xs text-slate-400 mt-1 uppercase font-bold tracking-widest">Base de Dados Centralizada</p>
+                <p className="text-xs text-slate-400 mt-1 uppercase font-bold tracking-widest">Base de Dados Neon</p>
               </div>
               <button 
                 onClick={() => { setEditMode(null); setUserForm({ name: '', username: '', password: '' }); setIsModalOpen(true); }} 
@@ -218,8 +217,8 @@ const AdminDashboard: React.FC = () => {
                   )) : (
                     <tr><td colSpan={4} className="py-24 text-center">
                       <div className="flex flex-col items-center opacity-30">
-                        <Users size={48} className="mb-4" />
-                        <p className="text-sm font-bold uppercase tracking-widest">A aguardar conexão com o Postgres...</p>
+                        <Database size={48} className="mb-4" />
+                        <p className="text-sm font-bold uppercase tracking-widest">A aguardar ligação com o Neon Postgres...</p>
                       </div>
                     </td></tr>
                   )}
