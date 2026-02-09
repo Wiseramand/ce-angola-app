@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Video, Globe, Lock, Check, X, Plus, Trash2, Edit2, Copy, Radio, MessageSquare, Info, Layout
+  Users, Video, Globe, Lock, Check, X, Plus, Trash2, Edit2, Copy, Radio, MessageSquare, Info, Layout, AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
@@ -18,34 +18,67 @@ const AdminDashboard: React.FC = () => {
   const { system, updateStreamConfig } = useAuth();
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState<ManagedUser[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isUsersLoading, setIsUsersLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Modais
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editMode, setEditMode] = useState<string | null>(null);
   const [userForm, setUserForm] = useState({ name: '', username: '', password: '' });
   
-  // Stream Forms
+  // Stream Forms - Inicializados com valores do sistema
   const [publicStream, setPublicStream] = useState({
-    url: system.publicUrl,
-    title: system.publicTitle,
-    description: system.publicDescription
+    url: '',
+    title: '',
+    description: ''
   });
 
   const [privateStream, setPrivateStream] = useState({
-    url: system.privateUrl,
-    title: system.privateTitle,
-    description: system.privateDescription
+    url: '',
+    title: '',
+    description: ''
   });
 
+  // Sincronizar formulários quando o sistema carregar da API
+  useEffect(() => {
+    if (system) {
+      setPublicStream({
+        url: system.publicUrl || '',
+        title: system.publicTitle || '',
+        description: system.publicDescription || ''
+      });
+      setPrivateStream({
+        url: system.privateUrl || '',
+        title: system.privateTitle || '',
+        description: system.privateDescription || ''
+      });
+    }
+  }, [system]);
+
   const fetchUsers = async () => {
-    setIsLoading(true);
+    setIsUsersLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/admin/users');
+      if (!res.ok) throw new Error(`Erro do servidor: ${res.status}`);
+      
       const data = await res.json();
-      setUsers(data);
-    } catch (e) { console.error(e); }
-    setIsLoading(false);
+      
+      // SEGURANÇA: Garante que 'users' seja sempre um array para não crashar o .map()
+      if (Array.isArray(data)) {
+        setUsers(data);
+      } else {
+        console.error("Dados de utilizadores inválidos:", data);
+        setUsers([]);
+        if (data.error) setError(data.error);
+      }
+    } catch (e: any) { 
+      console.error("Fetch users failed:", e);
+      setError(e.message);
+      setUsers([]);
+    } finally {
+      setIsUsersLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -57,16 +90,25 @@ const AdminDashboard: React.FC = () => {
     const url = editMode ? `/api/admin/users/${editMode}` : '/api/admin/users';
     const method = editMode ? 'PUT' : 'POST';
 
-    await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userForm)
-    });
-
-    setUserForm({ name: '', username: '', password: '' });
-    setEditMode(null);
-    setIsModalOpen(false);
-    fetchUsers();
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userForm)
+      });
+      
+      if (res.ok) {
+        setUserForm({ name: '', username: '', password: '' });
+        setEditMode(null);
+        setIsModalOpen(false);
+        fetchUsers();
+      } else {
+        const errData = await res.json();
+        alert(`Erro ao salvar: ${errData.error || 'Desconhecido'}`);
+      }
+    } catch (e) {
+      alert("Falha na comunicação com o servidor.");
+    }
   };
 
   const handleEditClick = (user: ManagedUser) => {
@@ -83,24 +125,33 @@ const AdminDashboard: React.FC = () => {
 
   const handleDeleteUser = async (id: string) => {
     if (!confirm("Remover acesso deste membro permanentemente?")) return;
-    await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
-    fetchUsers();
+    try {
+      await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
+      fetchUsers();
+    } catch (e) {
+      alert("Erro ao eliminar utilizador.");
+    }
   };
 
   const handleStreamSave = async () => {
-    await updateStreamConfig({
-      publicUrl: publicStream.url,
-      publicTitle: publicStream.title,
-      publicDescription: publicStream.description,
-      privateUrl: privateStream.url,
-      privateTitle: privateStream.title,
-      privateDescription: privateStream.description
-    });
-    alert("Configurações de Satélite atualizadas com sucesso!");
+    try {
+      await updateStreamConfig({
+        publicUrl: publicStream.url,
+        publicTitle: publicStream.title,
+        publicDescription: publicStream.description,
+        privateUrl: privateStream.url,
+        privateTitle: privateStream.title,
+        privateDescription: privateStream.description
+      });
+      alert("Configurações de Satélite atualizadas com sucesso!");
+    } catch (e) {
+      alert("Erro ao atualizar canais.");
+    }
   };
 
   return (
     <div className="bg-[#f8fafc] min-h-screen flex">
+      {/* Sidebar */}
       <aside className="w-80 bg-ministry-blue text-white hidden xl:flex flex-col sticky top-0 h-screen">
         <div className="p-10 border-b border-white/5">
           <Logo className="h-16 w-auto mb-4" />
@@ -136,6 +187,16 @@ const AdminDashboard: React.FC = () => {
           </button>
         </header>
 
+        {error && (
+          <div className="mb-10 p-6 bg-red-50 border border-red-100 rounded-[2rem] flex items-center space-x-4 text-red-600">
+            <AlertTriangle size={24} />
+            <div>
+              <p className="font-bold">Atenção ao Sistema</p>
+              <p className="text-sm opacity-80">{error}. Verifique se a DATABASE_URL está configurada na Vercel.</p>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'users' && (
           <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="p-10 flex justify-between items-center bg-slate-50/50 border-b border-slate-100">
@@ -162,26 +223,29 @@ const AdminDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {users.map(u => (
-                    <tr key={u.id} className="hover:bg-slate-50/30 transition">
-                      <td className="px-10 py-6">
-                        <div className="font-bold text-ministry-blue">{u.name}</div>
-                        <div className="text-[10px] text-green-500 font-bold uppercase mt-0.5 flex items-center">
-                          <Check size={10} className="mr-1" /> Acesso Ativo
-                        </div>
-                      </td>
-                      <td className="px-10 py-6 text-sm font-medium text-slate-600 font-mono bg-slate-50/20">{u.username}</td>
-                      <td className="px-10 py-6 text-sm text-slate-400 font-mono tracking-tighter">{u.password}</td>
-                      <td className="px-10 py-6">
-                        <div className="flex items-center justify-center space-x-2">
-                          <button onClick={() => handleCopy(u)} className="p-3 text-slate-400 hover:text-ministry-gold bg-slate-50 rounded-xl transition" title="Copiar Dados"><Copy size={16} /></button>
-                          <button onClick={() => handleEditClick(u)} className="p-3 text-slate-400 hover:text-blue-500 bg-slate-50 rounded-xl transition" title="Editar"><Edit2 size={16} /></button>
-                          <button onClick={() => handleDeleteUser(u.id)} className="p-3 text-slate-400 hover:text-red-500 bg-slate-50 rounded-xl transition" title="Remover"><Trash2 size={16} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {users.length === 0 && (
+                  {isUsersLoading ? (
+                    <tr><td colSpan={4} className="py-20 text-center text-slate-400">Carregando lista de membros...</td></tr>
+                  ) : users.length > 0 ? (
+                    users.map(u => (
+                      <tr key={u.id} className="hover:bg-slate-50/30 transition">
+                        <td className="px-10 py-6">
+                          <div className="font-bold text-ministry-blue">{u.name}</div>
+                          <div className="text-[10px] text-green-500 font-bold uppercase mt-0.5 flex items-center">
+                            <Check size={10} className="mr-1" /> Acesso Ativo
+                          </div>
+                        </td>
+                        <td className="px-10 py-6 text-sm font-medium text-slate-600 font-mono bg-slate-50/20">{u.username}</td>
+                        <td className="px-10 py-6 text-sm text-slate-400 font-mono tracking-tighter">{u.password}</td>
+                        <td className="px-10 py-6">
+                          <div className="flex items-center justify-center space-x-2">
+                            <button onClick={() => handleCopy(u)} className="p-3 text-slate-400 hover:text-ministry-gold bg-slate-50 rounded-xl transition" title="Copiar Dados"><Copy size={16} /></button>
+                            <button onClick={() => handleEditClick(u)} className="p-3 text-slate-400 hover:text-blue-500 bg-slate-50 rounded-xl transition" title="Editar"><Edit2 size={16} /></button>
+                            <button onClick={() => handleDeleteUser(u.id)} className="p-3 text-slate-400 hover:text-red-500 bg-slate-50 rounded-xl transition" title="Remover"><Trash2 size={16} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
                     <tr>
                       <td colSpan={4} className="py-20 text-center text-slate-400 italic">Nenhum membro autorizado no sistema.</td>
                     </tr>
