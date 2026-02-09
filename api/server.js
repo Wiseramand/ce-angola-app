@@ -2,7 +2,7 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 
-// O Neon e a Vercel usam estas variáveis por padrão
+// Tenta obter a string de conexão de qualquer uma das variáveis que a Vercel/Neon costumam injetar
 const connectionString = 
   process.env.DATABASE_URL || 
   process.env.POSTGRES_URL || 
@@ -11,16 +11,20 @@ const connectionString =
 let pool;
 
 if (connectionString) {
-  // Configuração otimizada para Neon/Serverless
-  pool = new Pool({
-    connectionString: connectionString,
-    ssl: {
-      rejectUnauthorized: false // Necessário para Neon e instâncias cloud
-    },
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
-  });
+  try {
+    // Configuração otimizada para Neon/Serverless
+    pool = new Pool({
+      connectionString: connectionString,
+      ssl: {
+        rejectUnauthorized: false 
+      },
+      max: 10, // Reduzido para ser mais amigável com planos gratuitos
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    });
+  } catch (err) {
+    console.error('Erro ao inicializar o Pool:', err);
+  }
 }
 
 async function ensureTables() {
@@ -29,7 +33,7 @@ async function ensureTables() {
   try {
     await client.query('BEGIN');
     
-    // Tabela de Configuração
+    // Tabela de Configuração do Sistema
     await client.query(`
       CREATE TABLE IF NOT EXISTS system_config (
         id INTEGER PRIMARY KEY,
@@ -43,14 +47,14 @@ async function ensureTables() {
       )
     `);
     
-    // Inserir dados iniciais se não existirem
+    // Inserir dados iniciais se a tabela estiver vazia
     await client.query(`
-      INSERT INTO system_config (id, public_title, public_description)
-      SELECT 1, 'LoveWorld TV Angola', 'Transmissão pública e gratuita'
+      INSERT INTO system_config (id, public_title, public_description, is_private_mode)
+      SELECT 1, 'LoveWorld TV Angola', 'Transmissão pública e gratuita', false
       WHERE NOT EXISTS (SELECT 1 FROM system_config WHERE id = 1)
     `);
 
-    // Tabela de Utilizadores
+    // Tabela de Utilizadores Geridos (Criados pelo Admin)
     await client.query(`
       CREATE TABLE IF NOT EXISTS managed_users (
         id SERIAL PRIMARY KEY,
@@ -65,7 +69,7 @@ async function ensureTables() {
     await client.query('COMMIT');
   } catch (e) {
     await client.query('ROLLBACK');
-    console.error('Falha ao criar tabelas:', e);
+    console.error('Falha crítica na criação das tabelas:', e);
     throw e;
   } finally {
     client.release();
@@ -80,15 +84,15 @@ export default async function handler(req, res) {
   if (!connectionString) {
     return res.status(500).json({ 
       error: 'DB_NOT_CONFIGURED',
-      message: 'Ligação ao Neon Postgres não encontrada.',
-      hint: 'Selecione Neon (Serverless Postgres) no painel Storage da Vercel e clique em Connect.'
+      message: 'Base de Dados não detetada nas variáveis de ambiente.',
+      hint: 'Vá a Settings > Environment Variables, apague a DATABASE_URL antiga e reconecte no Storage.'
     });
   }
 
   try {
     await ensureTables();
 
-    // Endpoints do Sistema
+    // Endpoints do Sistema (Configurações de Stream)
     if (path === '/api/system' && method === 'GET') {
       const result = await pool.query('SELECT * FROM system_config WHERE id = 1');
       return res.status(200).json(result.rows[0]);
@@ -112,13 +116,14 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // Endpoints de Autenticação
+    // Endpoints de Autenticação para utilizadores com acesso exclusivo
     if (path === '/api/login' && method === 'POST') {
       const { username, pass } = req.body;
       const result = await pool.query(
         'SELECT * FROM managed_users WHERE username = $1 AND password = $2 AND status = $3',
         [username, pass, 'active']
       );
+      
       if (result.rows.length > 0) {
         const u = result.rows[0];
         return res.status(200).json({ 
@@ -129,10 +134,10 @@ export default async function handler(req, res) {
           hasLiveAccess: true 
         });
       }
-      return res.status(401).json({ error: 'Credenciais Inválidas' });
+      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Utilizador ou senha incorretos.' });
     }
 
-    // Endpoints Administrativos
+    // Endpoints Administrativos (Gestão de Utilizadores)
     if (path === '/api/admin/users' && method === 'GET') {
       const result = await pool.query('SELECT id, fullname as name, username, password FROM managed_users ORDER BY id DESC');
       return res.status(200).json(result.rows);
@@ -153,13 +158,24 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    return res.status(404).json({ error: 'Not Found' });
+    // Endpoint de atualização de utilizador (PUT)
+    if (path.startsWith('/api/admin/users/') && method === 'PUT') {
+      const id = path.split('/').pop();
+      const { name, username, password } = req.body;
+      await pool.query(
+        'UPDATE managed_users SET fullname = $1, username = $2, password = $3 WHERE id = $4',
+        [name, username, password, id]
+      );
+      return res.status(200).json({ success: true });
+    }
+
+    return res.status(404).json({ error: 'NOT_FOUND', message: 'Endpoint não encontrado.' });
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('Erro de Execução na API:', error);
     return res.status(500).json({ 
-      error: 'DB_ERROR', 
+      error: 'EXECUTION_ERROR', 
       message: error.message,
-      detail: 'Verifique se o Neon Postgres está "Ready" no painel da Vercel.'
+      detail: 'Verifique os logs da Vercel para mais detalhes sobre a falha no Postgres.'
     });
   }
 }
