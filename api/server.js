@@ -2,7 +2,6 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 
-// Tenta obter a string de conexão de qualquer uma das variáveis que a Vercel/Neon costumam injetar
 const connectionString = 
   process.env.DATABASE_URL || 
   process.env.POSTGRES_URL || 
@@ -12,13 +11,10 @@ let pool;
 
 if (connectionString) {
   try {
-    // Configuração otimizada para Neon/Serverless
     pool = new Pool({
       connectionString: connectionString,
-      ssl: {
-        rejectUnauthorized: false 
-      },
-      max: 10, // Reduzido para ser mais amigável com planos gratuitos
+      ssl: { rejectUnauthorized: false },
+      max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
     });
@@ -33,7 +29,6 @@ async function ensureTables() {
   try {
     await client.query('BEGIN');
     
-    // Tabela de Configuração do Sistema
     await client.query(`
       CREATE TABLE IF NOT EXISTS system_config (
         id INTEGER PRIMARY KEY,
@@ -47,14 +42,13 @@ async function ensureTables() {
       )
     `);
     
-    // Inserir dados iniciais se a tabela estiver vazia
+    // Inserir dados iniciais com link padrão da LoveWorld se a tabela estiver vazia
     await client.query(`
-      INSERT INTO system_config (id, public_title, public_description, is_private_mode)
-      SELECT 1, 'LoveWorld TV Angola', 'Transmissão pública e gratuita', false
+      INSERT INTO system_config (id, public_url, public_title, public_description, is_private_mode)
+      SELECT 1, 'https://www.youtube.com/live/SQU60r_3HTo', 'LoveWorld TV Angola', 'Transmissão pública e gratuita de esperança e fé.', false
       WHERE NOT EXISTS (SELECT 1 FROM system_config WHERE id = 1)
     `);
 
-    // Tabela de Utilizadores Geridos (Criados pelo Admin)
     await client.query(`
       CREATE TABLE IF NOT EXISTS managed_users (
         id SERIAL PRIMARY KEY,
@@ -84,15 +78,13 @@ export default async function handler(req, res) {
   if (!connectionString) {
     return res.status(500).json({ 
       error: 'DB_NOT_CONFIGURED',
-      message: 'Base de Dados não detetada nas variáveis de ambiente.',
-      hint: 'Vá a Settings > Environment Variables, apague a DATABASE_URL antiga e reconecte no Storage.'
+      message: 'Base de Dados não detetada nas variáveis de ambiente.'
     });
   }
 
   try {
     await ensureTables();
 
-    // Endpoints do Sistema (Configurações de Stream)
     if (path === '/api/system' && method === 'GET') {
       const result = await pool.query('SELECT * FROM system_config WHERE id = 1');
       return res.status(200).json(result.rows[0]);
@@ -116,7 +108,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // Endpoints de Autenticação para utilizadores com acesso exclusivo
     if (path === '/api/login' && method === 'POST') {
       const { username, pass } = req.body;
       const result = await pool.query(
@@ -137,7 +128,6 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Utilizador ou senha incorretos.' });
     }
 
-    // Endpoints Administrativos (Gestão de Utilizadores)
     if (path === '/api/admin/users' && method === 'GET') {
       const result = await pool.query('SELECT id, fullname as name, username, password FROM managed_users ORDER BY id DESC');
       return res.status(200).json(result.rows);
@@ -158,7 +148,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // Endpoint de atualização de utilizador (PUT)
     if (path.startsWith('/api/admin/users/') && method === 'PUT') {
       const id = path.split('/').pop();
       const { name, username, password } = req.body;
@@ -169,13 +158,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    return res.status(404).json({ error: 'NOT_FOUND', message: 'Endpoint não encontrado.' });
+    return res.status(404).json({ error: 'NOT_FOUND' });
   } catch (error) {
     console.error('Erro de Execução na API:', error);
-    return res.status(500).json({ 
-      error: 'EXECUTION_ERROR', 
-      message: error.message,
-      detail: 'Verifique os logs da Vercel para mais detalhes sobre a falha no Postgres.'
-    });
+    return res.status(500).json({ error: 'EXECUTION_ERROR', message: error.message });
   }
 }

@@ -9,10 +9,15 @@ const Home: React.FC = () => {
       {/* Hero Section */}
       <section className="relative h-screen flex items-center overflow-hidden">
         <div className="absolute inset-0 z-0">
+          {/* Altere o src para o caminho da sua imagem local, ex: "assets/hero.jpg" ou apenas "hero.jpg" */}
           <img 
-            src="https://images.unsplash.com/photo-1544427920-c49ccfb85579?q=80&w=2134&auto=format&fit=crop" 
+            src="assets/hero-pastor.jpg" 
             alt="Pastor Chris Oyakhilome" 
             className="w-full h-full object-cover"
+            onError={(e) => {
+              // Fallback caso a imagem local ainda não exista
+              (e.target as HTMLImageElement).src = "assets/hero-pastor.jpg";
+            }}
           />
           <div className="absolute inset-0 bg-ministry-blue/60 backdrop-blur-[2px]"></div>
           <div className="absolute inset-0 bg-gradient-to-r from-ministry-blue via-ministry-blue/40 to-transparent"></div>

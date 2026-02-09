@@ -11,9 +11,12 @@ const Founder: React.FC = () => {
               <div className="absolute -inset-4 bg-ministry-gold/10 rounded-3xl blur-2xl group-hover:bg-ministry-gold/20 transition duration-500"></div>
               <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
                 <img 
-                  src="https://images.unsplash.com/photo-1510519133417-c057b49ef29d?q=80&w=2070&auto=format&fit=crop" 
+                  src="assets/pastor-chris.jpg" 
                   alt="Rev. Dr. Chris Oyakhilome" 
                   className="w-full aspect-[4/5] object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "assets/pastor-chris.jpg";
+                  }}
                 />
               </div>
               <div className="absolute -bottom-8 -right-8 bg-ministry-blue text-white p-8 rounded-3xl shadow-xl border-4 border-ministry-gold max-w-xs hidden md:block">

@@ -7,28 +7,28 @@ export const PARTNERSHIP_BRANCHES: PartnershipBranch[] = [
     name: 'Rhapsody of Realities',
     description: 'The world\'s most translated book, reaching billions in over 7,000 languages.',
     impact: 'Reaching every nation and city with the gospel through messenger angel.',
-    imageUrl: 'https://picsum.photos/seed/rhapsody/800/600'
+    imageUrl: 'assets/rhapsody.jpg'
   },
   {
     id: 'hschool',
     name: 'Healing School',
     description: 'Bringing the healing power of God to the nations through healing crusades.',
     impact: 'Millions healed from diverse ailments and sicknesses across the globe.',
-    imageUrl: 'https://picsum.photos/seed/healing/800/600'
+    imageUrl: 'assets/healing-school.jpg'
   },
   {
     id: 'loveworld-tv',
     name: 'LoveWorld TV',
     description: 'Broadcasting the message of hope and life to homes worldwide 24/7.',
     impact: 'Global satellite and digital reach, impacting lives across all continents.',
-    imageUrl: 'https://picsum.photos/seed/tv/800/600'
+    imageUrl: 'assets/loveworld-tv.jpg'
   },
   {
     id: 'innercity',
     name: 'InnerCity Mission',
     description: 'Committed to breaking the cycle of poverty and reaching indigent children.',
     impact: 'Feeding programs, education, and shelter for vulnerable children everywhere.',
-    imageUrl: 'https://picsum.photos/seed/children/800/600'
+    imageUrl: 'assets/inner-city.jpg'
   }
 ];
 
