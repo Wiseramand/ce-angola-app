@@ -2,23 +2,26 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 
-// A Vercel agora usa frequentemente POSTGRES_URL em vez de DATABASE_URL
-const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+// O código agora procura por QUALQUER um destes nomes comuns de variáveis
+const connectionString = 
+  process.env.POSTGRES_URL || 
+  process.env.DATABASE_URL || 
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.DB_URL;
 
 let pool;
-if (!pool && connectionString) {
+if (connectionString) {
   pool = new Pool({
     connectionString: connectionString,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 5000 // 5 segundos de limite para não travar o server
   });
 }
 
-// Função para garantir que as tabelas existem (Criação automática)
 async function ensureTables() {
   if (!pool) return;
   const client = await pool.connect();
   try {
-    // Tabela de Configuração
     await client.query(`
       CREATE TABLE IF NOT EXISTS system_config (
         id INTEGER PRIMARY KEY,
@@ -32,14 +35,12 @@ async function ensureTables() {
       )
     `);
     
-    // Inserir linha padrão se não existir
     await client.query(`
       INSERT INTO system_config (id, public_title, public_description)
       SELECT 1, 'LoveWorld TV Angola', 'Transmissão pública'
       WHERE NOT EXISTS (SELECT 1 FROM system_config WHERE id = 1)
     `);
 
-    // Tabela de Utilizadores
     await client.query(`
       CREATE TABLE IF NOT EXISTS managed_users (
         id SERIAL PRIMARY KEY,
@@ -62,20 +63,22 @@ export default async function handler(req, res) {
 
   if (!connectionString) {
     return res.status(500).json({ 
-      error: 'DATABASE_URL_MISSING',
-      message: 'A ligação com o banco de dados foi perdida após a mudança de nome do projeto. Re-conecte o Postgres no painel da Vercel.' 
+      error: 'DB_NOT_CONFIGURED',
+      message: 'Nenhuma URL de banco de dados foi encontrada.',
+      hint: 'Verifique se o nome da variável na Vercel é DATABASE_URL'
     });
   }
 
   try {
     await ensureTables();
 
-    // 1. SYSTEM CONFIG
+    // GET SYSTEM
     if (path === '/api/system' && method === 'GET') {
       const result = await pool.query('SELECT * FROM system_config WHERE id = 1');
       return res.status(200).json(result.rows[0]);
     }
 
+    // POST SYSTEM
     if (path === '/api/system' && method === 'POST') {
       const { 
         publicUrl, publicTitle, publicDescription,
@@ -94,7 +97,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 2. AUTH LOGIN
+    // AUTH LOGIN
     if (path === '/api/login' && method === 'POST') {
       const { username, pass } = req.body;
       const result = await pool.query(
@@ -102,41 +105,28 @@ export default async function handler(req, res) {
         [username, pass, 'active']
       );
       if (result.rows.length > 0) {
-        const user = result.rows[0];
         return res.status(200).json({ 
-          id: user.id.toString(), 
-          fullName: user.fullname, 
-          username: user.username,
+          id: result.rows[0].id.toString(), 
+          fullName: result.rows[0].fullname, 
+          username: result.rows[0].username,
           role: 'user',
           hasLiveAccess: true 
         });
       }
-      return res.status(401).json({ error: 'Credenciais Inválidas' });
+      return res.status(401).json({ error: 'Incorreto' });
     }
 
-    // 3. ADMIN USERS
-    if (path === '/api/admin/users' && method === 'GET') {
-      const result = await pool.query('SELECT id, fullname as name, username, password, status FROM managed_users ORDER BY created_at DESC');
-      return res.status(200).json(result.rows);
-    }
-
-    if (path === '/api/admin/users' && method === 'POST') {
-      const { name, username, password } = req.body;
-      await pool.query(
-        'INSERT INTO managed_users (fullname, username, password) VALUES ($1, $2, $3)',
-        [name, username, password]
-      );
-      return res.status(201).json({ success: true });
-    }
-
-    if (path.startsWith('/api/admin/users/') && method === 'PUT') {
-      const id = path.split('/').pop();
-      const { name, username, password } = req.body;
-      await pool.query(
-        'UPDATE managed_users SET fullname = $1, username = $2, password = $3 WHERE id = $4',
-        [name, username, password, id]
-      );
-      return res.status(200).json({ success: true });
+    // ADMIN USERS
+    if (path === '/api/admin/users') {
+      if (method === 'GET') {
+        const result = await pool.query('SELECT id, fullname as name, username, password FROM managed_users ORDER BY id DESC');
+        return res.status(200).json(result.rows);
+      }
+      if (method === 'POST') {
+        const { name, username, password } = req.body;
+        await pool.query('INSERT INTO managed_users (fullname, username, password) VALUES ($1, $2, $3)', [name, username, password]);
+        return res.status(201).json({ success: true });
+      }
     }
 
     if (path.startsWith('/api/admin/users/') && method === 'DELETE') {
@@ -147,11 +137,10 @@ export default async function handler(req, res) {
 
     return res.status(404).json({ error: 'Not Found' });
   } catch (error) {
-    console.error('SERVER ERROR:', error);
     return res.status(500).json({ 
-      error: 'DB_ERROR', 
+      error: 'DB_CONNECTION_ERROR', 
       message: error.message,
-      detail: 'Verifique se o banco de dados Postgres está ativo no Storage da Vercel.'
+      detail: 'A URL existe, mas o banco de dados recusou a conexão ou está offline.'
     });
   }
 }

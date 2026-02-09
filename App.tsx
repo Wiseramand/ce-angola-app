@@ -59,12 +59,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshSystem = async () => {
     try {
       const res = await fetch('/api/system');
-      if (!res.ok) {
-        console.warn(`System config fetch returned non-ok status: ${res.status}`);
-        return;
-      }
+      if (!res.ok) return;
       const data = await res.json();
-      if (data && typeof data === 'object') {
+      if (data && !data.error) {
         setSystem(prev => ({
           ...prev,
           publicUrl: data.public_url || '',
@@ -77,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }));
       }
     } catch (e) { 
-      console.error("Config fetch failed:", e); 
+      // Silencioso para não travar a UI
     }
   };
 
@@ -95,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     };
     init();
-    const interval = setInterval(refreshSystem, 30000); 
+    const interval = setInterval(refreshSystem, 15000); 
     return () => clearInterval(interval);
   }, []);
 
@@ -145,24 +142,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateStreamConfig = async (config: Partial<StreamConfig>) => {
-    const newConfig = { ...system, ...config };
     try {
       const res = await fetch('/api/system', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newConfig)
+        body: JSON.stringify({ ...system, ...config })
       });
       if (res.ok) {
         await refreshSystem();
+      } else {
+        throw new Error("Falha ao salvar");
       }
     } catch (e) {
-      console.error("Failed to update stream config:", e);
+      alert("Erro ao comunicar com o servidor. O banco de dados pode estar mal configurado.");
+      throw e;
     }
   };
 
-  const terminateSession = (userId: string) => {
-    console.log("Terminate session for", userId);
-  };
+  const terminateSession = (userId: string) => { console.log(userId); };
 
   return (
     <AuthContext.Provider value={{ user, system, login, adminLogin, register, logout, isLoading, updateStreamConfig, terminateSession, refreshSystem }}>
