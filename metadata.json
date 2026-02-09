@@ -1,0 +1,8 @@
+{
+  "name": "Christ Embassy Angola",
+  "description": "A comprehensive streaming and engagement platform for Christ Embassy Angola, featuring live TV, interactive chat, partnership management, and secure multi-method donations.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
