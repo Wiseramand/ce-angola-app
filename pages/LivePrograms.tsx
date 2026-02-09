@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, Users, MessageSquare, Maximize2, Volume2, Shield, Heart, Radio } from 'lucide-react';
+import { Send, Heart, Shield } from 'lucide-react';
 import { useAuth } from '../App';
 import { ChatMessage } from '../types';
 import UniversalPlayer from '../components/UniversalPlayer';
@@ -34,7 +34,7 @@ const LivePrograms: React.FC = () => {
       <div className="max-w-[1800px] mx-auto px-4 h-full flex flex-col lg:flex-row gap-6">
         <div className="flex-grow lg:w-[75%] flex flex-col">
           <div className="relative aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/10">
-            <UniversalPlayer url={system.privateUrl} title="Acesso Exclusivo CE Angola" />
+            <UniversalPlayer url={system.privateUrl} title={system.privateTitle} />
             
             <div className="absolute top-6 left-6 flex items-center space-x-3">
               <div className="bg-ministry-gold px-4 py-1.5 rounded-lg text-white text-[10px] font-black uppercase flex items-center shadow-lg">
@@ -49,8 +49,8 @@ const LivePrograms: React.FC = () => {
               <div className="flex items-center space-x-3 mb-3">
                  <span className="px-3 py-1 bg-ministry-gold/20 text-ministry-gold text-[10px] font-extrabold rounded-full uppercase tracking-widest">Canal Consagrado</span>
               </div>
-              <h1 className="text-3xl font-bold text-white font-display mb-3">Conferência Ministerial de Angola</h1>
-              <p className="text-gray-400 text-lg font-light leading-relaxed max-w-3xl">Programação de acesso restrito para parceiros e obreiros.</p>
+              <h1 className="text-3xl font-bold text-white font-display mb-3">{system.privateTitle}</h1>
+              <p className="text-gray-400 text-lg font-light leading-relaxed max-w-3xl">{system.privateDescription}</p>
             </div>
             <Link to="/donations" className="flex items-center space-x-3 px-10 py-5 bg-ministry-gold text-white font-black text-xl rounded-2xl shadow-2xl">
               <Heart size={24} fill="white" />

@@ -47,7 +47,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [system, setSystem] = useState<SystemState>({
     publicUrl: '',
+    publicTitle: 'LoveWorld TV Angola',
+    publicDescription: 'Transmissão pública e gratuita.',
     privateUrl: '',
+    privateTitle: 'Conferência Ministerial',
+    privateDescription: 'Acesso restrito para parceiros.',
     isPrivateMode: false,
     activeSessions: []
   });
@@ -55,50 +59,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshSystem = async () => {
     try {
       const res = await fetch('/api/system');
+      if (!res.ok) {
+        console.warn(`System config fetch returned non-ok status: ${res.status}`);
+        return;
+      }
       const data = await res.json();
-      setSystem(prev => ({
-        ...prev,
-        publicUrl: data.public_url,
-        privateUrl: data.private_url,
-        isPrivateMode: data.is_private_mode
-      }));
-    } catch (e) { console.error("Config fetch failed", e); }
+      if (data && typeof data === 'object') {
+        setSystem(prev => ({
+          ...prev,
+          publicUrl: data.public_url || '',
+          publicTitle: data.public_title || 'LoveWorld TV Angola',
+          publicDescription: data.public_description || 'Transmissão pública e gratuita.',
+          privateUrl: data.private_url || '',
+          privateTitle: data.private_title || 'Conferência Ministerial',
+          privateDescription: data.private_description || 'Acesso restrito para parceiros.',
+          isPrivateMode: !!data.is_private_mode
+        }));
+      }
+    } catch (e) { 
+      console.error("Config fetch failed:", e); 
+    }
   };
 
   useEffect(() => {
     const init = async () => {
       await refreshSystem();
       const saved = localStorage.getItem('ce_session_user');
-      if (saved) setUser(JSON.parse(saved));
+      if (saved) {
+        try {
+          setUser(JSON.parse(saved));
+        } catch (e) {
+          localStorage.removeItem('ce_session_user');
+        }
+      }
       setIsLoading(false);
     };
     init();
-    const interval = setInterval(refreshSystem, 30000); // Poll cada 30s
+    const interval = setInterval(refreshSystem, 30000); 
     return () => clearInterval(interval);
   }, []);
 
   const login = async (creds: { username: string; pass: string }) => {
     setIsLoading(true);
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(creds)
-    });
-    
-    if (res.ok) {
-      const data = await res.json();
-      setUser(data);
-      localStorage.setItem('ce_session_user', JSON.stringify(data));
-    } else {
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(creds)
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data);
+        localStorage.setItem('ce_session_user', JSON.stringify(data));
+      } else {
+        throw new Error('INVALID');
+      }
+    } finally {
       setIsLoading(false);
-      throw new Error('INVALID');
     }
-    setIsLoading(false);
   };
 
   const adminLogin = async (creds: { username: string; pass: string }) => {
     setIsLoading(true);
-    // Credenciais Master fixas ou via variável de ambiente
     if (creds.username === 'master_admin' && creds.pass === 'angola_faith_2025') {
       const admin: User = { id: 'admin-1', fullName: 'Super Administrador', email: 'admin@ceangola.org', phone: '900', country: 'Angola', address: 'Luanda', gender: 'Male', hasLiveAccess: true, role: 'admin' };
       setUser(admin);
@@ -123,20 +146,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateStreamConfig = async (config: Partial<StreamConfig>) => {
     const newConfig = { ...system, ...config };
-    await fetch('/api/system', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        publicUrl: newConfig.publicUrl,
-        privateUrl: newConfig.privateUrl,
-        isPrivateMode: newConfig.isPrivateMode
-      })
-    });
-    await refreshSystem();
+    try {
+      const res = await fetch('/api/system', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newConfig)
+      });
+      if (res.ok) {
+        await refreshSystem();
+      }
+    } catch (e) {
+      console.error("Failed to update stream config:", e);
+    }
   };
 
   const terminateSession = (userId: string) => {
-    // Implementar via Websockets no futuro para tempo real
     console.log("Terminate session for", userId);
   };
 

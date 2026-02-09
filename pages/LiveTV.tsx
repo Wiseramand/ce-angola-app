@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, Users, MessageSquare, Maximize2, Volume2, UserPlus, Heart, Radio } from 'lucide-react';
+import { Send, MessageSquare, Heart, UserPlus } from 'lucide-react';
 import { useAuth } from '../App';
 import { ChatMessage } from '../types';
 import UniversalPlayer from '../components/UniversalPlayer';
@@ -34,7 +34,7 @@ const LiveTV: React.FC = () => {
       <div className="max-w-[1800px] mx-auto px-4 h-full flex flex-col lg:flex-row gap-6">
         <div className="flex-grow lg:w-[75%] flex flex-col">
           <div className="relative aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/10 group">
-            <UniversalPlayer url={system.publicUrl} title="LoveWorld TV Angola" />
+            <UniversalPlayer url={system.publicUrl} title={system.publicTitle} />
             
             <div className="absolute top-6 left-6 flex items-center space-x-3 pointer-events-none">
               <div className="bg-red-600 px-4 py-1.5 rounded-lg text-white text-xs font-black uppercase flex items-center shadow-lg">
@@ -46,8 +46,8 @@ const LiveTV: React.FC = () => {
 
           <div className="mt-8 bg-gray-900 p-8 rounded-[2rem] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl">
             <div className="flex-grow">
-              <h1 className="text-3xl font-bold text-white font-display mb-2">LoveWorld TV Angola</h1>
-              <p className="text-gray-400 text-lg font-light leading-relaxed max-w-2xl">Transmissão pública e gratuita para toda a família.</p>
+              <h1 className="text-3xl font-bold text-white font-display mb-2">{system.publicTitle}</h1>
+              <p className="text-gray-400 text-lg font-light leading-relaxed max-w-2xl">{system.publicDescription}</p>
             </div>
             <Link to="/donations" className="flex items-center space-x-4 px-10 py-5 bg-ministry-gold text-white font-black text-xl rounded-2xl hover:bg-opacity-90 transition shadow-2xl active:scale-95">
               <Heart size={24} fill="white" />

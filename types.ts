@@ -25,7 +25,11 @@ export interface ChatMessage {
 
 export interface StreamConfig {
   publicUrl: string;
+  publicTitle: string;
+  publicDescription: string;
   privateUrl: string;
+  privateTitle: string;
+  privateDescription: string;
   isPrivateMode: boolean;
 }
 
