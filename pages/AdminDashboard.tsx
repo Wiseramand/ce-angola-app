@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Video, Trash2, RefreshCw, Globe, Save, Power, Server, Key, Lock, Shield
+  Users, Video, Trash2, RefreshCw, Globe, Save, Power, Server, Key, Lock, Shield, Plus, X, UserPlus, Fingerprint
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
@@ -13,6 +13,7 @@ interface ManagedUser {
   email: string;
   phone: string;
   status: 'active' | 'blocked';
+  password?: string;
 }
 
 const AdminDashboard: React.FC = () => {
@@ -20,7 +21,17 @@ const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'users' | 'streams'>('users');
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   
+  // New User Form
+  const [newUser, setNewUser] = useState({
+    fullname: '',
+    username: '',
+    password: '',
+    email: '',
+    phone: ''
+  });
+
   // Stream Settings Form
   const [streamForm, setStreamForm] = useState({
     public_url: system.publicUrl || '',
@@ -36,9 +47,7 @@ const AdminDashboard: React.FC = () => {
     is_private_mode: system.isPrivateMode
   });
 
-  // Load initial system data including server/key if they exist in system state
   useEffect(() => {
-    // Re-fetch full system data to ensure server/key fields are populated
     const loadFullSystem = async () => {
       const res = await fetch('/api/system');
       if (res.ok) {
@@ -94,6 +103,34 @@ const AdminDashboard: React.FC = () => {
     if (res.ok) fetchUsers();
   };
 
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsRefreshing(true);
+    try {
+      const res = await fetch('/api/admin/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser)
+      });
+      if (res.ok) {
+        alert("✅ Credenciais geradas com sucesso!");
+        setShowCreateModal(false);
+        setNewUser({ fullname: '', username: '', password: '', email: '', phone: '' });
+        fetchUsers();
+      } else {
+        const err = await res.json();
+        alert("Erro: " + err.message);
+      }
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const generatePass = () => {
+    const pass = Math.random().toString(36).substring(2, 10).toUpperCase();
+    setNewUser({ ...newUser, password: pass });
+  };
+
   const handleSaveStreams = async () => {
     setIsRefreshing(true);
     try {
@@ -104,15 +141,7 @@ const AdminDashboard: React.FC = () => {
       });
       if (res.ok) {
         alert("✅ Configurações de Transmissão Atualizadas!");
-        await updateStreamConfig({
-          publicUrl: streamForm.public_url,
-          publicTitle: streamForm.public_title,
-          publicDescription: streamForm.public_description,
-          privateUrl: streamForm.private_url,
-          privateTitle: streamForm.private_title,
-          privateDescription: streamForm.private_description,
-          isPrivateMode: streamForm.is_private_mode
-        });
+        updateStreamConfig(streamForm as any);
       }
     } finally {
       setIsRefreshing(false);
@@ -124,7 +153,7 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="bg-[#f8fafc] min-h-screen flex">
       {/* Sidebar Admin */}
-      <aside className="w-80 bg-ministry-blue text-white flex flex-col h-screen sticky top-0 shadow-2xl">
+      <aside className="w-80 bg-ministry-blue text-white flex flex-col h-screen sticky top-0 shadow-2xl z-20">
         <div className="p-10 border-b border-white/10">
           <Logo className="h-12 w-auto mb-6" />
           <h2 className="text-xl font-display font-black uppercase tracking-tight">Consola Master</h2>
@@ -158,9 +187,11 @@ const AdminDashboard: React.FC = () => {
             <h1 className="text-4xl font-display font-black text-ministry-blue uppercase tracking-tighter">Administração Central</h1>
             <p className="text-slate-500 font-medium mt-1">Configurações de rede e acessos comunitários.</p>
           </div>
-          <button onClick={fetchUsers} className="p-4 bg-white rounded-2xl shadow-sm text-slate-400 hover:text-ministry-blue transition">
-            <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
-          </button>
+          <div className="flex space-x-4">
+            <button onClick={fetchUsers} className="p-4 bg-white rounded-2xl shadow-sm text-slate-400 hover:text-ministry-blue transition">
+              <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </header>
 
         {activeTab === 'users' ? (
@@ -169,14 +200,20 @@ const AdminDashboard: React.FC = () => {
               <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest flex items-center">
                 <Shield size={18} className="mr-3 text-ministry-gold" /> Membros na Plataforma
               </h3>
-              <span className="bg-ministry-blue text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase">{users.length} Registados</span>
+              <button 
+                onClick={() => setShowCreateModal(true)}
+                className="bg-ministry-blue text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center space-x-2 hover:bg-ministry-gold transition-all shadow-lg"
+              >
+                <Plus size={16} />
+                <span>Novo Acesso Exclusivo</span>
+              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     <th className="px-8 py-5 text-left">Nome / Contacto</th>
-                    <th className="px-8 py-5 text-left">Username</th>
+                    <th className="px-8 py-5 text-left">Credenciais (User/Pass)</th>
                     <th className="px-8 py-5 text-left">Acesso</th>
                     <th className="px-8 py-5 text-right">Ações</th>
                   </tr>
@@ -186,9 +223,14 @@ const AdminDashboard: React.FC = () => {
                     <tr key={u.id} className="hover:bg-slate-50/50 transition">
                       <td className="px-8 py-6">
                         <div className="font-bold text-ministry-blue">{u.name}</div>
-                        <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">{u.email} • {u.phone}</div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">{u.email || 'Sem Email'} • {u.phone || 'Sem Telf'}</div>
                       </td>
-                      <td className="px-8 py-6 font-mono text-sm text-slate-500">{u.username}</td>
+                      <td className="px-8 py-6">
+                        <div className="flex flex-col">
+                           <span className="font-mono text-xs font-black text-ministry-gold uppercase tracking-tighter">USER: {u.username}</span>
+                           <span className="font-mono text-[10px] text-slate-400">PASS: {u.password}</span>
+                        </div>
+                      </td>
                       <td className="px-8 py-6">
                         <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase ${u.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                           {u.status === 'active' ? 'ATIVO' : 'BLOQUEADO'}
@@ -216,17 +258,12 @@ const AdminDashboard: React.FC = () => {
                   ))}
                 </tbody>
               </table>
-              {users.length === 0 && (
-                <div className="py-20 text-center">
-                  <p className="text-slate-300 font-black uppercase text-xs tracking-widest">Nenhum membro encontrado</p>
-                </div>
-              )}
             </div>
           </div>
         ) : (
           <div className="space-y-8 animate-in slide-in-from-bottom-5 duration-500">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Cana Grátis */}
+             {/* [Mesma estrutura da Aba Streams anterior] */}
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="bg-white p-10 rounded-[3.5rem] shadow-xl border border-slate-100">
                 <div className="flex items-center space-x-4 mb-8">
                   <div className="p-4 bg-blue-50 text-ministry-blue rounded-2xl"><Globe size={24}/></div>
@@ -234,24 +271,13 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <div className="space-y-5">
                   <InputField label="Título da Live" value={streamForm.public_title} onChange={v => setStreamForm({...streamForm, public_title: v})} />
-                  <InputField label="Embed URL (YouTube ou .m3u8)" value={streamForm.public_url} onChange={v => setStreamForm({...streamForm, public_url: v})} placeholder="https://..." />
+                  <InputField label="Embed URL" value={streamForm.public_url} onChange={v => setStreamForm({...streamForm, public_url: v})} />
                   <div className="grid grid-cols-2 gap-4">
                     <InputField label="Servidor RTMP" value={streamForm.public_server} onChange={v => setStreamForm({...streamForm, public_server: v})} icon={<Server size={14}/>} />
                     <InputField label="Chave de Stream" value={streamForm.public_key} onChange={v => setStreamForm({...streamForm, public_key: v})} icon={<Key size={14}/>} />
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-2">Breve Descrição</label>
-                    <textarea 
-                      value={streamForm.public_description}
-                      onChange={e => setStreamForm({...streamForm, public_description: e.target.value})}
-                      className="w-full bg-slate-50 rounded-2xl p-5 border-2 border-transparent focus:border-ministry-gold outline-none transition font-medium text-sm"
-                      rows={2}
-                    />
-                  </div>
                 </div>
               </div>
-
-              {/* Canal Exclusivo */}
               <div className="bg-white p-10 rounded-[3.5rem] shadow-xl border-t-[12px] border-ministry-gold">
                 <div className="flex items-center space-x-4 mb-8">
                   <div className="p-4 bg-orange-50 text-ministry-gold rounded-2xl"><Lock size={24}/></div>
@@ -259,7 +285,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <div className="space-y-5">
                   <InputField label="Título da Conferência" value={streamForm.private_title} onChange={v => setStreamForm({...streamForm, private_title: v})} />
-                  <InputField label="Embed URL Privado (.m3u8/YT)" value={streamForm.private_url} onChange={v => setStreamForm({...streamForm, private_url: v})} placeholder="https://..." />
+                  <InputField label="Embed URL Privado" value={streamForm.private_url} onChange={v => setStreamForm({...streamForm, private_url: v})} />
                   <div className="grid grid-cols-2 gap-4">
                     <InputField label="Servidor RTMP" value={streamForm.private_server} onChange={v => setStreamForm({...streamForm, private_server: v})} icon={<Server size={14}/>} />
                     <InputField label="Chave de Stream" value={streamForm.private_key} onChange={v => setStreamForm({...streamForm, private_key: v})} icon={<Key size={14}/>} />
@@ -276,25 +302,82 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            <button 
-              onClick={handleSaveStreams}
-              disabled={isRefreshing}
-              className="w-full py-7 bg-ministry-blue text-white rounded-[2.5rem] font-black uppercase tracking-[0.3em] shadow-2xl hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center space-x-4"
-            >
-              <Save size={20} />
-              <span>Publicar Configuração Global de Canais</span>
-            </button>
+            <button onClick={handleSaveStreams} className="w-full py-7 bg-ministry-blue text-white rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl hover:bg-ministry-gold transition-all">Publicar Configurações</button>
           </div>
         )}
       </main>
+
+      {/* Modal Criar Utilizador */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-xl rounded-[3rem] shadow-[0_35px_100px_rgba(0,0,0,0.5)] overflow-hidden">
+            <div className="bg-ministry-blue p-10 text-white flex justify-between items-center">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-white/10 rounded-2xl"><UserPlus size={24} className="text-ministry-gold"/></div>
+                <h3 className="text-2xl font-display font-black uppercase tracking-tight">Gerar Novo Acesso</h3>
+              </div>
+              <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-white/10 rounded-xl transition"><X size={24}/></button>
+            </div>
+            
+            <form onSubmit={handleCreateUser} className="p-10 space-y-6">
+              <InputField label="Nome Completo do Membro" value={newUser.fullname} onChange={v => setNewUser({...newUser, fullname: v})} placeholder="Ex: Irmão David" />
+              
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 ml-2">ID de Acesso (Username)</label>
+                  <div className="relative">
+                    <Fingerprint className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18}/>
+                    <input 
+                      type="text" 
+                      value={newUser.username} 
+                      onChange={e => setNewUser({...newUser, username: e.target.value.toLowerCase().replace(/\s/g, '')})} 
+                      className="w-full bg-slate-50 rounded-2xl pl-12 pr-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-black text-ministry-blue" 
+                      placeholder="id_membro"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 ml-2">Password de Entrada</label>
+                  <div className="flex space-x-2">
+                    <input 
+                      type="text" 
+                      value={newUser.password} 
+                      onChange={e => setNewUser({...newUser, password: e.target.value})} 
+                      className="flex-grow bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-mono font-black text-ministry-gold" 
+                      placeholder="CHAVE123"
+                      required
+                    />
+                    <button type="button" onClick={generatePass} className="p-4 bg-slate-100 text-slate-500 rounded-2xl hover:bg-ministry-gold hover:text-white transition shadow-sm" title="Gerar Aleatória">
+                      <RefreshCw size={20}/>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <InputField label="Email (Opcional)" value={newUser.email} onChange={v => setNewUser({...newUser, email: v})} />
+                <InputField label="Telemóvel (Opcional)" value={newUser.phone} onChange={v => setNewUser({...newUser, phone: v})} />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={isRefreshing}
+                className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-ministry-gold transition-all flex items-center justify-center space-x-3"
+              >
+                {isRefreshing ? <RefreshCw size={20} className="animate-spin" /> : <span>GERAR CREDENCIAIS AGORA</span>}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 const InputField = ({ label, value, onChange, placeholder, icon }: any) => (
   <div>
-    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-2 flex items-center">
+    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-2 flex items-center">
       {icon && <span className="mr-2">{icon}</span>}
       {label}
     </label>
@@ -304,6 +387,7 @@ const InputField = ({ label, value, onChange, placeholder, icon }: any) => (
       onChange={e => onChange(e.target.value)} 
       placeholder={placeholder}
       className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-ministry-blue" 
+      required={label.includes("Nome")}
     />
   </div>
 );

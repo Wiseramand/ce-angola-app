@@ -129,10 +129,27 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // LIST USERS (Admin Only logic handled by role check in production, here simple list)
+    // LIST USERS
     if (path === '/api/admin/users' && method === 'GET') {
-      const result = await pool.query("SELECT id, fullname as name, username, email, status, phone FROM managed_users WHERE role != 'admin' ORDER BY id DESC");
+      const result = await pool.query("SELECT id, fullname as name, username, email, status, phone, password FROM managed_users WHERE role != 'admin' ORDER BY id DESC");
       return res.status(200).json(result.rows);
+    }
+
+    // CREATE USER (ADMIN ACCESS GENERATION)
+    if (path === '/api/admin/users/create' && method === 'POST') {
+      const { fullname, username, password, email, phone } = req.body;
+      
+      // Check if username exists
+      const check = await pool.query('SELECT id FROM managed_users WHERE username = $1', [username]);
+      if (check.rows.length > 0) {
+        return res.status(400).json({ error: 'USERNAME_EXISTS', message: 'Este ID de utilizador já está em uso.' });
+      }
+
+      await pool.query(
+        'INSERT INTO managed_users (fullname, username, password, email, phone, status) VALUES ($1, $2, $3, $4, $5, $6)',
+        [fullname, username, password, email || '', phone || '', 'active']
+      );
+      return res.status(200).json({ success: true });
     }
 
     // TOGGLE USER STATUS & KILL SESSION
@@ -150,7 +167,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // HEARTBEAT (Single Session enforcement)
+    // HEARTBEAT
     if (path === '/api/heartbeat' && method === 'POST') {
       const { userId, sessionId } = req.body;
       const result = await pool.query('SELECT last_session_id, status FROM managed_users WHERE id = $1', [userId]);
@@ -183,14 +200,13 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'INVALID' });
     }
 
-    // CHAT GET
+    // CHAT GET/POST
     if (path === '/api/chat' && method === 'GET') {
       const channel = urlParams.get('channel') || 'public';
       const result = await pool.query('SELECT * FROM chat_messages WHERE channel = $1 ORDER BY timestamp DESC LIMIT 50', [channel]);
       return res.status(200).json(result.rows.reverse());
     }
 
-    // CHAT POST
     if (path === '/api/chat' && method === 'POST') {
       const { userId, username, text, channel } = req.body;
       await pool.query('INSERT INTO chat_messages (user_id, username, text, channel) VALUES ($1, $2, $3, $4)', [userId, username, text, channel]);
