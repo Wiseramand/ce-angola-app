@@ -16,7 +16,7 @@ const Home: React.FC = () => {
             className="w-full h-full object-cover object-top opacity-15 mix-blend-luminosity scale-105"
             onError={(e) => {
               const img = e.target as HTMLImageElement;
-              img.src = "assets/hero-pastor.jpg";
+              img.src = "https://images.unsplash.com/photo-1510519133417-c057b49ef29d?q=80&w=2070";
               img.className = "w-full h-full object-cover opacity-10 mix-blend-overlay";
             }}
           />
