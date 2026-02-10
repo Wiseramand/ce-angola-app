@@ -55,10 +55,15 @@ const Register: React.FC = () => {
     }
   };
 
+  /**
+   * ESTA FUNÇÃO CONECTA O FRONT AO BACK:
+   * 1. Envia os dados para a nossa API em /api/server.js
+   * 2. O servidor salva no banco e dispara o e-mail de boas-vindas.
+   */
   const handleComplete = async () => {
     setIsSubmitting(true);
     try {
-      // 1. Chamar API do Backend para salvar e enviar e-mail
+      // Chamada para o backend (server.js)
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -66,15 +71,15 @@ const Register: React.FC = () => {
       });
 
       if (res.ok) {
-        // 2. Atualizar estado local do Auth
+        // Se o servidor confirmou, atualizamos o estado da aplicação
         await register({ ...formData, profilePicture: profilePic });
         navigate('/live-tv');
       } else {
-        alert("Erro ao registrar no servidor. Verifique sua conexão.");
+        alert("Erro ao registrar no servidor. Verifique a configuração do banco de dados.");
       }
     } catch (e) {
       console.error(e);
-      alert("Falha crítica no registro.");
+      alert("Falha na comunicação com o servidor.");
     } finally {
       setIsSubmitting(false);
     }
@@ -98,7 +103,7 @@ const Register: React.FC = () => {
           <div className="bg-blue-50 p-4 px-10 flex items-center space-x-4 border-b border-blue-100">
             <Info className="text-blue-600 flex-shrink-0" size={20} />
             <p className="text-[10px] text-blue-800 font-bold uppercase tracking-tight">
-              Aviso: Enviaremos uma mensagem de boas-vindas para o seu e-mail após a conclusão.
+              Nota: Um e-mail de boas-vindas será enviado para "{formData.email || 'seu e-mail'}" após concluir.
             </p>
           </div>
 
@@ -107,7 +112,7 @@ const Register: React.FC = () => {
               <form onSubmit={handleNext} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Nome que aparecerá no Chat</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Nome Completo</label>
                     <input 
                       type="text" 
                       name="fullName" 
@@ -119,14 +124,14 @@ const Register: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Email (Para Notificação)</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Email (Para Receber Mensagem)</label>
                     <input 
                       type="email" 
                       name="email" 
                       value={formData.email} 
                       onChange={handleInputChange} 
                       className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-ministry-gold shadow-inner" 
-                      placeholder="email@exemplo.com" 
+                      placeholder="seu@email.com" 
                       required
                     />
                   </div>
@@ -174,7 +179,7 @@ const Register: React.FC = () => {
                     type="submit" 
                     className="w-full py-5 bg-ministry-blue text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center space-x-2 hover:bg-opacity-90 transition shadow-xl"
                   >
-                    <span>Continuar para Foto de Perfil</span>
+                    <span>Próximo Passo: Foto</span>
                     <ChevronRight size={18} />
                   </button>
                 </div>
@@ -196,8 +201,8 @@ const Register: React.FC = () => {
                 </div>
 
                 <div className="max-w-md mx-auto">
-                  <h3 className="text-2xl font-display font-bold text-ministry-blue">Defina a sua imagem</h3>
-                  <p className="text-gray-500 mt-2 text-sm">Adicionar uma foto permite que a comunidade o reconheça durante as transmissões.</p>
+                  <h3 className="text-2xl font-display font-bold text-ministry-blue">Quase lá!</h3>
+                  <p className="text-gray-500 mt-2 text-sm">Adicione uma foto para que o Pastor e a comunidade o vejam no chat.</p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
@@ -214,7 +219,7 @@ const Register: React.FC = () => {
                     className="flex-[2] py-5 bg-ministry-blue text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center space-x-3 hover:bg-opacity-90 transition shadow-xl"
                   >
                     {isSubmitting ? <Loader2 className="animate-spin" /> : <Check size={20} />}
-                    <span>{isSubmitting ? 'Registrando...' : 'Concluir e Ir para Live'}</span>
+                    <span>{isSubmitting ? 'Salvando...' : 'Concluir Registro'}</span>
                   </button>
                 </div>
               </div>

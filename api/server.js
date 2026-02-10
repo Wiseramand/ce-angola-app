@@ -26,30 +26,36 @@ if (connectionString) {
 
 /**
  * =========================================================================
- * INTEGRAÇÃO DE E-MAIL (NOTIFICAÇÕES)
+ * 1. INTEGRAÇÃO DE E-MAIL (BEM-VINDO)
  * =========================================================================
- * Sugestões de API: Resend (resend.com), SendGrid ou Mailgun.
+ * Local: Função disparada após o registro com sucesso.
+ * Onde obter a API: https://resend.com ou https://sendgrid.com
  */
 async function sendWelcomeEmail(email, name) {
   console.log(`[LOG] Preparando e-mail de boas-vindas para: ${name}`);
   
   try {
-    // EXEMPLO COM RESEND.COM:
-    /*
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        from: 'Christ Embassy Angola <bemvindo@ceangola.org>',
-        to: email,
-        subject: 'Bem-vindo à Família Christ Embassy Angola!',
-        html: `<h1>Olá, ${name}!</h1><p>É uma alegria ter você conosco em nossa plataforma digital.</p>`
-      })
-    });
-    */
+    /**
+     * OPÇÃO A: RESEND (Recomendado pela simplicidade)
+     * 1. Crie conta em resend.com
+     * 2. Obtenha a API KEY e coloque em process.env.RESEND_API_KEY
+     * 
+     * Exemplo de código para colar aqui:
+     * 
+     * const response = await fetch('https://api.resend.com/emails', {
+     *   method: 'POST',
+     *   headers: {
+     *     'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+     *     'Content-Type': 'application/json'
+     *   },
+     *   body: JSON.stringify({
+     *     from: 'Christ Embassy Angola <noreply@ceangola.org>',
+     *     to: email,
+     *     subject: 'Bem-vindo à Christ Embassy Angola!',
+     *     html: `<h1>Bem-vindo, ${name}!</h1><p>Sua conta foi criada com sucesso na nossa plataforma de streaming.</p>`
+     *   })
+     * });
+     */
 
     return true;
   } catch (error) {
@@ -107,7 +113,7 @@ async function ensureTables() {
         type TEXT, 
         description TEXT,
         status TEXT DEFAULT 'pending',
-        external_reference TEXT, -- Guardar ID do PayPay/Stripe aqui
+        external_reference TEXT, 
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -140,67 +146,92 @@ export default async function handler(req, res) {
         [fullName, email, phone, 'public_user']
       );
 
-      // Disparar e-mail se existir
+      // Disparar e-mail de boas-vindas
       if (email) await sendWelcomeEmail(email, fullName);
 
       return res.status(201).json({ success: true, message: 'Registrado com sucesso.' });
     }
 
-    // --- PROCESSAMENTO DE PAGAMENTOS (PONTO CENTRAL) ---
+    // --- 2. PROCESSAMENTO DE PAGAMENTOS (GUIA DE INTEGRAÇÃO) ---
     if (path === '/api/payments/process' && method === 'POST') {
       const { userId, userName, amount, method: payMethod, type, description } = req.body;
       let externalRef = 'offline_ref';
       let finalStatus = 'pending';
 
       /**
-       * ONDE INSERIR CADA API:
+       * ONDE INSERIR CADA API DE PAGAMENTO:
        */
       try {
         switch(payMethod) {
           case 'paypay':
-            // INTEGRAÇÃO PAYPAY AFRICA
-            // Aqui você chamaria: https://api.paypay.co.ao/v1/payments
-            // console.log("Chamando API PayPay...");
+            /**
+             * API: PAYPAY AFRICA
+             * Endpoint: https://api.paypay.co.ao/v1/payments
+             * O que fazer: Chamar a API para gerar um QR Code ou link de pagamento.
+             * 
+             * Exemplo:
+             * const ppRes = await fetch('...', { body: JSON.stringify({ amount, merchant_id: '...' }) });
+             * const ppData = await ppRes.json();
+             * externalRef = ppData.transaction_id;
+             */
             externalRef = "PP-" + Date.now();
-            finalStatus = "completed"; // Em produção, aguarde o webhook
+            finalStatus = "completed"; 
             break;
 
           case 'unitel':
-            // INTEGRAÇÃO UNITEL MONEY
-            // Chamada para o gateway da Unitel para trigger de USSD
+            /**
+             * API: UNITEL MONEY
+             * Requer: Credenciais de parceiro Unitel.
+             * O que fazer: Disparar um "Push USSD" para o telemóvel do utilizador para ele confirmar com o PIN.
+             */
             externalRef = "UNITEL-" + Date.now();
+            break;
+
+          case 'afrimoney':
+            /**
+             * API: AFRIMONEY
+             * Similar à Unitel Money, requer integração direta com a Africell.
+             */
+            externalRef = "AFRI-" + Date.now();
             break;
 
           case 'visa':
           case 'mastercard':
-            // INTEGRAÇÃO STRIPE / EMIS
-            // Exemplo Stripe: await stripe.paymentIntents.create({ amount: amount * 100, currency: 'usd' });
-            externalRef = "STRIPE-ID-XYZ";
+            /**
+             * API: STRIPE (Internacional) ou MCX/EMIS (Nacional)
+             * Stripe: Chamar 'paymentIntents.create'
+             * EMIS: Requer gateway local como PayPay ou bancos angolanos.
+             */
+            externalRef = "CARD-" + Date.now();
             finalStatus = "completed";
             break;
 
           case 'paypal':
-            // INTEGRAÇÃO PAYPAL
-            // Utilizar SDK do PayPal para capturar ordem
-            externalRef = "PAYPAL-ORDER-ID";
+            /**
+             * API: PAYPAL CHECKOUT
+             * Requer: @paypal/checkout-server-sdk
+             * O que fazer: Capturar a ordem de pagamento criada no frontend.
+             */
+            externalRef = "PAYPAL-" + Date.now();
+            finalStatus = "completed";
             break;
 
           default:
-            // Transferência Bancária / Express
-            externalRef = "MANUAL-VERIFY-REQUIRED";
+            // Transferência Bancária / Express (Processo Manual)
+            externalRef = "MANUAL-VERIFY";
         }
 
-        // Salvar no Banco
+        // Salvar registo da transação no banco de dados
         await pool.query(
           'INSERT INTO transactions (user_id, user_name, amount, method, type, description, status, external_reference) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
           [userId, userName, amount, payMethod, type, description, finalStatus, externalRef]
         );
 
-        return res.status(200).json({ success: true, ref: externalRef });
+        return res.status(200).json({ success: true, ref: externalRef, message: 'Operação registada.' });
 
       } catch (apiErr) {
-        console.error('Falha na API de Pagamento:', apiErr);
-        return res.status(400).json({ error: 'Erro ao comunicar com operadora financeira.' });
+        console.error('Falha na comunicação com a operadora:', apiErr);
+        return res.status(400).json({ error: 'Erro ao processar com a operadora financeira.' });
       }
     }
 

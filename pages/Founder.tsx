@@ -16,7 +16,7 @@ const Founder: React.FC = () => {
                   className="w-full aspect-[4/5] object-cover object-top transition duration-700 group-hover:scale-105"
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
-                    img.src = "https://assets/pastor-chris.jpg";
+                    img.src = "https://images.unsplash.com/photo-1544427920-c49ccfb85579?q=80&w=2134";
                   }}
                 />
               </div>
