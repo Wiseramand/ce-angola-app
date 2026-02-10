@@ -20,12 +20,16 @@ const Login: React.FC = () => {
     e.preventDefault();
     setError('');
     setSessionConflict(false);
+    
+    // Normalizamos para minúsculas para coincidir com a criação no Admin
+    const normalizedUsername = username.toLowerCase().trim();
+
     try {
-      await login({ username, pass: password });
+      await login({ username: normalizedUsername, pass: password });
       navigate(from, { replace: true });
     } catch (err: any) {
-      if (err.message === 'SESSION_ACTIVE') {
-        setSessionConflict(true);
+      if (err.message === 'BLOCKED') {
+        setError('A sua conta está temporariamente bloqueada pela administração.');
       } else {
         setError('Credenciais inválidas. Verifique o seu acesso exclusivo.');
       }
@@ -48,15 +52,7 @@ const Login: React.FC = () => {
           </div>
 
           <div className="p-12">
-            {sessionConflict ? (
-              <div className="bg-orange-500/10 border border-orange-500/20 text-orange-400 p-6 rounded-3xl mb-8 flex flex-col items-center text-center space-y-4 animate-in zoom-in-95 duration-300">
-                <ShieldAlert size={40} />
-                <div>
-                  <p className="font-black uppercase tracking-widest text-xs">Sessão já em curso</p>
-                  <p className="text-[11px] mt-2 font-medium">Este utilizador já está ligado à plataforma. Para entrar aqui, encerre a sessão noutros dispositivos ou contacte o administrador.</p>
-                </div>
-              </div>
-            ) : error ? (
+            {error ? (
               <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-2xl mb-8 flex items-center space-x-3 text-xs font-bold uppercase tracking-widest animate-shake">
                 <ShieldAlert size={18} />
                 <span>{error}</span>
@@ -65,7 +61,7 @@ const Login: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block text-[10px] font-black text-gray-500 uppercase mb-3 ml-2 tracking-widest">Username</label>
+                <label className="block text-[10px] font-black text-gray-500 uppercase mb-3 ml-2 tracking-widest">ID de Utilizador</label>
                 <div className="relative">
                   <UserIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-600" size={18} />
                   <input
@@ -73,7 +69,7 @@ const Login: React.FC = () => {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-14 pr-6 text-white focus:ring-2 focus:ring-ministry-gold transition outline-none"
-                    placeholder="Nome de Utilizador"
+                    placeholder="ex: membro_luanda"
                     required
                   />
                 </div>

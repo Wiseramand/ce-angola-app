@@ -32,7 +32,7 @@ interface AuthContextType {
   adminLogin: (credentials: { username: string; pass: string }) => Promise<void>;
   register: (userData: any) => Promise<void>;
   logout: () => void;
-  updateStreamConfig: (config: Partial<StreamConfig>) => Promise<void>;
+  updateStreamConfig: (config: any) => Promise<void>;
   isLoading: boolean;
   refreshSystem: () => Promise<void>;
 }
@@ -67,11 +67,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const sendHeartbeat = async (userId: string, sessionId: string) => {
+    if (userId.startsWith('v-')) return; // Visitantes não precisam de heartbeat de sessão única
     try {
       const res = await fetch('/api/heartbeat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, sessionId })
+        body: JSON.stringify({ userId: userId.replace('m-', ''), sessionId })
       });
       if (res.status === 401) {
         alert("Sessão Terminada: Foi detetado um novo acesso com esta conta noutro dispositivo.");
@@ -107,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const parsedUser = JSON.parse(saved);
           setUser(parsedUser);
-          if (parsedUser.sessionId && parsedUser.role !== 'admin') {
+          if (parsedUser.sessionId && parsedUser.role !== 'admin' && !parsedUser.id.startsWith('v-')) {
             heartbeatRef.current = window.setInterval(() => sendHeartbeat(parsedUser.id, parsedUser.sessionId), 10000);
           }
         } catch (e) { localStorage.removeItem('ce_session_user'); }
@@ -149,16 +150,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (data: any) => {
-    setUser({ ...data, id: 'pub-' + Date.now(), role: 'user', hasLiveAccess: false });
+    // Visitantes nunca têm acesso exclusivo (hasLiveAccess: false)
+    const visitorUser: UserExtended = { ...data, id: 'v-' + Date.now(), role: 'user', hasLiveAccess: false };
+    setUser(visitorUser);
+    localStorage.setItem('ce_session_user', JSON.stringify(visitorUser));
   };
 
-  const updateStreamConfig = async (config: Partial<StreamConfig>) => {
-    const res = await fetch('/api/system', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...system, ...config })
-    });
-    if (res.ok) await refreshSystem();
+  const updateStreamConfig = async (payload: any) => {
+    // A função de atualização agora recebe os dados e apenas refresca o sistema local
+    // O fetch já é feito no AdminDashboard para evitar duplicidade
+    await refreshSystem();
   };
 
   return (
@@ -174,6 +175,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean;
   if (!user && (adminOnly || liveOnly)) return <Navigate to={adminOnly ? "/central-admin" : "/login"} replace />;
   if (adminOnly && user?.role !== 'admin') return <Navigate to="/" replace />;
   
+  // Bloqueio do Acesso Exclusivo
   if (liveOnly && system.isPrivateMode && !user?.hasLiveAccess && user?.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950 p-6">

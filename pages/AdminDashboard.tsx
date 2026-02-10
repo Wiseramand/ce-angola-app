@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Video, Trash2, RefreshCw, Globe, Save, Power, Server, Key, Lock, Shield, Plus, X, UserPlus, Fingerprint
+  Users, Video, Trash2, RefreshCw, Globe, Save, Power, Server, Key, Lock, Shield, Plus, X, UserPlus, Fingerprint, Eye
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
@@ -16,14 +16,24 @@ interface ManagedUser {
   password?: string;
 }
 
+interface Visitor {
+  id: string;
+  fullname: string;
+  email: string;
+  phone: string;
+  country: string;
+  created_at: string;
+}
+
 const AdminDashboard: React.FC = () => {
   const { system, updateStreamConfig } = useAuth();
-  const [activeTab, setActiveTab] = useState<'users' | 'streams'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'visitors' | 'streams'>('users');
   const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   
-  // New User Form
+  // Form de Novo Membro Exclusivo
   const [newUser, setNewUser] = useState({
     fullname: '',
     username: '',
@@ -32,7 +42,7 @@ const AdminDashboard: React.FC = () => {
     phone: ''
   });
 
-  // Stream Settings Form
+  // Form de Streams (Campos devem bater com o Backend em snake_case)
   const [streamForm, setStreamForm] = useState({
     public_url: system.publicUrl || '',
     public_server: '',
@@ -47,28 +57,27 @@ const AdminDashboard: React.FC = () => {
     is_private_mode: system.isPrivateMode
   });
 
-  useEffect(() => {
-    const loadFullSystem = async () => {
-      const res = await fetch('/api/system');
-      if (res.ok) {
-        const data = await res.json();
-        setStreamForm({
-          public_url: data.public_url || '',
-          public_server: data.public_server || '',
-          public_key: data.public_key || '',
-          public_title: data.public_title || '',
-          public_description: data.public_description || '',
-          private_url: data.private_url || '',
-          private_server: data.private_server || '',
-          private_key: data.private_key || '',
-          private_title: data.private_title || '',
-          private_description: data.private_description || '',
-          is_private_mode: !!data.is_private_mode
-        });
-      }
-    };
-    loadFullSystem();
-  }, []);
+  const loadFullSystem = async () => {
+    const res = await fetch('/api/system');
+    if (res.ok) {
+      const data = await res.json();
+      setStreamForm({
+        public_url: data.public_url || '',
+        public_server: data.public_server || '',
+        public_key: data.public_key || '',
+        public_title: data.public_title || '',
+        public_description: data.public_description || '',
+        private_url: data.private_url || '',
+        private_server: data.private_server || '',
+        private_key: data.private_key || '',
+        private_title: data.private_title || '',
+        private_description: data.private_description || '',
+        is_private_mode: !!data.is_private_mode
+      });
+    }
+  };
+
+  useEffect(() => { loadFullSystem(); }, []);
 
   const fetchUsers = async () => {
     setIsRefreshing(true);
@@ -81,6 +90,16 @@ const AdminDashboard: React.FC = () => {
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const fetchVisitors = async () => {
+    try {
+      const res = await fetch('/api/admin/visitors');
+      if (res.ok) {
+        const data = await res.json();
+        setVisitors(data);
+      }
+    } catch (e) {}
   };
 
   const handleToggleUser = async (user: ManagedUser) => {
@@ -118,8 +137,7 @@ const AdminDashboard: React.FC = () => {
         setNewUser({ fullname: '', username: '', password: '', email: '', phone: '' });
         fetchUsers();
       } else {
-        const err = await res.json();
-        alert("Erro: " + err.message);
+        alert("Erro: Este ID já existe ou os dados são inválidos.");
       }
     } finally {
       setIsRefreshing(false);
@@ -140,15 +158,22 @@ const AdminDashboard: React.FC = () => {
         body: JSON.stringify(streamForm)
       });
       if (res.ok) {
-        alert("✅ Configurações de Transmissão Atualizadas!");
-        updateStreamConfig(streamForm as any);
+        alert("✅ Configurações de Transmissão Atualizadas com Sucesso!");
+        await updateStreamConfig(streamForm);
+      } else {
+        alert("Falha ao salvar no servidor.");
       }
+    } catch (e) {
+      alert("Erro de conexão.");
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { 
+    fetchUsers(); 
+    fetchVisitors();
+  }, []);
 
   return (
     <div className="bg-[#f8fafc] min-h-screen flex">
@@ -167,15 +192,22 @@ const AdminDashboard: React.FC = () => {
             onClick={() => setActiveTab('users')} 
             className={`w-full flex items-center space-x-4 px-6 py-5 rounded-[1.5rem] transition-all font-bold ${activeTab === 'users' ? 'bg-ministry-gold text-white shadow-xl shadow-ministry-gold/20' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
           >
-            <Users size={20} />
-            <span>Gestão de Membros</span>
+            <Shield size={20} />
+            <span>Membros Exclusivos</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('visitors')} 
+            className={`w-full flex items-center space-x-4 px-6 py-5 rounded-[1.5rem] transition-all font-bold ${activeTab === 'visitors' ? 'bg-ministry-gold text-white shadow-xl shadow-ministry-gold/20' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+          >
+            <Eye size={20} />
+            <span>Visitantes Online</span>
           </button>
           <button 
             onClick={() => setActiveTab('streams')} 
             className={`w-full flex items-center space-x-4 px-6 py-5 rounded-[1.5rem] transition-all font-bold ${activeTab === 'streams' ? 'bg-ministry-gold text-white shadow-xl shadow-ministry-gold/20' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
           >
             <Video size={20} />
-            <span>Canais de Transmissão</span>
+            <span>Canais de Live</span>
           </button>
         </nav>
       </aside>
@@ -185,36 +217,38 @@ const AdminDashboard: React.FC = () => {
         <header className="flex justify-between items-center mb-12">
           <div>
             <h1 className="text-4xl font-display font-black text-ministry-blue uppercase tracking-tighter">Administração Central</h1>
-            <p className="text-slate-500 font-medium mt-1">Configurações de rede e acessos comunitários.</p>
+            <p className="text-slate-500 font-medium mt-1">
+              {activeTab === 'users' ? 'Gestão de Credenciais e Acessos Restritos.' : activeTab === 'visitors' ? 'Pessoas registadas via formulário público.' : 'Configurações de Transmissão.'}
+            </p>
           </div>
           <div className="flex space-x-4">
-            <button onClick={fetchUsers} className="p-4 bg-white rounded-2xl shadow-sm text-slate-400 hover:text-ministry-blue transition">
+            <button onClick={() => { fetchUsers(); fetchVisitors(); loadFullSystem(); }} className="p-4 bg-white rounded-2xl shadow-sm text-slate-400 hover:text-ministry-blue transition">
               <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
             </button>
           </div>
         </header>
 
-        {activeTab === 'users' ? (
-          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
+        {activeTab === 'users' && (
+          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden animate-in fade-in duration-500">
             <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
               <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest flex items-center">
-                <Shield size={18} className="mr-3 text-ministry-gold" /> Membros na Plataforma
+                <Lock size={18} className="mr-3 text-ministry-gold" /> Acessos Gerados
               </h3>
               <button 
                 onClick={() => setShowCreateModal(true)}
                 className="bg-ministry-blue text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center space-x-2 hover:bg-ministry-gold transition-all shadow-lg"
               >
                 <Plus size={16} />
-                <span>Novo Acesso Exclusivo</span>
+                <span>Gerar Nova Credencial</span>
               </button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    <th className="px-8 py-5 text-left">Nome / Contacto</th>
-                    <th className="px-8 py-5 text-left">Credenciais (User/Pass)</th>
-                    <th className="px-8 py-5 text-left">Acesso</th>
+                    <th className="px-8 py-5 text-left">Membro</th>
+                    <th className="px-8 py-5 text-left">ID / Password</th>
+                    <th className="px-8 py-5 text-left">Estado</th>
                     <th className="px-8 py-5 text-right">Ações</th>
                   </tr>
                 </thead>
@@ -223,12 +257,12 @@ const AdminDashboard: React.FC = () => {
                     <tr key={u.id} className="hover:bg-slate-50/50 transition">
                       <td className="px-8 py-6">
                         <div className="font-bold text-ministry-blue">{u.name}</div>
-                        <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">{u.email || 'Sem Email'} • {u.phone || 'Sem Telf'}</div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">{u.email || 'S/ Email'}</div>
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex flex-col">
-                           <span className="font-mono text-xs font-black text-ministry-gold uppercase tracking-tighter">USER: {u.username}</span>
-                           <span className="font-mono text-[10px] text-slate-400">PASS: {u.password}</span>
+                           <span className="font-mono text-xs font-black text-ministry-gold uppercase tracking-tighter">ID: {u.username}</span>
+                           <span className="font-mono text-[10px] text-slate-400">PW: {u.password}</span>
                         </div>
                       </td>
                       <td className="px-8 py-6">
@@ -238,18 +272,10 @@ const AdminDashboard: React.FC = () => {
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex justify-end space-x-2">
-                          <button 
-                            onClick={() => handleToggleUser(u)}
-                            className={`p-3 rounded-xl transition ${u.status === 'active' ? 'bg-orange-50 text-orange-500 hover:bg-orange-100' : 'bg-green-50 text-green-500 hover:bg-green-100'}`}
-                            title={u.status === 'active' ? 'Bloquear Membro' : 'Ativar Membro'}
-                          >
+                          <button onClick={() => handleToggleUser(u)} className="p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-ministry-gold hover:text-white transition">
                             <Power size={18} />
                           </button>
-                          <button 
-                            onClick={() => handleDeleteUser(u.id)}
-                            className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition"
-                            title="Eliminar Permanente"
-                          >
+                          <button onClick={() => handleDeleteUser(u.id)} className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition">
                             <Trash2 size={18} />
                           </button>
                         </div>
@@ -260,38 +286,58 @@ const AdminDashboard: React.FC = () => {
               </table>
             </div>
           </div>
-        ) : (
+        )}
+
+        {activeTab === 'visitors' && (
+          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden animate-in fade-in duration-500">
+             <div className="p-8 border-b border-slate-50 bg-slate-50/50">
+               <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">Base de Dados de Registo Público</h3>
+             </div>
+             <div className="overflow-x-auto">
+               <table className="w-full">
+                 <thead>
+                   <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                     <th className="px-8 py-5 text-left">Visitante</th>
+                     <th className="px-8 py-5 text-left">Contacto</th>
+                     <th className="px-8 py-5 text-left">País</th>
+                     <th className="px-8 py-5 text-right">Data Registo</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-100">
+                   {visitors.map(v => (
+                     <tr key={v.id} className="hover:bg-slate-50/50 transition">
+                       <td className="px-8 py-6 font-bold text-ministry-blue">{v.fullname}</td>
+                       <td className="px-8 py-6 text-slate-500 text-xs">{v.email}<br/>{v.phone}</td>
+                       <td className="px-8 py-6 text-slate-500 text-xs font-bold uppercase">{v.country}</td>
+                       <td className="px-8 py-6 text-right text-[10px] text-slate-400">{new Date(v.created_at).toLocaleDateString()}</td>
+                     </tr>
+                   ))}
+                   {visitors.length === 0 && <tr><td colSpan={4} className="p-20 text-center text-slate-400 italic">Nenhum registo público encontrado.</td></tr>}
+                 </tbody>
+               </table>
+             </div>
+          </div>
+        )}
+
+        {activeTab === 'streams' && (
           <div className="space-y-8 animate-in slide-in-from-bottom-5 duration-500">
-             {/* [Mesma estrutura da Aba Streams anterior] */}
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="bg-white p-10 rounded-[3.5rem] shadow-xl border border-slate-100">
-                <div className="flex items-center space-x-4 mb-8">
-                  <div className="p-4 bg-blue-50 text-ministry-blue rounded-2xl"><Globe size={24}/></div>
-                  <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Emissão Pública (Free)</h3>
-                </div>
+                <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-8">Canal Público (Livre)</h3>
                 <div className="space-y-5">
-                  <InputField label="Título da Live" value={streamForm.public_title} onChange={v => setStreamForm({...streamForm, public_title: v})} />
-                  <InputField label="Embed URL" value={streamForm.public_url} onChange={v => setStreamForm({...streamForm, public_url: v})} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="Servidor RTMP" value={streamForm.public_server} onChange={v => setStreamForm({...streamForm, public_server: v})} icon={<Server size={14}/>} />
-                    <InputField label="Chave de Stream" value={streamForm.public_key} onChange={v => setStreamForm({...streamForm, public_key: v})} icon={<Key size={14}/>} />
-                  </div>
+                  <InputField label="Título" value={streamForm.public_title} onChange={v => setStreamForm({...streamForm, public_title: v})} />
+                  <InputField label="URL / Embed" value={streamForm.public_url} onChange={v => setStreamForm({...streamForm, public_url: v})} />
+                  <InputField label="Descrição" value={streamForm.public_description} onChange={v => setStreamForm({...streamForm, public_description: v})} />
                 </div>
               </div>
               <div className="bg-white p-10 rounded-[3.5rem] shadow-xl border-t-[12px] border-ministry-gold">
-                <div className="flex items-center space-x-4 mb-8">
-                  <div className="p-4 bg-orange-50 text-ministry-gold rounded-2xl"><Lock size={24}/></div>
-                  <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Acesso Exclusivo (Private)</h3>
-                </div>
+                <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-8">Canal Exclusivo (Protegido)</h3>
                 <div className="space-y-5">
                   <InputField label="Título da Conferência" value={streamForm.private_title} onChange={v => setStreamForm({...streamForm, private_title: v})} />
-                  <InputField label="Embed URL Privado" value={streamForm.private_url} onChange={v => setStreamForm({...streamForm, private_url: v})} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="Servidor RTMP" value={streamForm.private_server} onChange={v => setStreamForm({...streamForm, private_server: v})} icon={<Server size={14}/>} />
-                    <InputField label="Chave de Stream" value={streamForm.private_key} onChange={v => setStreamForm({...streamForm, private_key: v})} icon={<Key size={14}/>} />
-                  </div>
+                  <InputField label="URL Privada" value={streamForm.private_url} onChange={v => setStreamForm({...streamForm, private_url: v})} />
+                  <InputField label="Descrição Exclusiva" value={streamForm.private_description} onChange={v => setStreamForm({...streamForm, private_description: v})} />
                   <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl mt-4">
-                    <span className="text-[11px] font-black text-ministry-blue uppercase tracking-widest">Restringir Canal Automaticamente</span>
+                    <span className="text-[11px] font-black text-ministry-blue uppercase tracking-widest">Ativar Bloqueio Automático</span>
                     <button 
                       onClick={() => setStreamForm({...streamForm, is_private_mode: !streamForm.is_private_mode})}
                       className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_private_mode ? 'bg-ministry-gold' : 'bg-slate-300'}`}
@@ -302,7 +348,14 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
-            <button onClick={handleSaveStreams} className="w-full py-7 bg-ministry-blue text-white rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl hover:bg-ministry-gold transition-all">Publicar Configurações</button>
+            <button 
+              onClick={handleSaveStreams} 
+              disabled={isRefreshing}
+              className="w-full py-7 bg-ministry-blue text-white rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl hover:bg-ministry-gold transition-all flex items-center justify-center space-x-3"
+            >
+              {isRefreshing ? <RefreshCw className="animate-spin" /> : <Save size={20} />}
+              <span>PUBLICAR CONFIGURAÇÕES</span>
+            </button>
           </div>
         )}
       </main>
@@ -312,60 +365,31 @@ const AdminDashboard: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-xl rounded-[3rem] shadow-[0_35px_100px_rgba(0,0,0,0.5)] overflow-hidden">
             <div className="bg-ministry-blue p-10 text-white flex justify-between items-center">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-white/10 rounded-2xl"><UserPlus size={24} className="text-ministry-gold"/></div>
-                <h3 className="text-2xl font-display font-black uppercase tracking-tight">Gerar Novo Acesso</h3>
-              </div>
+              <h3 className="text-2xl font-display font-black uppercase tracking-tight">Novo Membro Exclusivo</h3>
               <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-white/10 rounded-xl transition"><X size={24}/></button>
             </div>
             
             <form onSubmit={handleCreateUser} className="p-10 space-y-6">
-              <InputField label="Nome Completo do Membro" value={newUser.fullname} onChange={v => setNewUser({...newUser, fullname: v})} placeholder="Ex: Irmão David" />
-              
+              <InputField label="Nome Completo" value={newUser.fullname} onChange={v => setNewUser({...newUser, fullname: v})} placeholder="Ex: Irmão Pedro" />
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 ml-2">ID de Acesso (Username)</label>
-                  <div className="relative">
-                    <Fingerprint className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18}/>
-                    <input 
-                      type="text" 
-                      value={newUser.username} 
-                      onChange={e => setNewUser({...newUser, username: e.target.value.toLowerCase().replace(/\s/g, '')})} 
-                      className="w-full bg-slate-50 rounded-2xl pl-12 pr-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-black text-ministry-blue" 
-                      placeholder="id_membro"
-                      required
-                    />
-                  </div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 ml-2">ID de Acesso</label>
+                  <input type="text" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value.toLowerCase().replace(/\s/g, '')})} className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-black" placeholder="membro_01" required />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 ml-2">Password de Entrada</label>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 ml-2">Password</label>
                   <div className="flex space-x-2">
-                    <input 
-                      type="text" 
-                      value={newUser.password} 
-                      onChange={e => setNewUser({...newUser, password: e.target.value})} 
-                      className="flex-grow bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-mono font-black text-ministry-gold" 
-                      placeholder="CHAVE123"
-                      required
-                    />
-                    <button type="button" onClick={generatePass} className="p-4 bg-slate-100 text-slate-500 rounded-2xl hover:bg-ministry-gold hover:text-white transition shadow-sm" title="Gerar Aleatória">
-                      <RefreshCw size={20}/>
-                    </button>
+                    <input type="text" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="flex-grow bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-mono font-black text-ministry-gold" required />
+                    <button type="button" onClick={generatePass} className="p-4 bg-slate-100 rounded-2xl hover:bg-ministry-gold hover:text-white transition"><RefreshCw size={20}/></button>
                   </div>
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-6">
                 <InputField label="Email (Opcional)" value={newUser.email} onChange={v => setNewUser({...newUser, email: v})} />
-                <InputField label="Telemóvel (Opcional)" value={newUser.phone} onChange={v => setNewUser({...newUser, phone: v})} />
+                <InputField label="Telefone (Opcional)" value={newUser.phone} onChange={v => setNewUser({...newUser, phone: v})} />
               </div>
-
-              <button 
-                type="submit" 
-                disabled={isRefreshing}
-                className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-ministry-gold transition-all flex items-center justify-center space-x-3"
-              >
-                {isRefreshing ? <RefreshCw size={20} className="animate-spin" /> : <span>GERAR CREDENCIAIS AGORA</span>}
+              <button type="submit" disabled={isRefreshing} className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-ministry-gold transition-all">
+                {isRefreshing ? 'GERANDO...' : 'ATIVAR ACESSO AGORA'}
               </button>
             </form>
           </div>
@@ -375,19 +399,15 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-const InputField = ({ label, value, onChange, placeholder, icon }: any) => (
+const InputField = ({ label, value, onChange, placeholder }: any) => (
   <div>
-    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-2 flex items-center">
-      {icon && <span className="mr-2">{icon}</span>}
-      {label}
-    </label>
+    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-2">{label}</label>
     <input 
       type="text" 
       value={value} 
       onChange={e => onChange(e.target.value)} 
       placeholder={placeholder}
       className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-ministry-blue" 
-      required={label.includes("Nome")}
     />
   </div>
 );
