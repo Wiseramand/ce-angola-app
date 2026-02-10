@@ -23,40 +23,70 @@ async function initDatabase() {
   try {
     await client.query('BEGIN');
     
-    // 1. Criar tabelas base
+    // 1. Criar tabelas com estrutura completa
     await client.query(`
-      CREATE TABLE IF NOT EXISTS system_config (id INTEGER PRIMARY KEY);
-      CREATE TABLE IF NOT EXISTS managed_users (id SERIAL PRIMARY KEY);
-      CREATE TABLE IF NOT EXISTS visitors (id SERIAL PRIMARY KEY);
-      CREATE TABLE IF NOT EXISTS chat_messages (id SERIAL PRIMARY KEY);
+      CREATE TABLE IF NOT EXISTS system_config (
+        id INTEGER PRIMARY KEY,
+        public_url TEXT DEFAULT '',
+        public_server TEXT DEFAULT '',
+        public_key TEXT DEFAULT '',
+        public_title TEXT DEFAULT 'LoveWorld TV Angola',
+        public_description TEXT DEFAULT 'Direto Grátis',
+        private_url TEXT DEFAULT '',
+        private_server TEXT DEFAULT '',
+        private_key TEXT DEFAULT '',
+        private_title TEXT DEFAULT 'Acesso Exclusivo',
+        private_description TEXT DEFAULT 'Conteúdo reservado',
+        is_private_mode BOOLEAN DEFAULT false
+      );
+
+      CREATE TABLE IF NOT EXISTS managed_users (
+        id SERIAL PRIMARY KEY,
+        fullname TEXT,
+        username TEXT UNIQUE,
+        password TEXT,
+        email TEXT,
+        phone TEXT,
+        role TEXT DEFAULT 'user',
+        status TEXT DEFAULT 'active',
+        last_session_id TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS visitors (
+        id SERIAL PRIMARY KEY,
+        fullname TEXT,
+        email TEXT,
+        phone TEXT,
+        country TEXT,
+        address TEXT,
+        gender TEXT,
+        profile_picture TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT,
+        username TEXT,
+        text TEXT,
+        channel TEXT,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS payments (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT,
+        user_name TEXT,
+        amount NUMERIC,
+        method TEXT,
+        type TEXT,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
-    // 2. Migrações de Colunas (Garante que colunas novas existam no Neon)
-    const columns = [
-      ['system_config', 'public_url', 'TEXT DEFAULT \'\''],
-      ['system_config', 'public_server', 'TEXT DEFAULT \'\''],
-      ['system_config', 'public_key', 'TEXT DEFAULT \'\''],
-      ['system_config', 'public_title', 'TEXT DEFAULT \'LoveWorld TV Angola\''],
-      ['system_config', 'public_description', 'TEXT DEFAULT \'Direto Grátis\''],
-      ['system_config', 'private_url', 'TEXT DEFAULT \'\''],
-      ['system_config', 'private_server', 'TEXT DEFAULT \'\''],
-      ['system_config', 'private_key', 'TEXT DEFAULT \'\''],
-      ['system_config', 'private_title', 'TEXT DEFAULT \'Acesso Exclusivo\''],
-      ['system_config', 'private_description', 'TEXT DEFAULT \'Conteúdo reservado\''],
-      ['system_config', 'is_private_mode', 'BOOLEAN DEFAULT false'],
-      ['managed_users', 'fullname', 'TEXT'],
-      ['managed_users', 'username', 'TEXT UNIQUE'],
-      ['managed_users', 'password', 'TEXT'],
-      ['managed_users', 'role', 'TEXT DEFAULT \'user\''],
-      ['managed_users', 'status', 'TEXT DEFAULT \'active\''],
-      ['managed_users', 'last_session_id', 'TEXT']
-    ];
-
-    for (const [table, col, type] of columns) {
-      await client.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${col} ${type}`);
-    }
-
-    // 3. Dados Iniciais
+    // 2. Garantir usuário master
     await client.query(`
       INSERT INTO system_config (id, public_title) VALUES (1, 'LoveWorld TV Angola') ON CONFLICT DO NOTHING;
       INSERT INTO managed_users (fullname, username, password, role) 
@@ -83,6 +113,7 @@ export default async function handler(req, res) {
   try {
     await initDatabase();
 
+    // --- CONFIGURAÇÃO DO SISTEMA ---
     if (path === '/api/system' && method === 'GET') {
       const result = await pool.query('SELECT * FROM system_config WHERE id = 1');
       return res.status(200).json(result.rows[0]);
@@ -102,6 +133,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // --- AUTENTICAÇÃO E REGISTRO ---
     if (path === '/api/login' && method === 'POST') {
       const { username, pass } = req.body;
       const result = await pool.query('SELECT * FROM managed_users WHERE username = $1 AND password = $2', [username.toLowerCase().trim(), pass]);
@@ -115,17 +147,68 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'INVALID' });
     }
 
-    // Rotas de listagem (Admin)
+    if (path === '/api/register' && method === 'POST') {
+      const { fullName, email, phone, country, address, gender, profilePicture } = req.body;
+      await pool.query(
+        'INSERT INTO visitors (fullname, email, phone, country, address, gender, profile_picture) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [fullName, email, phone, country, address, gender, profilePicture]
+      );
+      return res.status(200).json({ success: true });
+    }
+
+    if (path === '/api/heartbeat' && method === 'POST') {
+      const { userId, sessionId } = req.body;
+      const result = await pool.query('SELECT last_session_id FROM managed_users WHERE id = $1', [userId]);
+      if (result.rows.length > 0 && result.rows[0].last_session_id !== sessionId) {
+        return res.status(401).json({ error: 'SESSION_EXPIRED' });
+      }
+      return res.status(200).json({ status: 'ok' });
+    }
+
+    // --- ADMINISTRAÇÃO ---
     if (path === '/api/admin/users' && method === 'GET') {
-      const r = await pool.query("SELECT id, fullname as name, username, status, password FROM managed_users WHERE role != 'admin'");
+      const r = await pool.query("SELECT id, fullname as name, username, status, password, email, phone FROM managed_users WHERE role != 'admin' ORDER BY created_at DESC");
       return res.status(200).json(r.rows);
     }
+
+    if (path === '/api/admin/users/create' && method === 'POST') {
+      const { fullname, username, password, email, phone } = req.body;
+      await pool.query(
+        'INSERT INTO managed_users (fullname, username, password, email, phone) VALUES ($1, $2, $3, $4, $5)',
+        [fullname, username.toLowerCase().trim(), password, email, phone]
+      );
+      return res.status(200).json({ success: true });
+    }
+
+    if (path === '/api/admin/users/status' && method === 'POST') {
+      const { id, status } = req.body;
+      const newStatus = status === 'active' ? 'blocked' : 'active';
+      await pool.query('UPDATE managed_users SET status = $1 WHERE id = $2', [newStatus, id]);
+      return res.status(200).json({ success: true });
+    }
+
+    if (path === '/api/admin/users/delete' && method === 'POST') {
+      const { id } = req.body;
+      await pool.query('DELETE FROM managed_users WHERE id = $1', [id]);
+      return res.status(200).json({ success: true });
+    }
+
     if (path === '/api/admin/visitors' && method === 'GET') {
       const r = await pool.query("SELECT * FROM visitors ORDER BY created_at DESC");
       return res.status(200).json(r.rows);
     }
 
-    // Chat
+    // --- PAGAMENTOS ---
+    if (path === '/api/payments/process' && method === 'POST') {
+      const { userId, userName, amount, method: payMethod, type, description } = req.body;
+      await pool.query(
+        'INSERT INTO payments (user_id, user_name, amount, method, type, description) VALUES ($1, $2, $3, $4, $5, $6)',
+        [userId, userName, amount, payMethod, type, description]
+      );
+      return res.status(200).json({ success: true });
+    }
+
+    // --- CHAT ---
     if (path === '/api/chat' && method === 'GET') {
       const chan = urlParams.get('channel') || 'public';
       const r = await pool.query('SELECT * FROM chat_messages WHERE channel = $1 ORDER BY timestamp DESC LIMIT 50', [chan]);
@@ -139,6 +222,7 @@ export default async function handler(req, res) {
 
     return res.status(404).json({ error: 'NOT_FOUND' });
   } catch (error) {
+    console.error('[Server Error]:', error);
     return res.status(500).json({ error: 'SERVER_ERROR', details: error.message });
   }
 }
