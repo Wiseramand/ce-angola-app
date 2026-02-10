@@ -12,6 +12,7 @@ const LiveTV: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchMessages = async () => {
     try {
@@ -25,9 +26,20 @@ const LiveTV: React.FC = () => {
 
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
+    const interval = setInterval(fetchMessages, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  // Lógica de Scroll Inteligente
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (container) {
+      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
+      if (isAtBottom) {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +59,8 @@ const LiveTV: React.FC = () => {
       });
       if (res.ok) {
         setNewMessage('');
-        fetchMessages();
+        await fetchMessages();
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }
     } catch (e) {
       alert("Erro ao enviar mensagem.");
@@ -55,8 +68,6 @@ const LiveTV: React.FC = () => {
       setIsSending(false);
     }
   };
-
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   return (
     <div className="bg-gray-950 min-h-screen pt-4 pb-20">
@@ -92,7 +103,7 @@ const LiveTV: React.FC = () => {
             </div>
             <span className="text-[10px] bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-black">CHAT ATIVO</span>
           </div>
-          <div className="flex-grow overflow-y-auto p-8 space-y-6 bg-black/20 scrollbar-hide">
+          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-8 space-y-6 bg-black/20 scrollbar-hide">
             {messages.map((msg) => (
               <div key={msg.id} className="animate-in fade-in slide-in-from-bottom-3 duration-500">
                 <div className="flex space-x-4">
@@ -109,12 +120,6 @@ const LiveTV: React.FC = () => {
                 </div>
               </div>
             ))}
-            {messages.length === 0 && (
-              <div className="h-full flex flex-col items-center justify-center text-center p-10">
-                 <Loader2 size={32} className="text-white/10 animate-spin mb-4" />
-                 <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Aguardando Mensagens...</p>
-              </div>
-            )}
             <div ref={chatEndRef} />
           </div>
           <div className="p-8 bg-black/60 border-t border-white/5">
@@ -137,8 +142,7 @@ const LiveTV: React.FC = () => {
               </form>
             ) : (
               <Link to="/register" className="w-full py-5 bg-ministry-blue text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest flex items-center justify-center space-x-3 shadow-xl hover:bg-ministry-gold transition-all">
-                <UserPlus size={18} />
-                <span>Registrar-me para Comentar</span>
+                <span className="font-bold">Registrar para Comentar</span>
               </Link>
             )}
           </div>

@@ -12,6 +12,7 @@ const LivePrograms: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchMessages = async () => {
     try {
@@ -25,9 +26,19 @@ const LivePrograms: React.FC = () => {
 
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
+    const interval = setInterval(fetchMessages, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (container) {
+      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
+      if (isAtBottom) {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +58,8 @@ const LivePrograms: React.FC = () => {
       });
       if (res.ok) {
         setNewMessage('');
-        fetchMessages();
+        await fetchMessages();
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }
     } catch (e) {
       alert("Erro ao enviar.");
@@ -55,8 +67,6 @@ const LivePrograms: React.FC = () => {
       setIsSending(false);
     }
   };
-
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   return (
     <div className="bg-gray-950 min-h-screen pt-4 pb-20">
@@ -98,7 +108,7 @@ const LivePrograms: React.FC = () => {
                <span className="text-[9px] text-green-400 font-black uppercase tracking-widest">Seguro</span>
             </div>
           </div>
-          <div className="flex-grow overflow-y-auto p-8 space-y-6 bg-black/30 scrollbar-hide">
+          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-8 space-y-6 bg-black/30 scrollbar-hide">
             {messages.map((msg) => (
               <div key={msg.id} className="animate-in slide-in-from-bottom-2 duration-500">
                 <div className="flex space-x-4">
