@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../App';
-import { User as UserIcon, Lock, Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
+import { User as UserIcon, Lock, Loader2, ShieldAlert } from 'lucide-react';
 import Logo from '../components/Logo';
 
 const Login: React.FC = () => {
@@ -10,7 +10,6 @@ const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [sessionConflict, setSessionConflict] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -19,9 +18,7 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setSessionConflict(false);
     
-    // Normalizamos para minúsculas para coincidir com a criação no Admin
     const normalizedUsername = username.toLowerCase().trim();
 
     try {
@@ -30,8 +27,11 @@ const Login: React.FC = () => {
     } catch (err: any) {
       if (err.message === 'BLOCKED') {
         setError('A sua conta está temporariamente bloqueada pela administração.');
+      } else if (err.message === 'INVALID_CREDENTIALS' || err.message === 'INVALID') {
+        setError('Credenciais inválidas. Verifique o seu ID e Senha exclusivos.');
       } else {
-        setError('Credenciais inválidas. Verifique o seu acesso exclusivo.');
+        setError('Falha de conexão com o sistema central. Tente novamente mais tarde.');
+        console.error("Login Error:", err);
       }
     }
   };
@@ -53,7 +53,7 @@ const Login: React.FC = () => {
 
           <div className="p-12">
             {error ? (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-2xl mb-8 flex items-center space-x-3 text-xs font-bold uppercase tracking-widest animate-shake">
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-2xl mb-8 flex items-center space-x-3 text-xs font-bold uppercase tracking-widest">
                 <ShieldAlert size={18} />
                 <span>{error}</span>
               </div>
@@ -98,13 +98,6 @@ const Login: React.FC = () => {
                 {isLoading ? <Loader2 className="animate-spin" size={20} /> : <span>ENTRAR NO PROGRAMA</span>}
               </button>
             </form>
-
-            <div className="mt-12 pt-8 border-t border-white/5 text-center">
-              <p className="text-gray-600 text-[10px] font-bold uppercase tracking-widest mb-4">Suporte Administrativo</p>
-              <p className="text-gray-400 text-[11px] leading-relaxed">
-                As credenciais de acesso exclusivo são únicas e pessoais. Se perdeu os seus dados, contacte o secretariado da igreja.
-              </p>
-            </div>
           </div>
         </div>
       </div>

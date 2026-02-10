@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Video, Trash2, RefreshCw, Globe, Save, Power, Server, Key, Lock, Shield, Plus, X, UserPlus, Fingerprint, Eye
+  Users, Video, Trash2, RefreshCw, Globe, Save, Power, Server, Key, Lock, Shield, Plus, X, UserPlus, Fingerprint, Eye, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
@@ -26,14 +26,14 @@ interface Visitor {
 }
 
 const AdminDashboard: React.FC = () => {
-  const { system, updateStreamConfig } = useAuth();
+  const { system, updateStreamConfig, refreshSystem } = useAuth();
   const [activeTab, setActiveTab] = useState<'users' | 'visitors' | 'streams'>('users');
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   
-  // Form de Novo Membro Exclusivo
   const [newUser, setNewUser] = useState({
     fullname: '',
     username: '',
@@ -42,54 +42,59 @@ const AdminDashboard: React.FC = () => {
     phone: ''
   });
 
-  // Form de Streams (Campos devem bater com o Backend em snake_case)
   const [streamForm, setStreamForm] = useState({
-    public_url: system.publicUrl || '',
+    public_url: '',
     public_server: '',
     public_key: '',
-    public_title: system.publicTitle || '',
-    public_description: system.publicDescription || '',
-    private_url: system.privateUrl || '',
+    public_title: '',
+    public_description: '',
+    private_url: '',
     private_server: '',
     private_key: '',
-    private_title: system.privateTitle || '',
-    private_description: system.privateDescription || '',
-    is_private_mode: system.isPrivateMode
+    private_title: '',
+    private_description: '',
+    is_private_mode: false
   });
 
   const loadFullSystem = async () => {
-    const res = await fetch('/api/system');
-    if (res.ok) {
-      const data = await res.json();
-      setStreamForm({
-        public_url: data.public_url || '',
-        public_server: data.public_server || '',
-        public_key: data.public_key || '',
-        public_title: data.public_title || '',
-        public_description: data.public_description || '',
-        private_url: data.private_url || '',
-        private_server: data.private_server || '',
-        private_key: data.private_key || '',
-        private_title: data.private_title || '',
-        private_description: data.private_description || '',
-        is_private_mode: !!data.is_private_mode
-      });
+    setIsRefreshing(true);
+    setServerError(null);
+    try {
+      const res = await fetch('/api/system');
+      if (res.ok) {
+        const data = await res.json();
+        setStreamForm({
+          public_url: data.public_url || '',
+          public_server: data.public_server || '',
+          public_key: data.public_key || '',
+          public_title: data.public_title || '',
+          public_description: data.public_description || '',
+          private_url: data.private_url || '',
+          private_server: data.private_server || '',
+          private_key: data.private_key || '',
+          private_title: data.private_title || '',
+          private_description: data.private_description || '',
+          is_private_mode: !!data.is_private_mode
+        });
+      } else {
+        const err = await res.json();
+        setServerError(err.details || err.error);
+      }
+    } catch (e) {
+      setServerError("Erro de conexão com o servidor ao carregar dados.");
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
-  useEffect(() => { loadFullSystem(); }, []);
-
   const fetchUsers = async () => {
-    setIsRefreshing(true);
     try {
       const res = await fetch('/api/admin/users');
       if (res.ok) {
         const data = await res.json();
         setUsers(data);
       }
-    } finally {
-      setIsRefreshing(false);
-    }
+    } catch (e) {}
   };
 
   const fetchVisitors = async () => {
@@ -131,46 +136,46 @@ const AdminDashboard: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newUser)
       });
+      const data = await res.json();
       if (res.ok) {
         alert("✅ Credenciais geradas com sucesso!");
         setShowCreateModal(false);
         setNewUser({ fullname: '', username: '', password: '', email: '', phone: '' });
         fetchUsers();
       } else {
-        alert("Erro: Este ID já existe ou os dados são inválidos.");
+        alert("Erro: " + (data.details || data.error));
       }
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  const generatePass = () => {
-    const pass = Math.random().toString(36).substring(2, 10).toUpperCase();
-    setNewUser({ ...newUser, password: pass });
-  };
-
   const handleSaveStreams = async () => {
     setIsRefreshing(true);
+    setServerError(null);
     try {
       const res = await fetch('/api/system', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(streamForm)
       });
+      const data = await res.json();
       if (res.ok) {
-        alert("✅ Configurações de Transmissão Atualizadas com Sucesso!");
-        await updateStreamConfig(streamForm);
+        alert("✅ Configurações de Transmissão Publicadas com Sucesso!");
+        await refreshSystem();
       } else {
-        alert("Falha ao salvar no servidor.");
+        setServerError(data.details || data.error);
+        alert("Falha no Servidor: " + (data.details || data.error));
       }
     } catch (e) {
-      alert("Erro de conexão.");
+      setServerError("Falha de rede ao tentar salvar.");
     } finally {
       setIsRefreshing(false);
     }
   };
 
   useEffect(() => { 
+    loadFullSystem();
     fetchUsers(); 
     fetchVisitors();
   }, []);
@@ -214,6 +219,16 @@ const AdminDashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-grow p-12">
+        {serverError && (
+          <div className="bg-red-50 border-2 border-red-100 p-6 rounded-[2rem] mb-10 flex items-center space-x-4 text-red-600 animate-in fade-in slide-in-from-top-4">
+            <AlertCircle size={24} />
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest">Erro Crítico do Servidor</p>
+              <p className="font-bold">{serverError}</p>
+            </div>
+          </div>
+        )}
+
         <header className="flex justify-between items-center mb-12">
           <div>
             <h1 className="text-4xl font-display font-black text-ministry-blue uppercase tracking-tighter">Administração Central</h1>
@@ -229,7 +244,7 @@ const AdminDashboard: React.FC = () => {
         </header>
 
         {activeTab === 'users' && (
-          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden animate-in fade-in duration-500">
+          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
             <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
               <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest flex items-center">
                 <Lock size={18} className="mr-3 text-ministry-gold" /> Acessos Gerados
@@ -289,7 +304,7 @@ const AdminDashboard: React.FC = () => {
         )}
 
         {activeTab === 'visitors' && (
-          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden animate-in fade-in duration-500">
+          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
              <div className="p-8 border-b border-slate-50 bg-slate-50/50">
                <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">Base de Dados de Registo Público</h3>
              </div>
@@ -312,7 +327,6 @@ const AdminDashboard: React.FC = () => {
                        <td className="px-8 py-6 text-right text-[10px] text-slate-400">{new Date(v.created_at).toLocaleDateString()}</td>
                      </tr>
                    ))}
-                   {visitors.length === 0 && <tr><td colSpan={4} className="p-20 text-center text-slate-400 italic">Nenhum registo público encontrado.</td></tr>}
                  </tbody>
                </table>
              </div>
@@ -351,7 +365,7 @@ const AdminDashboard: React.FC = () => {
             <button 
               onClick={handleSaveStreams} 
               disabled={isRefreshing}
-              className="w-full py-7 bg-ministry-blue text-white rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl hover:bg-ministry-gold transition-all flex items-center justify-center space-x-3"
+              className="w-full py-7 bg-ministry-blue text-white rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl hover:bg-ministry-gold transition-all flex items-center justify-center space-x-3 disabled:opacity-50"
             >
               {isRefreshing ? <RefreshCw className="animate-spin" /> : <Save size={20} />}
               <span>PUBLICAR CONFIGURAÇÕES</span>
@@ -362,8 +376,8 @@ const AdminDashboard: React.FC = () => {
 
       {/* Modal Criar Utilizador */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-xl rounded-[3rem] shadow-[0_35px_100px_rgba(0,0,0,0.5)] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden">
             <div className="bg-ministry-blue p-10 text-white flex justify-between items-center">
               <h3 className="text-2xl font-display font-black uppercase tracking-tight">Novo Membro Exclusivo</h3>
               <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-white/10 rounded-xl transition"><X size={24}/></button>
@@ -378,17 +392,10 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 ml-2">Password</label>
-                  <div className="flex space-x-2">
-                    <input type="text" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="flex-grow bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-mono font-black text-ministry-gold" required />
-                    <button type="button" onClick={generatePass} className="p-4 bg-slate-100 rounded-2xl hover:bg-ministry-gold hover:text-white transition"><RefreshCw size={20}/></button>
-                  </div>
+                  <input type="text" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-mono font-black text-ministry-gold" required />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-6">
-                <InputField label="Email (Opcional)" value={newUser.email} onChange={v => setNewUser({...newUser, email: v})} />
-                <InputField label="Telefone (Opcional)" value={newUser.phone} onChange={v => setNewUser({...newUser, phone: v})} />
-              </div>
-              <button type="submit" disabled={isRefreshing} className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-ministry-gold transition-all">
+              <button type="submit" disabled={isRefreshing} className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-ministry-gold transition-all disabled:opacity-50">
                 {isRefreshing ? 'GERANDO...' : 'ATIVAR ACESSO AGORA'}
               </button>
             </form>
