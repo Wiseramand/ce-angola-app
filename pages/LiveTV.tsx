@@ -11,7 +11,6 @@ const LiveTV: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchMessages = async () => {
@@ -30,13 +29,20 @@ const LiveTV: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Lógica de Scroll Inteligente
+  // Lógica de Scroll Inteligente e Localizada
   useEffect(() => {
     const container = chatContainerRef.current;
     if (container) {
-      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
+      // Verificamos se o usuário está no fundo (margem de erro de 50px)
+      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
+      
       if (isAtBottom) {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        // Usamos scrollTo no container em vez de scrollIntoView no elemento
+        // Isso evita que a página inteira (o body) faça scroll
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
       }
     }
   }, [messages]);
@@ -60,7 +66,11 @@ const LiveTV: React.FC = () => {
       if (res.ok) {
         setNewMessage('');
         await fetchMessages();
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        // Forçamos o scroll após envio próprio
+        chatContainerRef.current?.scrollTo({
+          top: chatContainerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
       }
     } catch (e) {
       alert("Erro ao enviar mensagem.");
@@ -103,7 +113,7 @@ const LiveTV: React.FC = () => {
             </div>
             <span className="text-[10px] bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-black">CHAT ATIVO</span>
           </div>
-          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-8 space-y-6 bg-black/20 scrollbar-hide">
+          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-8 space-y-6 bg-black/20 scrollbar-hide scroll-smooth">
             {messages.map((msg) => (
               <div key={msg.id} className="animate-in fade-in slide-in-from-bottom-3 duration-500">
                 <div className="flex space-x-4">
@@ -120,7 +130,6 @@ const LiveTV: React.FC = () => {
                 </div>
               </div>
             ))}
-            <div ref={chatEndRef} />
           </div>
           <div className="p-8 bg-black/60 border-t border-white/5">
             {user ? (

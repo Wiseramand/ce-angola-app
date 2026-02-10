@@ -11,7 +11,6 @@ const LivePrograms: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchMessages = async () => {
@@ -30,12 +29,16 @@ const LivePrograms: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Lógica de Scroll Inteligente e Localizada
   useEffect(() => {
     const container = chatContainerRef.current;
     if (container) {
-      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
+      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
       if (isAtBottom) {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
       }
     }
   }, [messages]);
@@ -59,7 +62,10 @@ const LivePrograms: React.FC = () => {
       if (res.ok) {
         setNewMessage('');
         await fetchMessages();
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        chatContainerRef.current?.scrollTo({
+          top: chatContainerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
       }
     } catch (e) {
       alert("Erro ao enviar.");
@@ -108,7 +114,7 @@ const LivePrograms: React.FC = () => {
                <span className="text-[9px] text-green-400 font-black uppercase tracking-widest">Seguro</span>
             </div>
           </div>
-          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-8 space-y-6 bg-black/30 scrollbar-hide">
+          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-8 space-y-6 bg-black/30 scrollbar-hide scroll-smooth">
             {messages.map((msg) => (
               <div key={msg.id} className="animate-in slide-in-from-bottom-2 duration-500">
                 <div className="flex space-x-4">
@@ -122,7 +128,6 @@ const LivePrograms: React.FC = () => {
                 </div>
               </div>
             ))}
-            <div ref={chatEndRef} />
           </div>
           <div className="p-8 bg-black/70 border-t border-white/10">
             <form onSubmit={handleSendMessage} className="relative">
