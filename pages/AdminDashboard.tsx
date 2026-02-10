@@ -93,7 +93,7 @@ const AdminDashboard: React.FC = () => {
             <Database className="text-red-500" size={40} />
             <div>
               <h3 className="text-lg font-black text-red-600 uppercase">Erro de Conexão com a Base de Dados</h3>
-              <p className="text-red-500/80 text-sm font-medium">Siga os passos: Vercel -> Storage -> Connect Neon -> Redeploy.</p>
+              <p className="text-red-500/80 text-sm font-medium">Siga os passos: Vercel &rarr; Storage &rarr; Connect Neon &rarr; Redeploy.</p>
             </div>
             <button onClick={checkConnection} className="ml-auto p-3 bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition">
               <RefreshCw size={20} />
