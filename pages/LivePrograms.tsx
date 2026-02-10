@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, Heart, Shield } from 'lucide-react';
+import { Send, Heart, Shield, MessageSquare, Loader2 } from 'lucide-react';
 import { useAuth } from '../App';
 import { ChatMessage } from '../types';
 import UniversalPlayer from '../components/UniversalPlayer';
@@ -10,21 +10,50 @@ const LivePrograms: React.FC = () => {
   const { user, system } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const fetchMessages = async () => {
+    try {
+      const res = await fetch('/api/chat?channel=private');
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(data);
+      }
+    } catch (e) {}
+  };
+
   useEffect(() => {
-    const initialMessages: ChatMessage[] = [
-      { id: '1', userId: 'bot', userName: 'System', text: 'Sessão Exclusiva Iniciada. A glória de Deus está aqui.', timestamp: new Date() },
-    ];
-    setMessages(initialMessages);
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 3000);
+    return () => clearInterval(interval);
   }, []);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user) return;
-    const msg: ChatMessage = { id: Date.now().toString(), userId: user.id, userName: user.fullName, userImage: user.profilePicture, text: newMessage, timestamp: new Date() };
-    setMessages([...messages, msg]);
-    setNewMessage('');
+    if (!newMessage.trim() || !user || isSending) return;
+    
+    setIsSending(true);
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          username: user.fullName,
+          text: newMessage,
+          channel: 'private'
+        })
+      });
+      if (res.ok) {
+        setNewMessage('');
+        fetchMessages();
+      }
+    } catch (e) {
+      alert("Erro ao enviar.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -33,60 +62,74 @@ const LivePrograms: React.FC = () => {
     <div className="bg-gray-950 min-h-screen pt-4 pb-20">
       <div className="max-w-[1800px] mx-auto px-4 h-full flex flex-col lg:flex-row gap-6">
         <div className="flex-grow lg:w-[75%] flex flex-col">
-          <div className="relative aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/10">
+          <div className="relative aspect-video bg-black rounded-[3rem] overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/10">
             <UniversalPlayer url={system.privateUrl} title={system.privateTitle} />
-            
-            <div className="absolute top-6 left-6 flex items-center space-x-3">
-              <div className="bg-ministry-gold px-4 py-1.5 rounded-lg text-white text-[10px] font-black uppercase flex items-center shadow-lg">
-                 <Shield size={12} className="mr-2" />
-                 Emissão Restrita
+            <div className="absolute top-8 left-8 flex items-center space-x-3">
+              <div className="bg-ministry-gold px-6 py-2.5 rounded-xl text-white text-[10px] font-black uppercase flex items-center shadow-2xl border border-white/10">
+                 <Shield size={14} className="mr-3" />
+                 Sessão Consagrada • Restrita
               </div>
             </div>
           </div>
 
-          <div className="mt-8 bg-gray-900 p-8 rounded-[2rem] border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-8 shadow-xl">
+          <div className="mt-8 bg-gray-900 p-12 rounded-[3.5rem] border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-8 shadow-xl">
             <div className="flex-grow">
-              <div className="flex items-center space-x-3 mb-3">
-                 <span className="px-3 py-1 bg-ministry-gold/20 text-ministry-gold text-[10px] font-extrabold rounded-full uppercase tracking-widest">Canal Consagrado</span>
+              <div className="flex items-center space-x-3 mb-4">
+                 <span className="px-4 py-1.5 bg-ministry-gold/20 text-ministry-gold text-[10px] font-black rounded-full uppercase tracking-[0.2em] border border-ministry-gold/10">Exclusividade Parceiro</span>
               </div>
-              <h1 className="text-3xl font-bold text-white font-display mb-3">{system.privateTitle}</h1>
-              <p className="text-gray-400 text-lg font-light leading-relaxed max-w-3xl">{system.privateDescription}</p>
+              <h1 className="text-4xl font-black text-white font-display mb-4 uppercase tracking-tight">{system.privateTitle}</h1>
+              <p className="text-gray-400 text-xl font-light leading-relaxed max-w-4xl">{system.privateDescription}</p>
             </div>
-            <Link to="/donations" className="flex items-center space-x-3 px-10 py-5 bg-ministry-gold text-white font-black text-xl rounded-2xl shadow-2xl">
-              <Heart size={24} fill="white" />
-              <span>DOAÇÃO ESPECIAL</span>
+            <Link to="/donations" className="flex items-center space-x-4 px-12 py-7 bg-ministry-gold text-white font-black text-2xl rounded-[2rem] shadow-2xl hover:bg-white hover:text-ministry-blue transition-all">
+              <Heart size={28} fill="currentColor" />
+              <span>SOU PARCEIRO</span>
             </Link>
           </div>
         </div>
 
-        <div className="lg:w-[25%] flex flex-col bg-gray-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl h-[calc(100vh-140px)] sticky top-24">
-          <div className="p-6 border-b border-white/5 bg-black/30 flex items-center justify-between text-white">
-            <h2 className="font-bold font-display uppercase tracking-widest text-xs">Chat Exclusivo</h2>
-            <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest flex items-center">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-2"></span>
-              Seguro
-            </span>
+        <div className="lg:w-[25%] flex flex-col bg-slate-900 border border-white/10 rounded-[3rem] overflow-hidden shadow-2xl h-[calc(100vh-140px)] sticky top-24">
+          <div className="p-8 border-b border-white/5 bg-black/40 flex items-center justify-between text-white">
+            <div className="flex items-center space-x-4">
+              <MessageSquare size={20} className="text-ministry-gold" />
+              <h2 className="font-black font-display uppercase tracking-widest text-[11px]">Chat de Ministros</h2>
+            </div>
+            <div className="flex items-center space-x-2">
+               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_green]"></span>
+               <span className="text-[9px] text-green-400 font-black uppercase tracking-widest">Seguro</span>
+            </div>
           </div>
-          <div className="flex-grow overflow-y-auto p-6 space-y-6 bg-black/10">
+          <div className="flex-grow overflow-y-auto p-8 space-y-6 bg-black/30 scrollbar-hide">
             {messages.map((msg) => (
-              <div key={msg.id} className="animate-in slide-in-from-bottom-2">
+              <div key={msg.id} className="animate-in slide-in-from-bottom-2 duration-500">
                 <div className="flex space-x-4">
-                  <div className="w-10 h-10 rounded-xl bg-ministry-blue flex items-center justify-center text-sm font-black text-white border border-white/10 overflow-hidden">
-                    {msg.userImage ? <img src={msg.userImage} className="w-full h-full object-cover" /> : msg.userName.charAt(0)}
+                  <div className="w-12 h-12 rounded-[1.2rem] bg-ministry-blue flex items-center justify-center text-sm font-black text-white border border-white/10 overflow-hidden flex-shrink-0 shadow-lg">
+                    {msg.username.charAt(0)}
                   </div>
                   <div className="flex-grow">
-                    <p className="text-[10px] font-black text-ministry-gold uppercase mb-1">{msg.userName}</p>
-                    <div className="text-sm text-gray-300 leading-relaxed bg-white/5 p-3 rounded-2xl rounded-tl-none border border-white/5">{msg.text}</div>
+                    <p className="text-[10px] font-black text-ministry-gold uppercase tracking-wider mb-1.5">{msg.username}</p>
+                    <div className="text-sm text-gray-300 bg-white/5 p-4 rounded-[1.8rem] rounded-tl-none border border-white/10 leading-relaxed shadow-sm">{msg.text}</div>
                   </div>
                 </div>
               </div>
             ))}
             <div ref={chatEndRef} />
           </div>
-          <div className="p-6 bg-black/50 border-t border-white/5">
+          <div className="p-8 bg-black/70 border-t border-white/10">
             <form onSubmit={handleSendMessage} className="relative">
-              <input type="text" placeholder="Envie uma bênção..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} className="w-full bg-gray-800 text-white text-sm rounded-2xl pl-5 pr-14 py-4 border-0 outline-none" />
-              <button type="submit" className="absolute right-2 top-2 bottom-2 px-3 bg-ministry-gold text-white rounded-xl"><Send size={18} /></button>
+              <input 
+                type="text" 
+                placeholder="Declare sua vitória..." 
+                value={newMessage} 
+                onChange={(e) => setNewMessage(e.target.value)} 
+                className="w-full bg-slate-800 text-white text-sm rounded-[1.8rem] pl-6 pr-16 py-5 border-0 outline-none focus:ring-2 focus:ring-ministry-gold shadow-inner" 
+              />
+              <button 
+                type="submit" 
+                disabled={isSending}
+                className="absolute right-3 top-3 bottom-3 px-5 bg-ministry-gold text-white rounded-[1.2rem] hover:scale-105 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+              >
+                {isSending ? <Loader2 className="animate-spin" size={20}/> : <Send size={20} />}
+              </button>
             </form>
           </div>
         </div>
