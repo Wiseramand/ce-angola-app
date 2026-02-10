@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../App';
-import { User as UserIcon, Camera, ChevronRight, Check, Phone, Info } from 'lucide-react';
+import { User as UserIcon, Camera, ChevronRight, Check, Phone, Info, Loader2 } from 'lucide-react';
 
 const COUNTRY_DATA = [
   { name: "Angola", code: "+244" }, { name: "Portugal", code: "+351" }, { name: "Brazil", code: "+55" }, 
@@ -15,6 +15,7 @@ const Register: React.FC = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -55,8 +56,28 @@ const Register: React.FC = () => {
   };
 
   const handleComplete = async () => {
-    await register({ ...formData, profilePicture: profilePic });
-    navigate('/live-tv'); // Redirecionar diretamente para a live após identificação
+    setIsSubmitting(true);
+    try {
+      // 1. Chamar API do Backend para salvar e enviar e-mail
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, profilePicture: profilePic })
+      });
+
+      if (res.ok) {
+        // 2. Atualizar estado local do Auth
+        await register({ ...formData, profilePicture: profilePic });
+        navigate('/live-tv');
+      } else {
+        alert("Erro ao registrar no servidor. Verifique sua conexão.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Falha crítica no registro.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -77,7 +98,7 @@ const Register: React.FC = () => {
           <div className="bg-blue-50 p-4 px-10 flex items-center space-x-4 border-b border-blue-100">
             <Info className="text-blue-600 flex-shrink-0" size={20} />
             <p className="text-[10px] text-blue-800 font-bold uppercase tracking-tight">
-              Aviso: Este formulário não exige senha. Serve apenas para estabelecer a sua identidade no chat público.
+              Aviso: Enviaremos uma mensagem de boas-vindas para o seu e-mail após a conclusão.
             </p>
           </div>
 
@@ -98,7 +119,7 @@ const Register: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Email (Opcional)</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Email (Para Notificação)</label>
                     <input 
                       type="email" 
                       name="email" 
@@ -106,6 +127,7 @@ const Register: React.FC = () => {
                       onChange={handleInputChange} 
                       className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-ministry-gold shadow-inner" 
                       placeholder="email@exemplo.com" 
+                      required
                     />
                   </div>
                   <div>
@@ -181,25 +203,23 @@ const Register: React.FC = () => {
                 <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
                   <button 
                     onClick={() => setStep(1)} 
+                    disabled={isSubmitting}
                     className="flex-1 py-5 text-gray-500 font-bold hover:bg-gray-50 rounded-2xl transition"
                   >
                     Voltar
                   </button>
                   <button 
                     onClick={handleComplete} 
+                    disabled={isSubmitting}
                     className="flex-[2] py-5 bg-ministry-blue text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center space-x-3 hover:bg-opacity-90 transition shadow-xl"
                   >
-                    <Check size={20} />
-                    <span>Concluir e Ir para Live</span>
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : <Check size={20} />}
+                    <span>{isSubmitting ? 'Registrando...' : 'Concluir e Ir para Live'}</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
-        </div>
-        
-        <div className="mt-8 text-center">
-          <p className="text-gray-400 text-sm">Recebeu credenciais exclusivas do Administrador? <Link to="/login" className="text-ministry-gold font-bold hover:underline">Entre Aqui</Link></p>
         </div>
       </div>
     </div>

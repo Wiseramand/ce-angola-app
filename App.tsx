@@ -1,5 +1,5 @@
 
-import React, { useState, createContext, useContext, useEffect } from 'react';
+import React, { useState, createContext, useContext, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -17,12 +17,16 @@ import Profile from './pages/Profile';
 import { User, StreamConfig } from './types';
 import { ShieldAlert } from 'lucide-react';
 
+interface UserExtended extends User {
+  sessionId?: string;
+}
+
 interface SystemState extends StreamConfig {
   activeSessions: string[];
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: UserExtended | null;
   system: SystemState;
   login: (credentials: { username: string; pass: string }) => Promise<void>;
   adminLogin: (credentials: { username: string; pass: string }) => Promise<void>;
@@ -43,8 +47,9 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserExtended | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const heartbeatRef = useRef<number | null>(null);
   const [system, setSystem] = useState<SystemState>({
     publicUrl: '',
     publicTitle: 'LoveWorld TV Angola',
@@ -55,6 +60,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isPrivateMode: false,
     activeSessions: []
   });
+
+  const sendHeartbeat = async (userId: string, sessionId: string) => {
+    try {
+      const res = await fetch('/api/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, sessionId })
+      });
+      if (!res.ok) {
+        logout(); // Sessão expirou ou foi invalidada
+      }
+    } catch (e) { /* Falha silenciosa de rede */ }
+  };
 
   const refreshSystem = async () => {
     try {
@@ -73,9 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isPrivateMode: !!data.is_private_mode
         }));
       }
-    } catch (e) { 
-      // Silencioso para não travar a UI
-    }
+    } catch (e) { }
   };
 
   useEffect(() => {
@@ -84,7 +100,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem('ce_session_user');
       if (saved) {
         try {
-          setUser(JSON.parse(saved));
+          const parsedUser = JSON.parse(saved);
+          setUser(parsedUser);
+          if (parsedUser.sessionId && parsedUser.role !== 'admin') {
+            heartbeatRef.current = window.setInterval(() => sendHeartbeat(parsedUser.id, parsedUser.sessionId), 45000);
+          }
         } catch (e) {
           localStorage.removeItem('ce_session_user');
         }
@@ -93,7 +113,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     init();
     const interval = setInterval(refreshSystem, 15000); 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+    };
   }, []);
 
   const login = async (creds: { username: string; pass: string }) => {
@@ -105,11 +128,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify(creds)
       });
       
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setUser(data);
         localStorage.setItem('ce_session_user', JSON.stringify(data));
+        if (data.sessionId) {
+          if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+          heartbeatRef.current = window.setInterval(() => sendHeartbeat(data.id, data.sessionId), 45000);
+        }
       } else {
+        if (res.status === 409) throw new Error('SESSION_ACTIVE');
         throw new Error('INVALID');
       }
     } finally {
@@ -120,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const adminLogin = async (creds: { username: string; pass: string }) => {
     setIsLoading(true);
     if (creds.username === 'master_admin' && creds.pass === 'angola_faith_2025') {
-      const admin: User = { id: 'admin-1', fullName: 'Super Administrador', email: 'admin@ceangola.org', phone: '900', country: 'Angola', address: 'Luanda', gender: 'Male', hasLiveAccess: true, role: 'admin' };
+      const admin: UserExtended = { id: 'admin-1', fullName: 'Super Administrador', email: 'admin@ceangola.org', phone: '900', country: 'Angola', address: 'Luanda', gender: 'Male', hasLiveAccess: true, role: 'admin' };
       setUser(admin);
       localStorage.setItem('ce_session_user', JSON.stringify(admin));
     } else {
@@ -136,7 +164,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('ce_session_user', JSON.stringify(newUser));
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (user?.id && user?.role !== 'admin') {
+      try {
+        await fetch('/api/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id })
+        });
+      } catch (e) {}
+    }
+    if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     setUser(null);
     localStorage.removeItem('ce_session_user');
   };

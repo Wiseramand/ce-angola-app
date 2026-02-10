@@ -7,120 +7,99 @@ const Home: React.FC = () => {
   return (
     <div className="bg-white">
       {/* Hero Section */}
-      <section className="relative h-screen flex items-center overflow-hidden">
+      <section className="relative h-screen flex items-center overflow-hidden bg-ministry-blue">
+        {/* Background Layer - Imagem por trás do azul */}
         <div className="absolute inset-0 z-0">
-          {/* Altere o src para o caminho da sua imagem local, ex: "assets/hero.jpg" ou apenas "hero.jpg" */}
           <img 
-            src="assets/hero-pastor.jpg" 
-            alt="Pastor Chris Oyakhilome" 
-            className="w-full h-full object-cover"
+            src="/assets/hero-pastor.jpg" 
+            alt="Pastor Chris" 
+            className="w-full h-full object-cover object-top opacity-15 mix-blend-luminosity scale-105"
             onError={(e) => {
-              // Fallback caso a imagem local ainda não exista
-              (e.target as HTMLImageElement).src = "assets/hero-pastor.jpg";
+              const img = e.target as HTMLImageElement;
+              img.src = "https://assets/hero-pastor.jpg";
+              img.className = "w-full h-full object-cover opacity-10 mix-blend-overlay";
             }}
           />
-          <div className="absolute inset-0 bg-ministry-blue/60 backdrop-blur-[2px]"></div>
-          <div className="absolute inset-0 bg-gradient-to-r from-ministry-blue via-ministry-blue/40 to-transparent"></div>
+          {/* Camadas de cor para garantir o azul predominante */}
+          <div className="absolute inset-0 bg-gradient-to-r from-ministry-blue via-ministry-blue/80 to-ministry-blue/40"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-ministry-blue via-transparent to-transparent opacity-90"></div>
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-white">
-          <div className="max-w-3xl">
-            <span className="inline-block px-4 py-1 bg-ministry-gold text-white text-xs font-bold uppercase tracking-widest rounded-full mb-6">
-              Portal Oficial - Angola
+          <div className="max-w-3xl animate-in fade-in slide-in-from-left duration-1000">
+            <span className="inline-block px-4 py-1.5 bg-ministry-gold text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-8 shadow-lg border border-white/10">
+              Portal Oficial • Christ Embassy Angola
             </span>
-            <h1 className="text-5xl md:text-7xl font-display font-extrabold mb-6 leading-tight">
-              Bem-vindo à <br/>
-              <span className="text-ministry-gold">Christ Embassy</span> Angola
+            <h1 className="text-6xl md:text-8xl font-display font-black mb-8 leading-[0.9] tracking-tighter">
+              A Palavra que <br/>
+              <span className="text-ministry-gold">Transforma</span> Vidas
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 font-light mb-10 leading-relaxed">
-              Dando um sentido à sua vida. Experimente a atmosfera de milagres, 
-              presença divina e a palavra de Deus.
+            <p className="text-xl md:text-2xl text-blue-100/60 font-light mb-12 leading-relaxed max-w-2xl">
+              Experimente a atmosfera de milagres e o poder da palavra de Deus. Junte-se à nossa comunidade global a partir de Luanda para o mundo.
             </p>
             <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6">
               <Link 
                 to="/live-tv" 
-                className="flex items-center justify-center space-x-2 px-8 py-4 bg-ministry-gold hover:bg-opacity-90 text-white font-bold text-lg rounded-xl transition shadow-lg shadow-ministry-gold/20"
+                className="flex items-center justify-center space-x-3 px-10 py-5 bg-ministry-gold hover:bg-white hover:text-ministry-blue text-white font-black text-lg rounded-2xl transition-all duration-500 shadow-2xl shadow-ministry-gold/20 active:scale-95"
               >
                 <Play fill="currentColor" size={20} />
-                <span>Watch Live TV</span>
+                <span>ASSISTIR LIVE TV</span>
               </Link>
               <Link 
                 to="/register" 
-                className="flex items-center justify-center space-x-2 px-8 py-4 bg-white/10 backdrop-blur-md hover:bg-white/20 text-white font-bold text-lg rounded-xl border border-white/30 transition"
+                className="flex items-center justify-center space-x-3 px-10 py-5 bg-white/5 backdrop-blur-xl hover:bg-white/10 text-white font-black text-lg rounded-2xl border border-white/10 transition-all duration-500 active:scale-95"
               >
-                <span>Join Our Family</span>
+                <span>CRIAR CONTA GRÁTIS</span>
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Floating scroll indicator */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce opacity-50">
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce opacity-20">
           <div className="w-6 h-10 border-2 border-white rounded-full flex justify-center p-1">
-            <div className="w-1 h-2 bg-white rounded-full"></div>
+            <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
           </div>
         </div>
       </section>
 
       {/* Feature Sections */}
-      <section className="py-24 bg-gray-50">
+      <section className="py-32 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-display font-bold text-ministry-blue mb-4">Nosso Mandato Principal</h2>
-            <div className="w-24 h-1 bg-ministry-gold mx-auto"></div>
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-display font-black text-ministry-blue mb-6 uppercase tracking-tighter">Nosso Mandato Principal</h2>
+            <div className="w-24 h-2 bg-ministry-gold mx-auto rounded-full shadow-[0_0_15px_rgba(197,160,89,0.5)]"></div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            <div className="bg-white p-10 rounded-3xl shadow-xl hover:shadow-2xl transition group">
-              <div className="w-16 h-16 bg-blue-50 text-ministry-blue rounded-2xl flex items-center justify-center mb-6 group-hover:bg-ministry-blue group-hover:text-white transition">
-                <Play size={32} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            <div className="bg-white p-12 rounded-[3rem] shadow-xl hover:shadow-2xl transition-all duration-500 group border border-gray-100">
+              <div className="w-20 h-20 bg-blue-50 text-ministry-blue rounded-3xl flex items-center justify-center mb-8 group-hover:bg-ministry-blue group-hover:text-white group-hover:scale-110 transition-all duration-500 shadow-inner">
+                <Play size={40} />
               </div>
-              <h3 className="text-2xl font-display font-bold mb-4">Alcance Global</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Alcançando cada alma com o Evangelho de nosso Senhor Jesus Cristo através de todas as plataformas disponíveis.
+              <h3 className="text-2xl font-display font-black mb-4 text-ministry-blue uppercase tracking-tight">Alcance Global</h3>
+              <p className="text-gray-500 leading-relaxed font-medium">
+                Alcançando cada alma com o Evangelho através de todas as plataformas tecnológicas disponíveis na era digital.
               </p>
             </div>
 
-            <div className="bg-white p-10 rounded-3xl shadow-xl hover:shadow-2xl transition group">
-              <div className="w-16 h-16 bg-blue-50 text-ministry-blue rounded-2xl flex items-center justify-center mb-6 group-hover:bg-ministry-blue group-hover:text-white transition">
-                <Calendar size={32} />
+            <div className="bg-white p-12 rounded-[3rem] shadow-xl hover:shadow-2xl transition-all duration-500 group border border-gray-100">
+              <div className="w-20 h-20 bg-blue-50 text-ministry-blue rounded-3xl flex items-center justify-center mb-8 group-hover:bg-ministry-blue group-hover:text-white group-hover:scale-110 transition-all duration-500 shadow-inner">
+                <Calendar size={40} />
               </div>
-              <h3 className="text-2xl font-display font-bold mb-4">Sessões de Vida</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Junte-se aos nossos programas especiais, conferências e sessões de oração projetadas para elevar o seu espírito.
+              <h3 className="text-2xl font-display font-black mb-4 text-ministry-blue uppercase tracking-tight">Sessões de Vida</h3>
+              <p className="text-gray-500 leading-relaxed font-medium">
+                Junte-se aos nossos programas especiais e conferências projetadas para elevar o seu espírito e mudar sua realidade.
               </p>
             </div>
 
-            <div className="bg-white p-10 rounded-3xl shadow-xl hover:shadow-2xl transition group">
-              <div className="w-16 h-16 bg-blue-50 text-ministry-blue rounded-2xl flex items-center justify-center mb-6 group-hover:bg-ministry-blue group-hover:text-white transition">
-                <Heart size={32} />
+            <div className="bg-white p-12 rounded-[3rem] shadow-xl hover:shadow-2xl transition-all duration-500 group border border-gray-100">
+              <div className="w-20 h-20 bg-blue-50 text-ministry-blue rounded-3xl flex items-center justify-center mb-8 group-hover:bg-ministry-blue group-hover:text-white group-hover:scale-110 transition-all duration-500 shadow-inner">
+                <Heart size={40} />
               </div>
-              <h3 className="text-2xl font-display font-bold mb-4">Parcerias</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Torne-se um stakeholder no Reino através de vários braços do ministério que impactam bilhões globalmente.
+              <h3 className="text-2xl font-display font-black mb-4 text-ministry-blue uppercase tracking-tight">Parcerias</h3>
+              <p className="text-gray-500 leading-relaxed font-medium">
+                Torne-se um parceiro no Reino através de vários braços do ministério que impactam bilhões globalmente todos os dias.
               </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 bg-ministry-blue relative overflow-hidden">
-        <div className="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-ministry-gold/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl"></div>
-        
-        <div className="max-w-5xl mx-auto px-4 text-center relative z-10">
-          <h2 className="text-3xl md:text-4xl font-display font-bold text-white mb-6">Junte-se ao nosso Culto de Domingo</h2>
-          <p className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto">
-            Experimente a glória e a palavra de Deus. Estamos esperando por você neste domingo!
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4">
-            <Link to="/register" className="w-full sm:w-auto px-10 py-4 bg-white text-ministry-blue font-bold rounded-xl hover:bg-gray-100 transition">
-              Criar Conta Grátis
-            </Link>
-            <div className="flex items-center space-x-2 text-white/80">
-              <ShieldCheck size={20} className="text-ministry-gold" />
-              <span>Acesso Seguro e Encriptado</span>
             </div>
           </div>
         </div>
