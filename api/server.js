@@ -19,53 +19,17 @@ if (connectionString) {
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
     });
+    console.log("[DB] Pool de conexões criado.");
   } catch (err) {
-    console.error('Erro ao inicializar o Pool:', err);
+    console.error('[DB ERROR] Falha ao inicializar o Pool:', err);
   }
-}
-
-/**
- * =========================================================================
- * 1. INTEGRAÇÃO DE E-MAIL (BEM-VINDO)
- * =========================================================================
- * Local: Função disparada após o registro com sucesso.
- * Onde obter a API: https://resend.com ou https://sendgrid.com
- */
-async function sendWelcomeEmail(email, name) {
-  console.log(`[LOG] Preparando e-mail de boas-vindas para: ${name}`);
-  
-  try {
-    /**
-     * OPÇÃO A: RESEND (Recomendado pela simplicidade)
-     * 1. Crie conta em resend.com
-     * 2. Obtenha a API KEY e coloque em process.env.RESEND_API_KEY
-     * 
-     * Exemplo de código para colar aqui:
-     * 
-     * const response = await fetch('https://api.resend.com/emails', {
-     *   method: 'POST',
-     *   headers: {
-     *     'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-     *     'Content-Type': 'application/json'
-     *   },
-     *   body: JSON.stringify({
-     *     from: 'Christ Embassy Angola <noreply@ceangola.org>',
-     *     to: email,
-     *     subject: 'Bem-vindo à Christ Embassy Angola!',
-     *     html: `<h1>Bem-vindo, ${name}!</h1><p>Sua conta foi criada com sucesso na nossa plataforma de streaming.</p>`
-     *   })
-     * });
-     */
-
-    return true;
-  } catch (error) {
-    console.error('[ERRO EMAIL]', error);
-    return false;
-  }
+} else {
+  console.error('[DB ERROR] Nenhuma connection string encontrada no process.env');
 }
 
 async function ensureTables() {
-  if (!pool) return;
+  if (!pool) throw new Error("A base de dados não está configurada ou conectada.");
+  
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -121,7 +85,7 @@ async function ensureTables() {
     await client.query('COMMIT');
   } catch (e) {
     await client.query('ROLLBACK');
-    console.error('Erro ao preparar tabelas:', e);
+    throw e;
   } finally {
     client.release();
   }
@@ -132,113 +96,43 @@ export default async function handler(req, res) {
   const path = req.url.split('?')[0];
   res.setHeader('Content-Type', 'application/json');
 
-  if (!connectionString) return res.status(500).json({ error: 'DB_NOT_CONFIGURED' });
+  if (!connectionString) {
+    return res.status(500).json({ 
+      error: 'DB_NOT_LINKED', 
+      message: 'Base de dados não encontrada. Vá ao Storage da Vercel e reconecte o Neon.' 
+    });
+  }
 
   try {
     await ensureTables();
 
-    // --- REGISTRO DE UTILIZADOR ---
+    // REGISTRO
     if (path === '/api/register' && method === 'POST') {
-      const { fullName, email, phone, country } = req.body;
-      
+      const { fullName, email, phone } = req.body;
       const result = await pool.query(
         'INSERT INTO managed_users (fullname, email, phone, role) VALUES ($1, $2, $3, $4) RETURNING id',
         [fullName, email, phone, 'public_user']
       );
-
-      // Disparar e-mail de boas-vindas
-      if (email) await sendWelcomeEmail(email, fullName);
-
-      return res.status(201).json({ success: true, message: 'Registrado com sucesso.' });
+      return res.status(201).json({ success: true, id: result.rows[0].id });
     }
 
-    // --- 2. PROCESSAMENTO DE PAGAMENTOS (GUIA DE INTEGRAÇÃO) ---
+    // PAGAMENTOS (MOCK MODE ATIVO PARA TESTES SEM MERCHANT ID)
     if (path === '/api/payments/process' && method === 'POST') {
       const { userId, userName, amount, method: payMethod, type, description } = req.body;
-      let externalRef = 'offline_ref';
-      let finalStatus = 'pending';
+      
+      // Enquanto não tiveres o Merchant ID, o sistema gera uma referência interna
+      const externalRef = `${payMethod.toUpperCase()}-${Date.now()}`;
+      
+      await pool.query(
+        'INSERT INTO transactions (user_id, user_name, amount, method, type, description, status, external_reference) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+        [userId, userName, amount, payMethod, type, description, 'pending', externalRef]
+      );
 
-      /**
-       * ONDE INSERIR CADA API DE PAGAMENTO:
-       */
-      try {
-        switch(payMethod) {
-          case 'paypay':
-            /**
-             * API: PAYPAY AFRICA
-             * Endpoint: https://api.paypay.co.ao/v1/payments
-             * O que fazer: Chamar a API para gerar um QR Code ou link de pagamento.
-             * 
-             * Exemplo:
-             * const ppRes = await fetch('...', { body: JSON.stringify({ amount, merchant_id: '...' }) });
-             * const ppData = await ppRes.json();
-             * externalRef = ppData.transaction_id;
-             */
-            externalRef = "PP-" + Date.now();
-            finalStatus = "completed"; 
-            break;
-
-          case 'unitel':
-            /**
-             * API: UNITEL MONEY
-             * Requer: Credenciais de parceiro Unitel.
-             * O que fazer: Disparar um "Push USSD" para o telemóvel do utilizador para ele confirmar com o PIN.
-             */
-            externalRef = "UNITEL-" + Date.now();
-            break;
-
-          case 'afrimoney':
-            /**
-             * API: AFRIMONEY
-             * Similar à Unitel Money, requer integração direta com a Africell.
-             */
-            externalRef = "AFRI-" + Date.now();
-            break;
-
-          case 'visa':
-          case 'mastercard':
-            /**
-             * API: STRIPE (Internacional) ou MCX/EMIS (Nacional)
-             * Stripe: Chamar 'paymentIntents.create'
-             * EMIS: Requer gateway local como PayPay ou bancos angolanos.
-             */
-            externalRef = "CARD-" + Date.now();
-            finalStatus = "completed";
-            break;
-
-          case 'paypal':
-            /**
-             * API: PAYPAL CHECKOUT
-             * Requer: @paypal/checkout-server-sdk
-             * O que fazer: Capturar a ordem de pagamento criada no frontend.
-             */
-            externalRef = "PAYPAL-" + Date.now();
-            finalStatus = "completed";
-            break;
-
-          default:
-            // Transferência Bancária / Express (Processo Manual)
-            externalRef = "MANUAL-VERIFY";
-        }
-
-        // Salvar registo da transação no banco de dados
-        await pool.query(
-          'INSERT INTO transactions (user_id, user_name, amount, method, type, description, status, external_reference) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-          [userId, userName, amount, payMethod, type, description, finalStatus, externalRef]
-        );
-
-        return res.status(200).json({ success: true, ref: externalRef, message: 'Operação registada.' });
-
-      } catch (apiErr) {
-        console.error('Falha na comunicação com a operadora:', apiErr);
-        return res.status(400).json({ error: 'Erro ao processar com a operadora financeira.' });
-      }
-    }
-
-    // SYSTEM CONFIG
-    if (path === '/api/system' && method === 'GET') {
-      const result = await pool.query('SELECT * FROM system_config WHERE id = 1');
-      return res.status(200).json(result.rows[0] || {});
+      return res.status(200).json({ 
+        success: true, 
+        reference: externalRef,
+        message: 'Registado no sistema (Modo de Teste - Aguardando Merchant ID)' 
+      });
     }
 
     // LOGIN
@@ -251,15 +145,36 @@ export default async function handler(req, res) {
       
       if (result.rows.length > 0) {
         const u = result.rows[0];
-        const newSessionId = Math.random().toString(36).substring(7);
-        await pool.query('UPDATE managed_users SET session_id = $1, last_heartbeat = NOW() WHERE id = $2', [newSessionId, u.id]);
-        return res.status(200).json({ id: u.id, fullName: u.fullname, username: u.username, role: u.role, sessionId: newSessionId });
+        return res.status(200).json({ id: u.id, fullName: u.fullname, username: u.username, role: u.role, hasLiveAccess: true });
       }
       return res.status(401).json({ error: 'INVALID' });
     }
 
+    // ADMIN USERS
+    if (path === '/api/admin/users' && method === 'GET') {
+      const result = await pool.query("SELECT id, fullname as name, username, password, status FROM managed_users WHERE role != 'admin' ORDER BY id DESC");
+      return res.status(200).json(result.rows);
+    }
+
+    // SYSTEM CONFIG
+    if (path === '/api/system' && method === 'GET') {
+      const result = await pool.query('SELECT * FROM system_config WHERE id = 1');
+      return res.status(200).json(result.rows[0] || {});
+    }
+
+    if (path === '/api/system' && method === 'POST') {
+      const { publicUrl, publicTitle, isPrivateMode } = req.body;
+      await pool.query(`
+        INSERT INTO system_config (id, public_url, public_title, is_private_mode)
+        VALUES (1, $1, $2, $3)
+        ON CONFLICT (id) DO UPDATE SET public_url = $1, public_title = $2, is_private_mode = $3
+      `, [publicUrl, publicTitle, isPrivateMode]);
+      return res.status(200).json({ success: true });
+    }
+
     return res.status(404).json({ error: 'NOT_FOUND' });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    console.error('[HANDLER ERROR]', error);
+    return res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
   }
 }
