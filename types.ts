@@ -16,11 +16,11 @@ export interface User {
 
 export interface ChatMessage {
   id: string;
-  userId: string;
-  userName: string;
-  userImage?: string;
+  user_id: string;
+  username: string;
   text: string;
-  timestamp: Date;
+  channel: string;
+  timestamp: string;
 }
 
 export interface StreamConfig {
