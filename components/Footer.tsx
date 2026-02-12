@@ -61,7 +61,7 @@ const Footer: React.FC = () => {
           </div>
         </div>
         <div className="mt-16 pt-8 border-t border-white/10 text-center text-xs text-gray-400">
-          <p>© {new Date().getFullYear()} Christ Embassy Angola. All rights reserved. Registered Religious Entity.</p>
+          <p>© {new Date().getFullYear()} Christ Embassy Angola. Todos os Direitos Reservados. Registered Christian Entity.</p>
         </div>
       </div>
     </footer>
