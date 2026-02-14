@@ -12,7 +12,7 @@ if (!pool && connectionString) {
   pool = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false },
-    max: 15, // Aumentado para lidar com picos de tráfego no evento
+    max: 20, 
     idleTimeoutMillis: 30000,
   });
 }
@@ -27,6 +27,7 @@ async function initDatabase() {
   try {
     await client.query('BEGIN');
     
+    // Tabelas Base
     await client.query(`
       CREATE TABLE IF NOT EXISTS system_config (
         id INTEGER PRIMARY KEY,
@@ -65,26 +66,19 @@ async function initDatabase() {
         profile_picture TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
 
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT,
-        username TEXT,
-        text TEXT,
-        channel TEXT,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS payments (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT,
-        user_name TEXT,
-        amount NUMERIC,
-        method TEXT,
-        type TEXT,
-        description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
+    // Migração: Garantir que colunas novas existam
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='city') THEN
+          ALTER TABLE visitors ADD COLUMN city TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='neighborhood') THEN
+          ALTER TABLE visitors ADD COLUMN neighborhood TEXT;
+        END IF;
+      END $$;
     `);
 
     await client.query(`
@@ -107,7 +101,6 @@ async function initDatabase() {
 export default async function handler(req, res) {
   const { method } = req;
   const path = req.url.split('?')[0];
-  const urlParams = new URLSearchParams(req.url.split('?')[1]);
   res.setHeader('Content-Type', 'application/json');
 
   try {
@@ -138,7 +131,6 @@ export default async function handler(req, res) {
         INSERT INTO visitors (fullname, email, phone, country, city, neighborhood, address, gender, profile_picture) 
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       `;
-      // Processamento ultra-rápido para evitar timeouts
       await pool.query(insertQuery, [
         b.fullName || 'N/A', 
         b.email || '', 
@@ -148,7 +140,7 @@ export default async function handler(req, res) {
         b.neighborhood || '', 
         b.address || '', 
         b.gender || 'Male', 
-        '' // Profile picture removida do registro inicial para velocidade
+        ''
       ]);
       return res.status(200).json({ success: true });
     }
@@ -174,6 +166,24 @@ export default async function handler(req, res) {
     if (path === '/api/admin/visitors' && method === 'GET') {
       const r = await pool.query("SELECT * FROM visitors ORDER BY created_at DESC");
       return res.status(200).json(r.rows);
+    }
+
+    if (path === '/api/chat' && method === 'GET') {
+      const chan = new URLSearchParams(req.url.split('?')[1]).get('channel') || 'public';
+      const r = await pool.query('SELECT * FROM chat_messages WHERE channel = $1 ORDER BY timestamp DESC LIMIT 50', [chan]);
+      return res.status(200).json(r.rows.reverse());
+    }
+
+    if (path === '/api/chat' && method === 'POST') {
+      const { userId, username, text, channel } = req.body;
+      await pool.query('INSERT INTO chat_messages (user_id, username, text, channel) VALUES ($1, $2, $3, $4)', [userId, username, text, channel]);
+      return res.status(200).json({ success: true });
+    }
+
+    if (path === '/api/payments/process' && method === 'POST') {
+      const { userId, userName, amount, method: payMethod, type, description } = req.body;
+      await pool.query('INSERT INTO payments (user_id, user_name, amount, method, type, description) VALUES ($1, $2, $3, $4, $5, $6)', [userId, userName, amount, payMethod, type, description]);
+      return res.status(200).json({ success: true });
     }
 
     return res.status(404).json({ error: 'NOT_FOUND' });

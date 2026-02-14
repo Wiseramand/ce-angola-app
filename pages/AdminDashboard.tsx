@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Video, Trash2, RefreshCw, Globe, Save, Shield, Eye, Printer, Lock, Key, User
+  Users, Video, Trash2, RefreshCw, Globe, Save, Shield, Eye, Printer, Lock, Key, User, FileDown
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
@@ -67,7 +67,9 @@ const AdminDashboard: React.FC = () => {
           is_private_mode: !!sData.is_private_mode
         });
       }
-    } catch (e) {} finally { setIsRefreshing(false); }
+    } catch (e) {
+      console.error("Erro ao carregar dados admin:", e);
+    } finally { setIsRefreshing(false); }
   };
 
   const handleSaveStreams = async () => {
@@ -83,6 +85,10 @@ const AdminDashboard: React.FC = () => {
         updateStreamConfig(streamForm);
       }
     } finally { setIsRefreshing(false); }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   useEffect(() => { loadData(); }, []);
@@ -110,7 +116,7 @@ const AdminDashboard: React.FC = () => {
         </header>
 
         {activeTab === 'users' && (
-          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
+          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden print:hidden">
             <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
               <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">Utilizadores do Sistema (Membros)</h3>
             </div>
@@ -129,7 +135,7 @@ const AdminDashboard: React.FC = () => {
                     <tr key={u.id} className="hover:bg-slate-50/50 transition">
                       <td className="px-8 py-6">
                         <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-ministry-blue/10 rounded-lg flex items-center justify-center text-ministry-blue"><User size={16}/></div>
+                          <div className="w-8 h-8 bg-ministry-blue/10 rounded-lg flex items-center justify-center text-ministry-blue font-bold">{u.name.charAt(0)}</div>
                           <span className="font-bold text-ministry-blue">{u.name}</span>
                         </div>
                       </td>
@@ -149,34 +155,39 @@ const AdminDashboard: React.FC = () => {
         {activeTab === 'visitors' && (
           <div className="space-y-6">
             <div className="flex justify-end print:hidden">
-               <button onClick={() => window.print()} className="flex items-center space-x-3 px-8 py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-black text-xs uppercase hover:bg-slate-50 transition shadow-sm">
-                 <Printer size={18} /><span>Exportar Relatório PDF</span>
+               <button onClick={handlePrint} className="flex items-center space-x-3 px-8 py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-black text-xs uppercase hover:bg-slate-50 transition shadow-sm">
+                 <Printer size={18} /><span>Gerar Relatório PDF</span>
                </button>
             </div>
             <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden print:shadow-none print:border-0">
                <div className="hidden print:block p-10 border-b-4 border-ministry-gold mb-10 text-center">
-                  <h1 className="text-3xl font-black text-ministry-blue uppercase">Lista de Visitantes Registrados</h1>
-                  <p className="text-slate-500 font-bold uppercase text-[10px] mt-2">Relatório Oficial • Extraído em {new Date().toLocaleDateString()}</p>
+                  <Logo className="h-16 w-auto mx-auto mb-4" />
+                  <h1 className="text-3xl font-black text-ministry-blue uppercase">Registo de Visitantes</h1>
+                  <p className="text-slate-500 font-bold uppercase text-[10px] mt-2 tracking-widest">Christ Embassy Angola • Extraído em {new Date().toLocaleDateString()}</p>
                </div>
                <div className="overflow-x-auto">
                  <table className="w-full">
                    <thead>
-                     <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase text-left">
+                     <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase text-left print:bg-gray-100">
                        <th className="px-8 py-5">Visitante</th>
-                       <th className="px-8 py-5">Email</th>
-                       <th className="px-8 py-5">WhatsApp</th>
-                       <th className="px-8 py-5">Localização</th>
-                       <th className="px-8 py-5 text-right">Data</th>
+                       <th className="px-8 py-5">Contacto</th>
+                       <th className="px-8 py-5">Cidade / Bairro</th>
+                       <th className="px-8 py-5 text-right">Data de Registo</th>
                      </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100">
                      {visitors.map(v => (
-                       <tr key={v.id}>
-                         <td className="px-8 py-6 font-bold text-ministry-blue">{v.fullname}</td>
-                         <td className="px-8 py-6 text-slate-500 text-xs">{v.email || '—'}</td>
-                         <td className="px-8 py-6 text-slate-500 text-xs font-semibold">{v.phone}</td>
-                         <td className="px-8 py-6 text-[10px] text-slate-400 uppercase font-black">{v.city} / {v.neighborhood}</td>
-                         <td className="px-8 py-6 text-right text-[10px] text-slate-400 font-bold">{new Date(v.created_at).toLocaleDateString()}</td>
+                       <tr key={v.id} className="hover:bg-slate-50/50">
+                         <td className="px-8 py-6">
+                            <div className="font-bold text-ministry-blue">{v.fullname}</div>
+                            <div className="text-[9px] text-slate-400 font-bold uppercase">{v.email || 'Sem Email'}</div>
+                         </td>
+                         <td className="px-8 py-6 text-slate-500 text-xs font-bold">{v.phone}</td>
+                         <td className="px-8 py-6">
+                            <div className="text-xs font-black text-slate-600 uppercase tracking-tighter">{v.city}</div>
+                            <div className="text-[9px] text-slate-400 font-bold uppercase">{v.neighborhood}</div>
+                         </td>
+                         <td className="px-8 py-6 text-right text-[10px] text-slate-400 font-bold uppercase">{new Date(v.created_at).toLocaleDateString()}</td>
                        </tr>
                      ))}
                    </tbody>
@@ -187,7 +198,7 @@ const AdminDashboard: React.FC = () => {
         )}
 
         {activeTab === 'streams' && (
-          <div className="space-y-8">
+          <div className="space-y-8 print:hidden">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="bg-white p-10 rounded-[3.5rem] shadow-xl border border-slate-100">
                 <h3 className="text-xl font-black text-ministry-blue uppercase mb-8">Canal Público</h3>
@@ -215,6 +226,16 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
       </main>
+      <style>{`
+        @media print {
+          .print\\:hidden { display: none !important; }
+          body { background: white !important; }
+          main { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+          table { border: 1px solid #eee !important; width: 100% !important; }
+          th { background: #f9f9f9 !important; border-bottom: 2px solid #ddd !important; }
+          td { border-bottom: 1px solid #eee !important; }
+        }
+      `}</style>
     </div>
   );
 };

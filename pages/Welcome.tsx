@@ -28,27 +28,35 @@ const Welcome: React.FC = () => {
     if (isSubmitting) return;
     
     setIsSubmitting(true);
-    try {
-      // Objeto de dados limpo para o servidor
-      const payload = {
-        fullName: formData.fullName.trim(),
-        email: formData.email.trim() || '', // Email opcional
-        phone: formData.phone.trim(),
-        country: formData.country,
-        city: formData.city.trim(),
-        neighborhood: formData.neighborhood.trim(),
-        address: `${formData.city}, ${formData.neighborhood}`,
-        gender: 'Male'
-      };
+    
+    // Limpeza rigorosa dos dados
+    const payload = {
+      fullName: formData.fullName.trim() || 'Anónimo',
+      email: formData.email.trim() || '',
+      phone: formData.phone.trim(),
+      country: formData.country,
+      city: formData.city.trim() || 'N/A',
+      neighborhood: formData.neighborhood.trim() || 'N/A',
+      address: `${formData.city}, ${formData.neighborhood}`,
+      gender: 'Male'
+    };
 
-      // Chamamos o register do App.tsx que faz o fetch e aguarda
+    try {
+      // Tentativa de Registo
       await register(payload);
-      
-      // O App.tsx mudará o estado do 'user' e este componente sairá de cena automaticamente
+      // Sucesso: App redireciona automaticamente via estado global
     } catch (err) {
-      console.error("Erro fatal no registo:", err);
-      alert("Erro ao conectar com o servidor central. Por favor, tente novamente agora.");
-      setIsSubmitting(false);
+      console.error("Erro no primeiro envio:", err);
+      
+      // Tentativa de Segurança (Retry silencioso)
+      try {
+        await new Promise(r => setTimeout(r, 1000));
+        await register(payload);
+      } catch (retryErr) {
+        console.error("Erro no segundo envio:", retryErr);
+        alert("Erro de ligação ao servidor central. Por favor, verifique a sua internet e tente de novo.");
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -63,7 +71,7 @@ const Welcome: React.FC = () => {
         <div className="text-center mb-8">
           <Logo className="h-24 w-auto mx-auto mb-6 brightness-110" />
           <h1 className="text-3xl md:text-5xl font-display font-black text-white uppercase tracking-tighter">Portal CE Angola</h1>
-          <p className="text-blue-100/60 mt-4 text-sm font-bold uppercase tracking-widest italic">Coleta de Dados para Visitantes</p>
+          <p className="text-blue-100/60 mt-4 text-sm font-bold uppercase tracking-widest italic">Bem-vindo à Transmissão Oficial</p>
         </div>
 
         <div className="bg-white/10 backdrop-blur-3xl p-8 md:p-12 rounded-[3.5rem] border border-white/10 shadow-2xl">
@@ -72,13 +80,13 @@ const Welcome: React.FC = () => {
               <label className="block text-[10px] font-black text-ministry-gold uppercase mb-2 ml-2 tracking-widest">Nome Completo</label>
               <div className="relative">
                 <UserIcon className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" size={18} />
-                <input type="text" name="fullName" value={formData.fullName} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-white outline-none focus:ring-2 focus:ring-ministry-gold font-bold" placeholder="Seu Nome" required />
+                <input type="text" name="fullName" value={formData.fullName} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-white outline-none focus:ring-2 focus:ring-ministry-gold font-bold" placeholder="Introduza o seu nome" required />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-[10px] font-black text-ministry-gold uppercase mb-2 ml-2 tracking-widest">WhatsApp / Telefone</label>
+                <label className="block text-[10px] font-black text-ministry-gold uppercase mb-2 ml-2 tracking-widest">Telefone / WhatsApp</label>
                 <div className="relative">
                   <Phone className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" size={18} />
                   <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-white outline-none focus:ring-2 focus:ring-ministry-gold font-bold" placeholder="9xx xxx xxx" required />
@@ -95,11 +103,17 @@ const Welcome: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
                 <label className="block text-[10px] font-black text-ministry-gold uppercase mb-2 ml-2 tracking-widest">Cidade</label>
-                <input type="text" name="city" value={formData.city} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white outline-none focus:ring-2 focus:ring-ministry-gold font-bold" placeholder="Ex: Luanda" required />
+                <div className="relative">
+                  <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" size={18} />
+                  <input type="text" name="city" value={formData.city} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-white outline-none focus:ring-2 focus:ring-ministry-gold font-bold" placeholder="Ex: Luanda" required />
+                </div>
               </div>
               <div>
                 <label className="block text-[10px] font-black text-ministry-gold uppercase mb-2 ml-2 tracking-widest">Bairro</label>
-                <input type="text" name="neighborhood" value={formData.neighborhood} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white outline-none focus:ring-2 focus:ring-ministry-gold font-bold" placeholder="Ex: Talatona" required />
+                <div className="relative">
+                  <Building2 className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" size={18} />
+                  <input type="text" name="neighborhood" value={formData.neighborhood} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-white outline-none focus:ring-2 focus:ring-ministry-gold font-bold" placeholder="Ex: Talatona" required />
+                </div>
               </div>
             </div>
 
@@ -107,12 +121,12 @@ const Welcome: React.FC = () => {
               <label className="block text-[10px] font-black text-ministry-gold uppercase mb-2 ml-2 tracking-widest">Email (Opcional)</label>
               <div className="relative">
                 <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" size={18} />
-                <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-white outline-none focus:ring-2 focus:ring-ministry-gold font-bold" placeholder="seu@email.com (opcional)" />
+                <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-white outline-none focus:ring-2 focus:ring-ministry-gold font-bold" placeholder="seu@email.com" />
               </div>
             </div>
 
-            <button type="submit" disabled={isSubmitting} className="w-full py-5 bg-ministry-gold text-white rounded-[2rem] font-black uppercase tracking-widest shadow-2xl active:scale-95 disabled:opacity-50 flex items-center justify-center space-x-3">
-              {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : <><span>ENTRAR NO PORTAL</span><ChevronRight size={20} /></>}
+            <button type="submit" disabled={isSubmitting} className="w-full py-5 bg-ministry-gold text-white rounded-[2rem] font-black uppercase tracking-widest shadow-2xl active:scale-95 disabled:opacity-50 flex items-center justify-center space-x-3 transition-all">
+              {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : <><span>ENTRAR NA TRANSMISSÃO</span><ChevronRight size={20} /></>}
             </button>
           </form>
         </div>
