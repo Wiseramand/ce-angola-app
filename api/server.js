@@ -12,7 +12,7 @@ if (!pool && connectionString) {
   pool = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false },
-    max: 20, 
+    max: 10,
     idleTimeoutMillis: 30000,
   });
 }
@@ -27,7 +27,7 @@ async function initDatabase() {
   try {
     await client.query('BEGIN');
     
-    // Tabelas Base
+    // Cria as tabelas base
     await client.query(`
       CREATE TABLE IF NOT EXISTS system_config (
         id INTEGER PRIMARY KEY,
@@ -66,19 +66,32 @@ async function initDatabase() {
         profile_picture TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT,
+        username TEXT,
+        text TEXT,
+        channel TEXT,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS payments (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT,
+        user_name TEXT,
+        amount NUMERIC,
+        method TEXT,
+        type TEXT,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
-    // Migração: Garantir que colunas novas existam
+    // AUTO-MIGRAÇÃO: Garante que as novas colunas existam se a tabela já foi criada anteriormente
     await client.query(`
-      DO $$ 
-      BEGIN 
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='city') THEN
-          ALTER TABLE visitors ADD COLUMN city TEXT;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='neighborhood') THEN
-          ALTER TABLE visitors ADD COLUMN neighborhood TEXT;
-        END IF;
-      END $$;
+      ALTER TABLE visitors ADD COLUMN IF NOT EXISTS city TEXT;
+      ALTER TABLE visitors ADD COLUMN IF NOT EXISTS neighborhood TEXT;
     `);
 
     await client.query(`
@@ -101,6 +114,7 @@ async function initDatabase() {
 export default async function handler(req, res) {
   const { method } = req;
   const path = req.url.split('?')[0];
+  const urlParams = new URLSearchParams(req.url.split('?')[1]);
   res.setHeader('Content-Type', 'application/json');
 
   try {
@@ -126,22 +140,12 @@ export default async function handler(req, res) {
     }
 
     if (path === '/api/register' && method === 'POST') {
-      const b = req.body;
+      const { fullName, email, phone, country, city, neighborhood, address, gender, profilePicture } = req.body;
       const insertQuery = `
         INSERT INTO visitors (fullname, email, phone, country, city, neighborhood, address, gender, profile_picture) 
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       `;
-      await pool.query(insertQuery, [
-        b.fullName || 'N/A', 
-        b.email || '', 
-        b.phone || '', 
-        b.country || 'Angola', 
-        b.city || '', 
-        b.neighborhood || '', 
-        b.address || '', 
-        b.gender || 'Male', 
-        ''
-      ]);
+      await pool.query(insertQuery, [fullName, email, phone, country, city, neighborhood, address || '', gender, profilePicture]);
       return res.status(200).json({ success: true });
     }
 
@@ -151,6 +155,7 @@ export default async function handler(req, res) {
       const result = await pool.query(query, [username.toLowerCase().trim(), pass]);
       if (result.rows.length > 0) {
         const u = result.rows[0];
+        if (u.status === 'blocked') return res.status(403).json({ error: 'BLOCKED' });
         const sess = Math.random().toString(36).substring(2);
         await pool.query('UPDATE managed_users SET last_session_id = $1 WHERE id = $2', [sess, u.id]);
         return res.status(200).json({ id: 'm-'+u.id, fullName: u.fullname, username: u.username, role: u.role, sessionId: sess, hasLiveAccess: true });
@@ -158,26 +163,31 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'INVALID' });
     }
 
+    if (path === '/api/heartbeat' && method === 'POST') {
+      const { userId, sessionId } = req.body;
+      if (!userId || !sessionId || userId.startsWith('v-')) return res.status(200).json({ status: 'ok' });
+      const cleanId = userId.replace('m-', '');
+      const result = await pool.query('SELECT last_session_id FROM managed_users WHERE id = $1', [cleanId]);
+      if (result.rows.length > 0 && result.rows[0].last_session_id !== sessionId) {
+        return res.status(401).json({ error: 'SESSION_EXPIRED' });
+      }
+      return res.status(200).json({ status: 'ok' });
+    }
+
     if (path === '/api/admin/users' && method === 'GET') {
-      const r = await pool.query("SELECT id, fullname as name, username, password, status, email, phone FROM managed_users WHERE role != 'admin' ORDER BY created_at DESC");
+      const r = await pool.query("SELECT id, fullname as name, username, status, password, email, phone FROM managed_users WHERE role != 'admin' ORDER BY created_at DESC");
       return res.status(200).json(r.rows);
+    }
+
+    if (path === '/api/admin/users/create' && method === 'POST') {
+      const { fullname, username, password, email, phone } = req.body;
+      await pool.query('INSERT INTO managed_users (fullname, username, password, email, phone) VALUES ($1, $2, $3, $4, $5)', [fullname, username.toLowerCase().trim(), password, email, phone]);
+      return res.status(200).json({ success: true });
     }
 
     if (path === '/api/admin/visitors' && method === 'GET') {
       const r = await pool.query("SELECT * FROM visitors ORDER BY created_at DESC");
       return res.status(200).json(r.rows);
-    }
-
-    if (path === '/api/chat' && method === 'GET') {
-      const chan = new URLSearchParams(req.url.split('?')[1]).get('channel') || 'public';
-      const r = await pool.query('SELECT * FROM chat_messages WHERE channel = $1 ORDER BY timestamp DESC LIMIT 50', [chan]);
-      return res.status(200).json(r.rows.reverse());
-    }
-
-    if (path === '/api/chat' && method === 'POST') {
-      const { userId, username, text, channel } = req.body;
-      await pool.query('INSERT INTO chat_messages (user_id, username, text, channel) VALUES ($1, $2, $3, $4)', [userId, username, text, channel]);
-      return res.status(200).json({ success: true });
     }
 
     if (path === '/api/payments/process' && method === 'POST') {
@@ -186,9 +196,20 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    if (path === '/api/chat' && method === 'GET') {
+      const chan = urlParams.get('channel') || 'public';
+      const r = await pool.query('SELECT * FROM chat_messages WHERE channel = $1 ORDER BY timestamp DESC LIMIT 50', [chan]);
+      return res.status(200).json(r.rows.reverse());
+    }
+    if (path === '/api/chat' && method === 'POST') {
+      const { userId, username, text, channel } = req.body;
+      await pool.query('INSERT INTO chat_messages (user_id, username, text, channel) VALUES ($1, $2, $3, $4)', [userId, username, text, channel]);
+      return res.status(200).json({ success: true });
+    }
+
     return res.status(404).json({ error: 'NOT_FOUND' });
   } catch (error) {
-    console.error('[API Error]:', error);
-    return res.status(500).json({ error: 'SERVER_ERROR' });
+    console.error('[API Handler Error]:', error);
+    return res.status(500).json({ error: 'SERVER_ERROR', details: error.message });
   }
 }
