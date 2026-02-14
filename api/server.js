@@ -27,7 +27,6 @@ async function initDatabase() {
   try {
     await client.query('BEGIN');
     
-    // Cria as tabelas base
     await client.query(`
       CREATE TABLE IF NOT EXISTS system_config (
         id INTEGER PRIMARY KEY,
@@ -88,7 +87,7 @@ async function initDatabase() {
       );
     `);
 
-    // AUTO-MIGRAÇÃO: Garante que as novas colunas existam se a tabela já foi criada anteriormente
+    // Garante colunas de migração
     await client.query(`
       ALTER TABLE visitors ADD COLUMN IF NOT EXISTS city TEXT;
       ALTER TABLE visitors ADD COLUMN IF NOT EXISTS neighborhood TEXT;
@@ -140,12 +139,23 @@ export default async function handler(req, res) {
     }
 
     if (path === '/api/register' && method === 'POST') {
-      const { fullName, email, phone, country, city, neighborhood, address, gender, profilePicture } = req.body;
+      const b = req.body;
       const insertQuery = `
         INSERT INTO visitors (fullname, email, phone, country, city, neighborhood, address, gender, profile_picture) 
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       `;
-      await pool.query(insertQuery, [fullName, email, phone, country, city, neighborhood, address || '', gender, profilePicture]);
+      // Garante que nenhum valor seja undefined ao enviar para o PostgreSQL
+      await pool.query(insertQuery, [
+        b.fullName || 'N/A', 
+        b.email || '', 
+        b.phone || '', 
+        b.country || 'Angola', 
+        b.city || '', 
+        b.neighborhood || '', 
+        b.address || '', 
+        b.gender || 'Male', 
+        b.profilePicture || ''
+      ]);
       return res.status(200).json({ success: true });
     }
 

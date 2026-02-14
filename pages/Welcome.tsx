@@ -35,10 +35,15 @@ const Welcome: React.FC = () => {
     
     setIsSubmitting(true);
     try {
-      const userPayload = { ...formData, gender: 'Male' };
-      // O register agora é uma promessa que inclui o fetch para o servidor
+      // Garante que o payload contém todos os campos esperados pela API
+      const userPayload = { 
+        ...formData, 
+        gender: 'Male',
+        address: `${formData.city}, ${formData.neighborhood}`,
+        profilePicture: '' // Envia vazio para evitar payload muito grande no primeiro acesso
+      };
+      
       await register(userPayload);
-      // Se chegou aqui, o servidor gravou com sucesso e o App.tsx vai redirecionar sozinho
     } catch (err) {
       console.error("Erro no registo:", err);
       alert("Houve um problema ao conectar com o servidor. Por favor, tente novamente.");
@@ -64,7 +69,7 @@ const Welcome: React.FC = () => {
             Bem-vindo ao Portal <br/>
             <span className="text-ministry-gold">CE Angola</span>
           </h1>
-          <p className="text-blue-100/70 mt-4 font-light text-lg uppercase tracking-widest italic">Ajuda-nos a te contactar outra vez</p>
+          <p className="text-blue-100/70 mt-4 font-light text-lg uppercase tracking-widest italic text-center mx-auto max-w-xs">Identifique-se para acesso total às transmissões</p>
         </div>
 
         <div className="bg-white/10 backdrop-blur-3xl p-8 md:p-12 rounded-[3.5rem] border border-white/10 shadow-2xl relative overflow-hidden">
@@ -83,7 +88,7 @@ const Welcome: React.FC = () => {
                   value={formData.fullName}
                   onChange={handleInputChange}
                   className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-white focus:ring-2 focus:ring-ministry-gold transition outline-none placeholder:text-white/10 font-bold"
-                  placeholder="Nome e Sobrenome"
+                  placeholder="Seu Nome Completo"
                   required
                 />
               </div>
@@ -100,13 +105,13 @@ const Welcome: React.FC = () => {
                     value={formData.phone}
                     onChange={handleInputChange}
                     className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-white focus:ring-2 focus:ring-ministry-gold transition outline-none placeholder:text-white/10 font-bold"
-                    placeholder="+244..."
+                    placeholder="Ex: 923 000 000"
                     required
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-[9px] font-black text-ministry-gold uppercase mb-2 ml-2 tracking-widest">País de Residência</label>
+                <label className="block text-[9px] font-black text-ministry-gold uppercase mb-2 ml-2 tracking-widest">País</label>
                 <div className="relative">
                   <Globe className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" size={18} />
                   <select
@@ -132,7 +137,7 @@ const Welcome: React.FC = () => {
                     value={formData.city}
                     onChange={handleInputChange}
                     className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-white focus:ring-2 focus:ring-ministry-gold transition outline-none placeholder:text-white/10 font-bold"
-                    placeholder="Ex: Luanda"
+                    placeholder="Cidade"
                     required
                   />
                 </div>
@@ -147,48 +152,22 @@ const Welcome: React.FC = () => {
                     value={formData.neighborhood}
                     onChange={handleInputChange}
                     className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-white focus:ring-2 focus:ring-ministry-gold transition outline-none placeholder:text-white/10 font-bold"
-                    placeholder="Ex: Talatona"
+                    placeholder="Bairro"
                     required
                   />
                 </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-[9px] font-black text-ministry-gold uppercase mb-2 ml-2 tracking-widest">Email (Opcional)</label>
-              <div className="relative">
-                <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" size={18} />
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-white focus:ring-2 focus:ring-ministry-gold transition outline-none placeholder:text-white/10 font-bold"
-                  placeholder="seu@email.com"
-                />
-              </div>
-            </div>
-
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-5 mt-4 bg-ministry-gold text-white rounded-[2rem] font-black text-sm uppercase tracking-[0.3em] flex items-center justify-center space-x-3 hover:bg-white hover:text-ministry-blue transition-all duration-300 shadow-2xl active:scale-95 disabled:opacity-50"
+              className="w-full py-5 mt-4 bg-ministry-gold text-white rounded-[2rem] font-black text-sm uppercase tracking-[0.3em] flex items-center justify-center space-x-3 hover:scale-105 transition-all duration-300 shadow-2xl active:scale-95 disabled:opacity-50"
             >
-              {isSubmitting ? (
-                <Loader2 className="animate-spin" size={24} />
-              ) : (
-                <>
-                  <span>Prosseguir para o Portal</span>
-                  <ChevronRight size={20} />
-                </>
-              )}
+              {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : <><span>ENTRAR NO PORTAL</span><ChevronRight size={20} /></>}
             </button>
           </form>
         </div>
-
-        <p className="text-center mt-6 text-[9px] text-white/20 font-black uppercase tracking-[0.3em]">
-          Plataforma Segura • Christ Embassy Angola © {new Date().getFullYear()}
-        </p>
       </div>
     </div>
   );
