@@ -14,7 +14,7 @@ const Footer: React.FC = () => {
               <h3 className="font-display font-bold text-xl border-b-2 border-ministry-gold pb-2 inline-block">CE Angola</h3>
             </div>
             <p className="text-gray-300 text-sm leading-relaxed">
-              Espalhando o evangelho do nosso Senhor Jesus Cristo na cidade de Luanda e por todas as províncias de Angola. Levando esperança a milhões de pessoas.
+              Spreading the gospel of our Lord Jesus Christ in the city of Luanda and across all the provinces of Angola. Bringing hope to millions.
             </p>
             <div className="flex space-x-4">
               <a href="#" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-ministry-gold hover:text-white transition"><Facebook size={20} /></a>
@@ -28,24 +28,24 @@ const Footer: React.FC = () => {
             <h3 className="font-display font-bold text-lg mb-6 text-ministry-gold">Quick Links</h3>
             <ul className="space-y-3 text-gray-300 text-sm">
               <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Live TV</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Escola de Cura</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Ministerio de Acolhimento</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Parcerias</a></li>
+              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Healing School</a></li>
+              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">InnerCity Mission</a></li>
+              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Partnerships</a></li>
             </ul>
           </div>
 
           <div>
             <h3 className="font-display font-bold text-lg mb-6 text-ministry-gold">Support</h3>
             <ul className="space-y-3 text-gray-300 text-sm">
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Oferte Online</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Termos de Serviço</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Politica de Privacidade</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Contacte Nos</a></li>
+              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Online Giving</a></li>
+              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Terms of Service</a></li>
+              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Privacy Policy</a></li>
+              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Contact Us</a></li>
             </ul>
           </div>
 
           <div className="space-y-4">
-            <h3 className="font-display font-bold text-lg mb-6 text-ministry-gold">Informações de Contacto</h3>
+            <h3 className="font-display font-bold text-lg mb-6 text-ministry-gold">Contact Info</h3>
             <div className="flex items-start space-x-3 text-sm text-gray-300">
               <MapPin size={18} className="text-ministry-gold mt-1 flex-shrink-0" />
               <span>Belas, Luanda, Angola</span>
@@ -61,7 +61,7 @@ const Footer: React.FC = () => {
           </div>
         </div>
         <div className="mt-16 pt-8 border-t border-white/10 text-center text-xs text-gray-400">
-          <p>© {new Date().getFullYear()} Christ Embassy Angola. Todos os Direitos Reservados. Registered Christian Entity.</p>
+          <p>© {new Date().getFullYear()} Christ Embassy Angola. All rights reserved. Registered Religious Entity.</p>
         </div>
       </div>
     </footer>

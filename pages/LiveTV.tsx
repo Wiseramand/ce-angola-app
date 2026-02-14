@@ -10,7 +10,6 @@ const LiveTV: React.FC = () => {
   const { user, system } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchMessages = async () => {
@@ -29,16 +28,11 @@ const LiveTV: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Lógica de Scroll Inteligente e Localizada
   useEffect(() => {
     const container = chatContainerRef.current;
     if (container) {
-      // Verificamos se o usuário está no fundo (margem de erro de 50px)
-      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
-      
+      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
       if (isAtBottom) {
-        // Usamos scrollTo no container em vez de scrollIntoView no elemento
-        // Isso evita que a página inteira (o body) faça scroll
         container.scrollTo({
           top: container.scrollHeight,
           behavior: 'smooth'
@@ -47,36 +41,43 @@ const LiveTV: React.FC = () => {
     }
   }, [messages]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user || isSending) return;
+    if (!newMessage.trim() || !user) return;
     
-    setIsSending(true);
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          username: user.fullName,
-          text: newMessage,
-          channel: 'public'
-        })
-      });
-      if (res.ok) {
-        setNewMessage('');
-        await fetchMessages();
-        // Forçamos o scroll após envio próprio
-        chatContainerRef.current?.scrollTo({
-          top: chatContainerRef.current.scrollHeight,
-          behavior: 'smooth'
-        });
+    const textToSend = newMessage;
+    setNewMessage(''); // Limpa o campo INSTANTANEAMENTE
+
+    // Cria mensagem otimista para exibir logo no chat
+    const tempMsg: ChatMessage = {
+      id: 'temp-' + Date.now(),
+      user_id: user.id,
+      username: user.fullName,
+      text: textToSend,
+      channel: 'public',
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, tempMsg]);
+
+    // Força scroll imediato para a nova mensagem
+    setTimeout(() => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
       }
-    } catch (e) {
-      alert("Erro ao enviar mensagem.");
-    } finally {
-      setIsSending(false);
-    }
+    }, 10);
+
+    // Envia para o servidor em background
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: user.id,
+        username: user.fullName,
+        text: textToSend,
+        channel: 'public'
+      })
+    }).catch(err => console.error("Sync error:", err));
   };
 
   return (
@@ -115,7 +116,7 @@ const LiveTV: React.FC = () => {
           </div>
           <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-8 space-y-6 bg-black/20 scrollbar-hide scroll-smooth">
             {messages.map((msg) => (
-              <div key={msg.id} className="animate-in fade-in slide-in-from-bottom-3 duration-500">
+              <div key={msg.id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <div className="flex space-x-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-ministry-blue to-slate-800 flex items-center justify-center text-sm font-black text-white border border-white/10 flex-shrink-0 uppercase shadow-lg">
                     {msg.username.charAt(0)}
@@ -143,10 +144,9 @@ const LiveTV: React.FC = () => {
                 />
                 <button 
                   type="submit" 
-                  disabled={isSending}
-                  className="absolute right-3 top-3 bottom-3 px-5 bg-ministry-gold text-white rounded-2xl hover:bg-ministry-blue transition-all disabled:opacity-50"
+                  className="absolute right-3 top-3 bottom-3 px-5 bg-ministry-gold text-white rounded-2xl hover:bg-ministry-blue transition-all active:scale-90"
                 >
-                  {isSending ? <Loader2 className="animate-spin" size={18}/> : <Send size={20} />}
+                  <Send size={20} />
                 </button>
               </form>
             ) : (

@@ -17,16 +17,17 @@ if (!pool && connectionString) {
   });
 }
 
-/**
- * Função de segurança para garantir que as tabelas existem.
- * Nota: O script manual no Neon é mais eficaz para garantir as colunas.
- */
+let isDbInitialized = false;
+
 async function initDatabase() {
   if (!pool) throw new Error('Database connection string is missing');
+  if (isDbInitialized) return;
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
+    // Cria as tabelas base
     await client.query(`
       CREATE TABLE IF NOT EXISTS system_config (
         id INTEGER PRIMARY KEY,
@@ -58,6 +59,8 @@ async function initDatabase() {
         email TEXT,
         phone TEXT,
         country TEXT,
+        city TEXT,
+        neighborhood TEXT,
         address TEXT,
         gender TEXT,
         profile_picture TEXT,
@@ -85,6 +88,12 @@ async function initDatabase() {
       );
     `);
 
+    // AUTO-MIGRAÇÃO: Garante que as novas colunas existam se a tabela já foi criada anteriormente
+    await client.query(`
+      ALTER TABLE visitors ADD COLUMN IF NOT EXISTS city TEXT;
+      ALTER TABLE visitors ADD COLUMN IF NOT EXISTS neighborhood TEXT;
+    `);
+
     await client.query(`
       INSERT INTO system_config (id, public_title) VALUES (1, 'LoveWorld TV Angola') ON CONFLICT DO NOTHING;
       INSERT INTO managed_users (fullname, username, password, role) 
@@ -93,6 +102,7 @@ async function initDatabase() {
     `);
 
     await client.query('COMMIT');
+    isDbInitialized = true;
   } catch (e) {
     await client.query('ROLLBACK');
     console.error('[DB Critical Error]:', e);
@@ -110,7 +120,6 @@ export default async function handler(req, res) {
   try {
     await initDatabase();
 
-    // --- CONFIGURAÇÃO ---
     if (path === '/api/system' && method === 'GET') {
       const result = await pool.query('SELECT * FROM system_config WHERE id = 1');
       return res.status(200).json(result.rows[0]);
@@ -130,60 +139,41 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // --- REGISTRO (VISITANTES) ---
     if (path === '/api/register' && method === 'POST') {
-      const { fullName, email, phone, country, address, gender, profilePicture } = req.body;
-      
+      const { fullName, email, phone, country, city, neighborhood, address, gender, profilePicture } = req.body;
       const insertQuery = `
-        INSERT INTO visitors (fullname, email, phone, country, address, gender, profile_picture) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO visitors (fullname, email, phone, country, city, neighborhood, address, gender, profile_picture) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       `;
-      
-      await pool.query(insertQuery, [fullName, email, phone, country, address, gender, profilePicture]);
+      await pool.query(insertQuery, [fullName, email, phone, country, city, neighborhood, address || '', gender, profilePicture]);
       return res.status(200).json({ success: true });
     }
 
-    // --- LOGIN (MANAGED USERS) ---
     if (path === '/api/login' && method === 'POST') {
       const { username, pass } = req.body;
-      // IMPORTANTE: Buscamos em 'managed_users', nunca em 'users'
       const query = 'SELECT * FROM managed_users WHERE username = $1 AND password = $2';
       const result = await pool.query(query, [username.toLowerCase().trim(), pass]);
-      
       if (result.rows.length > 0) {
         const u = result.rows[0];
         if (u.status === 'blocked') return res.status(403).json({ error: 'BLOCKED' });
-        
         const sess = Math.random().toString(36).substring(2);
         await pool.query('UPDATE managed_users SET last_session_id = $1 WHERE id = $2', [sess, u.id]);
-        
-        return res.status(200).json({ 
-          id: 'm-'+u.id, 
-          fullName: u.fullname, 
-          username: u.username, 
-          role: u.role, 
-          sessionId: sess, 
-          hasLiveAccess: true 
-        });
+        return res.status(200).json({ id: 'm-'+u.id, fullName: u.fullname, username: u.username, role: u.role, sessionId: sess, hasLiveAccess: true });
       }
       return res.status(401).json({ error: 'INVALID' });
     }
 
-    // --- HEARTBEAT ---
     if (path === '/api/heartbeat' && method === 'POST') {
       const { userId, sessionId } = req.body;
       if (!userId || !sessionId || userId.startsWith('v-')) return res.status(200).json({ status: 'ok' });
-      
       const cleanId = userId.replace('m-', '');
       const result = await pool.query('SELECT last_session_id FROM managed_users WHERE id = $1', [cleanId]);
-      
       if (result.rows.length > 0 && result.rows[0].last_session_id !== sessionId) {
         return res.status(401).json({ error: 'SESSION_EXPIRED' });
       }
       return res.status(200).json({ status: 'ok' });
     }
 
-    // --- ADMIN ---
     if (path === '/api/admin/users' && method === 'GET') {
       const r = await pool.query("SELECT id, fullname as name, username, status, password, email, phone FROM managed_users WHERE role != 'admin' ORDER BY created_at DESC");
       return res.status(200).json(r.rows);
@@ -191,10 +181,7 @@ export default async function handler(req, res) {
 
     if (path === '/api/admin/users/create' && method === 'POST') {
       const { fullname, username, password, email, phone } = req.body;
-      await pool.query(
-        'INSERT INTO managed_users (fullname, username, password, email, phone) VALUES ($1, $2, $3, $4, $5)',
-        [fullname, username.toLowerCase().trim(), password, email, phone]
-      );
+      await pool.query('INSERT INTO managed_users (fullname, username, password, email, phone) VALUES ($1, $2, $3, $4, $5)', [fullname, username.toLowerCase().trim(), password, email, phone]);
       return res.status(200).json({ success: true });
     }
 
@@ -203,17 +190,12 @@ export default async function handler(req, res) {
       return res.status(200).json(r.rows);
     }
 
-    // --- PAGAMENTOS ---
     if (path === '/api/payments/process' && method === 'POST') {
       const { userId, userName, amount, method: payMethod, type, description } = req.body;
-      await pool.query(
-        'INSERT INTO payments (user_id, user_name, amount, method, type, description) VALUES ($1, $2, $3, $4, $5, $6)',
-        [userId, userName, amount, payMethod, type, description]
-      );
+      await pool.query('INSERT INTO payments (user_id, user_name, amount, method, type, description) VALUES ($1, $2, $3, $4, $5, $6)', [userId, userName, amount, payMethod, type, description]);
       return res.status(200).json({ success: true });
     }
 
-    // --- CHAT ---
     if (path === '/api/chat' && method === 'GET') {
       const chan = urlParams.get('channel') || 'public';
       const r = await pool.query('SELECT * FROM chat_messages WHERE channel = $1 ORDER BY timestamp DESC LIMIT 50', [chan]);

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Video, Trash2, RefreshCw, Globe, Save, Power, Server, Key, Lock, Shield, Plus, X, UserPlus, Fingerprint, Eye, AlertCircle
+  Users, Video, Trash2, RefreshCw, Globe, Save, Power, Server, Key, Lock, Shield, Plus, X, UserPlus, Fingerprint, Eye, AlertCircle, MapPin
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
@@ -22,6 +22,8 @@ interface Visitor {
   email: string;
   phone: string;
   country: string;
+  city: string;
+  neighborhood: string;
   created_at: string;
 }
 
@@ -306,7 +308,10 @@ const AdminDashboard: React.FC = () => {
         {activeTab === 'visitors' && (
           <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
              <div className="p-8 border-b border-slate-50 bg-slate-50/50">
-               <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">Base de Dados de Registo Público</h3>
+               <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest flex items-center">
+                 <Users size={18} className="mr-3 text-ministry-gold" /> 
+                 Base de Dados de Registo Público
+               </h3>
              </div>
              <div className="overflow-x-auto">
                <table className="w-full">
@@ -314,21 +319,43 @@ const AdminDashboard: React.FC = () => {
                    <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                      <th className="px-8 py-5 text-left">Visitante</th>
                      <th className="px-8 py-5 text-left">Contacto</th>
-                     <th className="px-8 py-5 text-left">País</th>
+                     <th className="px-8 py-5 text-left">Localização</th>
                      <th className="px-8 py-5 text-right">Data Registo</th>
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-slate-100">
                    {visitors.map(v => (
                      <tr key={v.id} className="hover:bg-slate-50/50 transition">
-                       <td className="px-8 py-6 font-bold text-ministry-blue">{v.fullname}</td>
-                       <td className="px-8 py-6 text-slate-500 text-xs">{v.email}<br/>{v.phone}</td>
-                       <td className="px-8 py-6 text-slate-500 text-xs font-bold uppercase">{v.country}</td>
-                       <td className="px-8 py-6 text-right text-[10px] text-slate-400">{new Date(v.created_at).toLocaleDateString()}</td>
+                       <td className="px-8 py-6 font-bold text-ministry-blue">
+                         {v.fullname}
+                       </td>
+                       <td className="px-8 py-6 text-slate-500 text-xs">
+                         <div className="font-semibold text-ministry-blue">{v.phone}</div>
+                         <div className="text-[10px] mt-0.5">{v.email || 'S/ Email'}</div>
+                       </td>
+                       <td className="px-8 py-6">
+                         <div className="flex items-center text-xs font-bold text-slate-600 uppercase">
+                           <Globe size={12} className="mr-1.5 text-ministry-gold" />
+                           {v.country}
+                         </div>
+                         <div className="flex items-center text-[10px] text-slate-400 mt-1 uppercase">
+                           <MapPin size={10} className="mr-1.5" />
+                           {v.city} - {v.neighborhood}
+                         </div>
+                       </td>
+                       <td className="px-8 py-6 text-right text-[10px] text-slate-400 font-bold uppercase">
+                         {new Date(v.created_at).toLocaleDateString('pt-AO')}
+                       </td>
                      </tr>
                    ))}
                  </tbody>
                </table>
+               {visitors.length === 0 && (
+                 <div className="p-20 text-center text-slate-300">
+                    <Users size={48} className="mx-auto mb-4 opacity-20" />
+                    <p className="font-black uppercase text-xs tracking-widest">Nenhum visitante registado</p>
+                 </div>
+               )}
              </div>
           </div>
         )}

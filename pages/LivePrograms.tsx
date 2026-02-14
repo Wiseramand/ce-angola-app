@@ -10,7 +10,6 @@ const LivePrograms: React.FC = () => {
   const { user, system } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchMessages = async () => {
@@ -29,11 +28,10 @@ const LivePrograms: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Lógica de Scroll Inteligente e Localizada
   useEffect(() => {
     const container = chatContainerRef.current;
     if (container) {
-      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
+      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
       if (isAtBottom) {
         container.scrollTo({
           top: container.scrollHeight,
@@ -43,35 +41,40 @@ const LivePrograms: React.FC = () => {
     }
   }, [messages]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user || isSending) return;
+    if (!newMessage.trim() || !user) return;
     
-    setIsSending(true);
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          username: user.fullName,
-          text: newMessage,
-          channel: 'private'
-        })
-      });
-      if (res.ok) {
-        setNewMessage('');
-        await fetchMessages();
-        chatContainerRef.current?.scrollTo({
-          top: chatContainerRef.current.scrollHeight,
-          behavior: 'smooth'
-        });
+    const textToSend = newMessage;
+    setNewMessage(''); // Limpa o campo INSTANTANEAMENTE
+
+    const tempMsg: ChatMessage = {
+      id: 'temp-' + Date.now(),
+      user_id: user.id,
+      username: user.fullName,
+      text: textToSend,
+      channel: 'private',
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, tempMsg]);
+
+    setTimeout(() => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
       }
-    } catch (e) {
-      alert("Erro ao enviar.");
-    } finally {
-      setIsSending(false);
-    }
+    }, 10);
+
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: user.id,
+        username: user.fullName,
+        text: textToSend,
+        channel: 'private'
+      })
+    }).catch(err => console.error("Sync error:", err));
   };
 
   return (
@@ -116,7 +119,7 @@ const LivePrograms: React.FC = () => {
           </div>
           <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-8 space-y-6 bg-black/30 scrollbar-hide scroll-smooth">
             {messages.map((msg) => (
-              <div key={msg.id} className="animate-in slide-in-from-bottom-2 duration-500">
+              <div key={msg.id} className="animate-in slide-in-from-bottom-2 duration-300">
                 <div className="flex space-x-4">
                   <div className="w-12 h-12 rounded-[1.2rem] bg-ministry-blue flex items-center justify-center text-sm font-black text-white border border-white/10 overflow-hidden flex-shrink-0 shadow-lg">
                     {msg.username.charAt(0)}
@@ -140,10 +143,9 @@ const LivePrograms: React.FC = () => {
               />
               <button 
                 type="submit" 
-                disabled={isSending}
-                className="absolute right-3 top-3 bottom-3 px-5 bg-ministry-gold text-white rounded-[1.2rem] hover:scale-105 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                className="absolute right-3 top-3 bottom-3 px-5 bg-ministry-gold text-white rounded-[1.2rem] hover:scale-105 transition-all shadow-lg active:scale-90"
               >
-                {isSending ? <Loader2 className="animate-spin" size={20}/> : <Send size={20} />}
+                <Send size={20} />
               </button>
             </form>
           </div>

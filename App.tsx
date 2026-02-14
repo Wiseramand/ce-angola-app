@@ -1,6 +1,6 @@
 
 import React, { useState, createContext, useContext, useEffect, useRef } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -14,8 +14,9 @@ import Login from './pages/Login';
 import AdminLogin from './pages/AdminLogin';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
+import Welcome from './pages/Welcome';
 import { User, StreamConfig } from './types';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Loader2 } from 'lucide-react';
 
 interface UserExtended extends User {
   sessionId?: string;
@@ -67,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const sendHeartbeat = async (userId: string, sessionId: string) => {
-    if (userId.startsWith('v-')) return; // Visitantes não precisam de heartbeat de sessão única
+    if (userId.startsWith('v-')) return;
     try {
       const res = await fetch('/api/heartbeat', {
         method: 'POST',
@@ -150,15 +151,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (data: any) => {
-    // Visitantes nunca têm acesso exclusivo (hasLiveAccess: false)
     const visitorUser: UserExtended = { ...data, id: 'v-' + Date.now(), role: 'user', hasLiveAccess: false };
     setUser(visitorUser);
     localStorage.setItem('ce_session_user', JSON.stringify(visitorUser));
   };
 
   const updateStreamConfig = async (payload: any) => {
-    // A função de atualização agora recebe os dados e apenas refresca o sistema local
-    // O fetch já é feito no AdminDashboard para evitar duplicidade
     await refreshSystem();
   };
 
@@ -171,11 +169,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean; liveOnly?: boolean }> = ({ children, adminOnly, liveOnly }) => {
   const { user, system, isLoading } = useAuth();
-  if (isLoading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center animate-pulse"><Loader2 className="text-ministry-gold animate-spin" size={48} /></div>;
+  if (isLoading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><Loader2 className="text-ministry-gold animate-spin" size={48} /></div>;
   if (!user && (adminOnly || liveOnly)) return <Navigate to={adminOnly ? "/central-admin" : "/login"} replace />;
   if (adminOnly && user?.role !== 'admin') return <Navigate to="/" replace />;
   
-  // Bloqueio do Acesso Exclusivo
   if (liveOnly && system.isPrivateMode && !user?.hasLiveAccess && user?.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950 p-6">
@@ -191,32 +188,57 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean;
   return <>{children}</>;
 };
 
+// Componente de conteúdo que consome o useAuth
+const AppContent: React.FC = () => {
+  const { user, isLoading } = useAuth();
+  const location = useLocation();
+
+  const isAdminPath = location.pathname === '/central-admin' || location.pathname === '/admin';
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <Loader2 className="text-ministry-gold animate-spin" size={48} />
+      </div>
+    );
+  }
+
+  // Se não houver utilizador e não for a rota de admin, obriga a identificação (Welcome)
+  if (!user && !isAdminPath) {
+    return <Welcome />;
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      {!isAdminPath && <Header />}
+      <main className="flex-grow">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/live-tv" element={<LiveTV />} />
+          <Route path="/live" element={<ProtectedRoute liveOnly><LivePrograms /></ProtectedRoute>} />
+          <Route path="/partnerships" element={<Partnerships />} />
+          <Route path="/donations" element={<Donations />} />
+          <Route path="/founder" element={<Founder />} />
+          <Route path="/central-admin" element={<AdminLogin />} />
+          <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+      {!isAdminPath && <Footer />}
+    </div>
+  );
+};
+
+// Componente principal que provê o contexto
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <div className="flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-grow">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/live-tv" element={<LiveTV />} />
-            <Route path="/live" element={<ProtectedRoute liveOnly><LivePrograms /></ProtectedRoute>} />
-            <Route path="/partnerships" element={<Partnerships />} />
-            <Route path="/donations" element={<Donations />} />
-            <Route path="/founder" element={<Founder />} />
-            <Route path="/central-admin" element={<AdminLogin />} />
-            <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
+      <AppContent />
     </AuthProvider>
   );
 };
 
 export default App;
-const Loader2 = ({ className, size }: any) => <div className={`w-${size || 10} h-${size || 10} border-4 border-ministry-gold border-t-transparent rounded-full animate-spin ${className}`}></div>;
