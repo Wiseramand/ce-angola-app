@@ -29,28 +29,25 @@ const Welcome: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleIdentify = (e: React.FormEvent) => {
+  const handleIdentify = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    
     setIsSubmitting(true);
-
-    const userPayload = { ...formData, gender: 'Male' };
-
-    // EFEITO INSTANTÂNEO: Desbloqueia o portal localmente sem esperar pela API
-    // Isso garante que a transição ocorra em milissegundos
-    register(userPayload).then(() => {
-      // O portal já abriu para o utilizador neste ponto.
-      // Agora enviamos os dados para o servidor em background
-      fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userPayload)
-      }).catch(err => console.error("Erro silêncio no background:", err));
-    });
+    try {
+      const userPayload = { ...formData, gender: 'Male' };
+      // O register agora é uma promessa que inclui o fetch para o servidor
+      await register(userPayload);
+      // Se chegou aqui, o servidor gravou com sucesso e o App.tsx vai redirecionar sozinho
+    } catch (err) {
+      console.error("Erro no registo:", err);
+      alert("Houve um problema ao conectar com o servidor. Por favor, tente novamente.");
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-ministry-blue relative flex items-center justify-center overflow-hidden p-6 py-12">
-      {/* Background Visual */}
       <div className="absolute inset-0 z-0">
         <img 
           src="https://images.unsplash.com/photo-1510519133417-c057b49ef29d?q=80&w=2070" 
