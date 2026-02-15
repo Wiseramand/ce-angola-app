@@ -1,19 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Video, Trash2, RefreshCw, Globe, Save, Power, Server, Key, Lock, Shield, Plus, X, UserPlus, Fingerprint, Eye, AlertCircle, MapPin
+  Users, Video, Shield, Eye, Save, RefreshCw, ArrowLeft, Download, User, Lock, Globe, MapPin
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
+import { useNavigate } from 'react-router-dom';
 
 interface ManagedUser {
   id: string;
   name: string;
   username: string;
-  email: string;
-  phone: string;
-  status: 'active' | 'blocked';
   password?: string;
+  status: 'active' | 'blocked';
 }
 
 interface Visitor {
@@ -28,274 +27,153 @@ interface Visitor {
 }
 
 const AdminDashboard: React.FC = () => {
-  const { system, updateStreamConfig, refreshSystem } = useAuth();
+  const { updateStreamConfig } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'users' | 'visitors' | 'streams'>('users');
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
   
-  const [newUser, setNewUser] = useState({
-    fullname: '',
-    username: '',
-    password: '',
-    email: '',
-    phone: ''
-  });
-
   const [streamForm, setStreamForm] = useState({
     public_url: '',
-    public_server: '',
-    public_key: '',
     public_title: '',
     public_description: '',
     private_url: '',
-    private_server: '',
-    private_key: '',
     private_title: '',
     private_description: '',
     is_private_mode: false
   });
 
-  const loadFullSystem = async () => {
+  const loadData = async () => {
     setIsRefreshing(true);
-    setServerError(null);
     try {
-      const res = await fetch('/api/system');
-      if (res.ok) {
-        const data = await res.json();
+      const [uRes, vRes, sRes] = await Promise.all([
+        fetch('/api/admin/users'),
+        fetch('/api/admin/visitors'),
+        fetch('/api/system')
+      ]);
+      
+      if (uRes.ok) setUsers(await uRes.json());
+      if (vRes.ok) setVisitors(await vRes.json());
+      if (sRes.ok) {
+        const sData = await sRes.json();
         setStreamForm({
-          public_url: data.public_url || '',
-          public_server: data.public_server || '',
-          public_key: data.public_key || '',
-          public_title: data.public_title || '',
-          public_description: data.public_description || '',
-          private_url: data.private_url || '',
-          private_server: data.private_server || '',
-          private_key: data.private_key || '',
-          private_title: data.private_title || '',
-          private_description: data.private_description || '',
-          is_private_mode: !!data.is_private_mode
+          public_url: sData.public_url || '',
+          public_title: sData.public_title || '',
+          public_description: sData.public_description || '',
+          private_url: sData.private_url || '',
+          private_title: sData.private_title || '',
+          private_description: sData.private_description || '',
+          is_private_mode: !!sData.is_private_mode
         });
-      } else {
-        const err = await res.json();
-        setServerError(err.details || err.error);
       }
     } catch (e) {
-      setServerError("Erro de conexão com o servidor ao carregar dados.");
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch('/api/admin/users');
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data);
-      }
-    } catch (e) {}
-  };
-
-  const fetchVisitors = async () => {
-    try {
-      const res = await fetch('/api/admin/visitors');
-      if (res.ok) {
-        const data = await res.json();
-        setVisitors(data);
-      }
-    } catch (e) {}
-  };
-
-  const handleToggleUser = async (user: ManagedUser) => {
-    if (!confirm(`Deseja ${user.status === 'active' ? 'BLOQUEAR' : 'ATIVAR'} o acesso de ${user.name}?`)) return;
-    const res = await fetch('/api/admin/users/status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: user.id, status: user.status })
-    });
-    if (res.ok) fetchUsers();
-  };
-
-  const handleDeleteUser = async (id: string) => {
-    if (!confirm("⚠️ ATENÇÃO: Eliminar este utilizador permanentemente?")) return;
-    const res = await fetch('/api/admin/users/delete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id })
-    });
-    if (res.ok) fetchUsers();
-  };
-
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsRefreshing(true);
-    try {
-      const res = await fetch('/api/admin/users/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser)
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert("✅ Credenciais geradas com sucesso!");
-        setShowCreateModal(false);
-        setNewUser({ fullname: '', username: '', password: '', email: '', phone: '' });
-        fetchUsers();
-      } else {
-        alert("Erro: " + (data.details || data.error));
-      }
-    } finally {
-      setIsRefreshing(false);
-    }
+      console.error("Erro no Dashboard:", e);
+    } finally { setIsRefreshing(false); }
   };
 
   const handleSaveStreams = async () => {
     setIsRefreshing(true);
-    setServerError(null);
     try {
       const res = await fetch('/api/system', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(streamForm)
       });
-      const data = await res.json();
       if (res.ok) {
-        alert("✅ Configurações de Transmissão Publicadas com Sucesso!");
-        await refreshSystem();
-      } else {
-        setServerError(data.details || data.error);
-        alert("Falha no Servidor: " + (data.details || data.error));
+        alert('Configurações atualizadas!');
+        updateStreamConfig(streamForm);
       }
-    } catch (e) {
-      setServerError("Falha de rede ao tentar salvar.");
-    } finally {
-      setIsRefreshing(false);
-    }
+    } finally { setIsRefreshing(false); }
   };
 
-  useEffect(() => { 
-    loadFullSystem();
-    fetchUsers(); 
-    fetchVisitors();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   return (
-    <div className="bg-[#f8fafc] min-h-screen flex">
-      {/* Sidebar Admin */}
-      <aside className="w-80 bg-ministry-blue text-white flex flex-col h-screen sticky top-0 shadow-2xl z-20">
+    <div className="bg-[#f8fafc] min-h-screen flex relative">
+      {/* Sidebar Menu - RESTAURADO */}
+      <aside className="w-80 bg-ministry-blue text-white flex flex-col h-screen sticky top-0 shadow-2xl z-20 print:hidden">
         <div className="p-10 border-b border-white/10">
-          <Logo className="h-12 w-auto mb-6" />
-          <h2 className="text-xl font-display font-black uppercase tracking-tight">Consola Master</h2>
-          <div className="flex items-center mt-3 space-x-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Servidor Online</span>
-          </div>
+          <Logo className="h-12 w-auto mb-6 brightness-110" />
+          <h2 className="text-xl font-display font-black uppercase tracking-tight text-ministry-gold">Consola Master</h2>
         </div>
+        
         <nav className="flex-grow p-6 space-y-3">
           <button 
             onClick={() => setActiveTab('users')} 
-            className={`w-full flex items-center space-x-4 px-6 py-5 rounded-[1.5rem] transition-all font-bold ${activeTab === 'users' ? 'bg-ministry-gold text-white shadow-xl shadow-ministry-gold/20' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+            className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${activeTab === 'users' ? 'bg-ministry-gold text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}
           >
             <Shield size={20} />
-            <span>Membros Exclusivos</span>
+            <span>Membros</span>
           </button>
+          
           <button 
             onClick={() => setActiveTab('visitors')} 
-            className={`w-full flex items-center space-x-4 px-6 py-5 rounded-[1.5rem] transition-all font-bold ${activeTab === 'visitors' ? 'bg-ministry-gold text-white shadow-xl shadow-ministry-gold/20' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+            className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${activeTab === 'visitors' ? 'bg-ministry-gold text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}
           >
-            <Eye size={20} />
-            <span>Visitantes Online</span>
+            <Users size={20} />
+            <span>Visitantes</span>
           </button>
+          
           <button 
             onClick={() => setActiveTab('streams')} 
-            className={`w-full flex items-center space-x-4 px-6 py-5 rounded-[1.5rem] transition-all font-bold ${activeTab === 'streams' ? 'bg-ministry-gold text-white shadow-xl shadow-ministry-gold/20' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+            className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${activeTab === 'streams' ? 'bg-ministry-gold text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}
           >
             <Video size={20} />
-            <span>Canais de Live</span>
+            <span>Streams</span>
           </button>
+
+          <div className="pt-10 border-t border-white/5 mt-10">
+            <button onClick={() => navigate('/')} className="w-full flex items-center space-x-4 px-6 py-4 text-slate-400 hover:text-white transition font-bold text-xs uppercase">
+              <ArrowLeft size={18} />
+              <span>Voltar ao Portal</span>
+            </button>
+          </div>
         </nav>
       </aside>
 
       {/* Main Content */}
       <main className="flex-grow p-12">
-        {serverError && (
-          <div className="bg-red-50 border-2 border-red-100 p-6 rounded-[2rem] mb-10 flex items-center space-x-4 text-red-600 animate-in fade-in slide-in-from-top-4">
-            <AlertCircle size={24} />
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest">Erro Crítico do Servidor</p>
-              <p className="font-bold">{serverError}</p>
-            </div>
-          </div>
-        )}
-
-        <header className="flex justify-between items-center mb-12">
+        <header className="flex justify-between items-center mb-12 print:hidden">
           <div>
-            <h1 className="text-4xl font-display font-black text-ministry-blue uppercase tracking-tighter">Administração Central</h1>
-            <p className="text-slate-500 font-medium mt-1">
-              {activeTab === 'users' ? 'Gestão de Credenciais e Acessos Restritos.' : activeTab === 'visitors' ? 'Pessoas registadas via formulário público.' : 'Configurações de Transmissão.'}
-            </p>
+            <h1 className="text-4xl font-display font-black text-ministry-blue uppercase tracking-tighter">Administração</h1>
+            <p className="text-slate-400 font-bold uppercase text-[10px] mt-2 tracking-widest">Christ Embassy Angola • Painel de Controlo</p>
           </div>
-          <div className="flex space-x-4">
-            <button onClick={() => { fetchUsers(); fetchVisitors(); loadFullSystem(); }} className="p-4 bg-white rounded-2xl shadow-sm text-slate-400 hover:text-ministry-blue transition">
-              <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
-            </button>
-          </div>
+          <button onClick={loadData} className="p-4 bg-white rounded-2xl shadow-sm text-slate-400 hover:text-ministry-blue transition border border-slate-100">
+            <RefreshCw size={22} className={isRefreshing ? 'animate-spin' : ''} />
+          </button>
         </header>
 
         {activeTab === 'users' && (
-          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
-            <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
-              <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest flex items-center">
-                <Lock size={18} className="mr-3 text-ministry-gold" /> Acessos Gerados
-              </h3>
-              <button 
-                onClick={() => setShowCreateModal(true)}
-                className="bg-ministry-blue text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center space-x-2 hover:bg-ministry-gold transition-all shadow-lg"
-              >
-                <Plus size={16} />
-                <span>Gerar Nova Credencial</span>
-              </button>
+          <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+            <div className="p-8 border-b border-slate-50 bg-slate-50/50">
+              <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">Utilizadores Autorizados (Membros)</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    <th className="px-8 py-5 text-left">Membro</th>
-                    <th className="px-8 py-5 text-left">ID / Password</th>
-                    <th className="px-8 py-5 text-left">Estado</th>
-                    <th className="px-8 py-5 text-right">Ações</th>
+                  <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">
+                    <th className="px-8 py-5">Nome do Membro</th>
+                    <th className="px-8 py-5">Usuário (ID)</th>
+                    <th className="px-8 py-5">Senha (Chave)</th>
+                    <th className="px-8 py-5 text-right">Estado</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {users.map(u => (
                     <tr key={u.id} className="hover:bg-slate-50/50 transition">
                       <td className="px-8 py-6">
-                        <div className="font-bold text-ministry-blue">{u.name}</div>
-                        <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">{u.email || 'S/ Email'}</div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex flex-col">
-                           <span className="font-mono text-xs font-black text-ministry-gold uppercase tracking-tighter">ID: {u.username}</span>
-                           <span className="font-mono text-[10px] text-slate-400">PW: {u.password}</span>
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-ministry-blue/10 rounded-xl flex items-center justify-center text-ministry-blue font-black text-xs">{u.name.charAt(0)}</div>
+                          <span className="font-bold text-ministry-blue">{u.name}</span>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
-                        <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase ${u.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                          {u.status === 'active' ? 'ATIVO' : 'BLOQUEADO'}
-                        </span>
-                      </td>
+                      <td className="px-8 py-6 font-mono text-sm text-slate-500">{u.username}</td>
+                      <td className="px-8 py-6 font-mono text-sm text-slate-500">{u.password}</td>
                       <td className="px-8 py-6 text-right">
-                        <div className="flex justify-end space-x-2">
-                          <button onClick={() => handleToggleUser(u)} className="p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-ministry-gold hover:text-white transition">
-                            <Power size={18} />
-                          </button>
-                          <button onClick={() => handleDeleteUser(u.id)} className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition">
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
+                        <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${u.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                          {u.status}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -306,143 +184,79 @@ const AdminDashboard: React.FC = () => {
         )}
 
         {activeTab === 'visitors' && (
-          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
+          <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
              <div className="p-8 border-b border-slate-50 bg-slate-50/50">
-               <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest flex items-center">
-                 <Users size={18} className="mr-3 text-ministry-gold" /> 
-                 Base de Dados de Registo Público
-               </h3>
+               <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">Visitantes Registados no Portal</h3>
              </div>
              <div className="overflow-x-auto">
                <table className="w-full">
                  <thead>
-                   <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                     <th className="px-8 py-5 text-left">Visitante</th>
-                     <th className="px-8 py-5 text-left">Contacto</th>
-                     <th className="px-8 py-5 text-left">Localização</th>
-                     <th className="px-8 py-5 text-right">Data Registo</th>
+                   <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase text-left">
+                     <th className="px-8 py-5">Nome Completo</th>
+                     <th className="px-8 py-5">Contacto</th>
+                     <th className="px-8 py-5">Localização (Cidade/Bairro)</th>
+                     <th className="px-8 py-5 text-right">Data</th>
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-slate-100">
                    {visitors.map(v => (
                      <tr key={v.id} className="hover:bg-slate-50/50 transition">
-                       <td className="px-8 py-6 font-bold text-ministry-blue">
-                         {v.fullname}
-                       </td>
-                       <td className="px-8 py-6 text-slate-500 text-xs">
-                         <div className="font-semibold text-ministry-blue">{v.phone}</div>
-                         <div className="text-[10px] mt-0.5">{v.email || 'S/ Email'}</div>
-                       </td>
                        <td className="px-8 py-6">
-                         <div className="flex items-center text-xs font-bold text-slate-600 uppercase">
-                           <Globe size={12} className="mr-1.5 text-ministry-gold" />
-                           {v.country}
-                         </div>
-                         <div className="flex items-center text-[10px] text-slate-400 mt-1 uppercase">
-                           <MapPin size={10} className="mr-1.5" />
-                           {v.city} - {v.neighborhood}
-                         </div>
+                          <div className="font-bold text-ministry-blue uppercase tracking-tight">{v.fullname}</div>
+                          <div className="text-[10px] text-slate-400 font-bold">{v.email || 'N/A'}</div>
                        </td>
-                       <td className="px-8 py-6 text-right text-[10px] text-slate-400 font-bold uppercase">
-                         {new Date(v.created_at).toLocaleDateString('pt-AO')}
+                       <td className="px-8 py-6 text-slate-500 text-xs font-bold">{v.phone}</td>
+                       <td className="px-8 py-6">
+                          <div className="text-xs font-black text-slate-600 uppercase tracking-tighter">{v.city || 'Desconhecida'}</div>
+                          <div className="text-[10px] text-slate-400 font-bold uppercase">{v.neighborhood || '—'}</div>
                        </td>
+                       <td className="px-8 py-6 text-right text-[10px] text-slate-400 font-bold">{new Date(v.created_at).toLocaleDateString()}</td>
                      </tr>
                    ))}
                  </tbody>
                </table>
-               {visitors.length === 0 && (
-                 <div className="p-20 text-center text-slate-300">
-                    <Users size={48} className="mx-auto mb-4 opacity-20" />
-                    <p className="font-black uppercase text-xs tracking-widest">Nenhum visitante registado</p>
-                 </div>
-               )}
              </div>
           </div>
         )}
 
         {activeTab === 'streams' && (
-          <div className="space-y-8 animate-in slide-in-from-bottom-5 duration-500">
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="bg-white p-10 rounded-[3.5rem] shadow-xl border border-slate-100">
-                <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-8">Canal Público (Livre)</h3>
-                <div className="space-y-5">
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
+                <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-8">Canal Público</h3>
+                <div className="space-y-6">
+                  <InputField label="URL Transmissão" value={streamForm.public_url} onChange={v => setStreamForm({...streamForm, public_url: v})} />
                   <InputField label="Título" value={streamForm.public_title} onChange={v => setStreamForm({...streamForm, public_title: v})} />
-                  <InputField label="URL / Embed" value={streamForm.public_url} onChange={v => setStreamForm({...streamForm, public_url: v})} />
-                  <InputField label="Descrição" value={streamForm.public_description} onChange={v => setStreamForm({...streamForm, public_description: v})} />
                 </div>
               </div>
-              <div className="bg-white p-10 rounded-[3.5rem] shadow-xl border-t-[12px] border-ministry-gold">
-                <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-8">Canal Exclusivo (Protegido)</h3>
-                <div className="space-y-5">
-                  <InputField label="Título da Conferência" value={streamForm.private_title} onChange={v => setStreamForm({...streamForm, private_title: v})} />
+              <div className="bg-white p-10 rounded-[3rem] shadow-xl border-t-[12px] border-ministry-gold">
+                <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-8">Canal Privado</h3>
+                <div className="space-y-6">
                   <InputField label="URL Privada" value={streamForm.private_url} onChange={v => setStreamForm({...streamForm, private_url: v})} />
-                  <InputField label="Descrição Exclusiva" value={streamForm.private_description} onChange={v => setStreamForm({...streamForm, private_description: v})} />
-                  <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl mt-4">
-                    <span className="text-[11px] font-black text-ministry-blue uppercase tracking-widest">Ativar Bloqueio Automático</span>
-                    <button 
-                      onClick={() => setStreamForm({...streamForm, is_private_mode: !streamForm.is_private_mode})}
-                      className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_private_mode ? 'bg-ministry-gold' : 'bg-slate-300'}`}
-                    >
+                  <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                    <span className="text-[11px] font-black text-ministry-blue uppercase tracking-widest">Restringir Acesso</span>
+                    <button onClick={() => setStreamForm({...streamForm, is_private_mode: !streamForm.is_private_mode})} className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_private_mode ? 'bg-ministry-gold' : 'bg-slate-300'}`}>
                       <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${streamForm.is_private_mode ? 'left-7' : 'left-1'}`} />
                     </button>
                   </div>
                 </div>
               </div>
             </div>
-            <button 
-              onClick={handleSaveStreams} 
-              disabled={isRefreshing}
-              className="w-full py-7 bg-ministry-blue text-white rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl hover:bg-ministry-gold transition-all flex items-center justify-center space-x-3 disabled:opacity-50"
-            >
-              {isRefreshing ? <RefreshCw className="animate-spin" /> : <Save size={20} />}
-              <span>PUBLICAR CONFIGURAÇÕES</span>
+            <button onClick={handleSaveStreams} className="w-full py-7 bg-ministry-blue text-white rounded-[2rem] font-black uppercase tracking-widest shadow-2xl flex items-center justify-center space-x-3 hover:bg-ministry-gold transition-all">
+              <Save size={20} />
+              <span>Guardar Configurações</span>
             </button>
           </div>
         )}
       </main>
-
-      {/* Modal Criar Utilizador */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden">
-            <div className="bg-ministry-blue p-10 text-white flex justify-between items-center">
-              <h3 className="text-2xl font-display font-black uppercase tracking-tight">Novo Membro Exclusivo</h3>
-              <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-white/10 rounded-xl transition"><X size={24}/></button>
-            </div>
-            
-            <form onSubmit={handleCreateUser} className="p-10 space-y-6">
-              <InputField label="Nome Completo" value={newUser.fullname} onChange={v => setNewUser({...newUser, fullname: v})} placeholder="Ex: Irmão Pedro" />
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 ml-2">ID de Acesso</label>
-                  <input type="text" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value.toLowerCase().replace(/\s/g, '')})} className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-black" placeholder="membro_01" required />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 ml-2">Password</label>
-                  <input type="text" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-mono font-black text-ministry-gold" required />
-                </div>
-              </div>
-              <button type="submit" disabled={isRefreshing} className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-ministry-gold transition-all disabled:opacity-50">
-                {isRefreshing ? 'GERANDO...' : 'ATIVAR ACESSO AGORA'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
 
-const InputField = ({ label, value, onChange, placeholder }: any) => (
+const InputField = ({ label, value, onChange }: any) => (
   <div>
-    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-2">{label}</label>
-    <input 
-      type="text" 
-      value={value} 
-      onChange={e => onChange(e.target.value)} 
-      placeholder={placeholder}
-      className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-ministry-blue" 
-    />
+    <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">{label}</label>
+    <input type="text" value={value} onChange={e => onChange(e.target.value)} className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold" />
   </div>
 );
 

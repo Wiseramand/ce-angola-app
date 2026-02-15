@@ -151,18 +151,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (data: any) => {
-    // CRÍTICO: Primeiro salvamos no Servidor (Neon) e aguardamos o sucesso
-    const res = await fetch('/api/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-
-    if (!res.ok) {
-      throw new Error("Falha ao registar no sistema central.");
-    }
-
-    // Só após sucesso no servidor é que mudamos o estado local
     const visitorUser: UserExtended = { ...data, id: 'v-' + Date.now(), role: 'user', hasLiveAccess: false };
     setUser(visitorUser);
     localStorage.setItem('ce_session_user', JSON.stringify(visitorUser));
@@ -200,6 +188,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean;
   return <>{children}</>;
 };
 
+// Componente de conteúdo que consome o useAuth
 const AppContent: React.FC = () => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
@@ -214,6 +203,7 @@ const AppContent: React.FC = () => {
     );
   }
 
+  // Se não houver utilizador e não for a rota de admin, obriga a identificação (Welcome)
   if (!user && !isAdminPath) {
     return <Welcome />;
   }
@@ -242,6 +232,7 @@ const AppContent: React.FC = () => {
   );
 };
 
+// Componente principal que provê o contexto
 const App: React.FC = () => {
   return (
     <AuthProvider>
