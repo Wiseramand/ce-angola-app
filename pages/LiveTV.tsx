@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, MessageSquare, Heart, UserPlus, Loader2 } from 'lucide-react';
+import { Send, MessageSquare, Heart, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../App';
 import { ChatMessage } from '../types';
 import UniversalPlayer from '../components/UniversalPlayer';
@@ -17,65 +17,56 @@ const LiveTV: React.FC = () => {
       const res = await fetch('/api/chat?channel=public');
       if (res.ok) {
         const data = await res.json();
+        // Atualiza as mensagens se o tamanho for diferente (simplificação)
         setMessages(data);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error("Erro ao carregar chat", e);
+    }
   };
 
   useEffect(() => {
     fetchMessages();
-    // INTERVALO REDUZIDO PARA TEMPO REAL (2 SEGUNDOS)
-    const interval = setInterval(fetchMessages, 2000);
+    // INTERVALO DE 1.5 SEGUNDOS PARA MELHOR INTERATIVIDADE
+    const interval = setInterval(fetchMessages, 1500);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     const container = chatContainerRef.current;
     if (container) {
-      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
-      if (isAtBottom) {
-        container.scrollTo({
-          top: container.scrollHeight,
-          behavior: 'smooth'
-        });
-      }
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      });
     }
   }, [messages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !user) return;
     
     const textToSend = newMessage;
     setNewMessage(''); 
 
-    const tempMsg: ChatMessage = {
-      id: 'temp-' + Date.now(),
-      user_id: user.id,
-      username: user.fullName,
-      text: textToSend,
-      channel: 'public',
-      timestamp: new Date().toISOString()
-    };
-
-    setMessages(prev => [...prev, tempMsg]);
-
-    setTimeout(() => {
-      if (chatContainerRef.current) {
-        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    // Envio para o servidor
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          username: user.fullName,
+          text: textToSend,
+          channel: 'public'
+        })
+      });
+      if (res.ok) {
+        fetchMessages(); // Recarrega imediatamente após enviar
       }
-    }, 10);
-
-    fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: user.id,
-        username: user.fullName,
-        text: textToSend,
-        channel: 'public'
-      })
-    }).catch(err => console.error("Sync error:", err));
+    } catch (err) {
+      console.error("Erro ao enviar mensagem:", err);
+    }
   };
 
   return (
@@ -108,48 +99,57 @@ const LiveTV: React.FC = () => {
           <div className="p-8 border-b border-white/5 bg-black/40 flex items-center justify-between text-white">
             <div className="flex items-center space-x-3">
               <MessageSquare size={20} className="text-ministry-gold" />
-              <h2 className="font-black font-display uppercase tracking-[0.2em] text-xs">Comunidade</h2>
+              <h2 className="font-black font-display uppercase tracking-[0.2em] text-xs">Comunidade Viva</h2>
             </div>
-            <span className="text-[10px] bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-black">CHAT ATIVO</span>
+            <span className="text-[10px] bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-black animate-pulse">EM TEMPO REAL</span>
           </div>
-          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-8 space-y-6 bg-black/20 scrollbar-hide scroll-smooth">
-            {messages.map((msg) => (
-              <div key={msg.id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="flex space-x-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-ministry-blue to-slate-800 flex items-center justify-center text-sm font-black text-white border border-white/10 flex-shrink-0 uppercase shadow-lg">
-                    {msg.username.charAt(0)}
-                  </div>
-                  <div className="flex-grow">
-                    <div className="flex items-center justify-between mb-1.5">
-                       <p className="text-[11px] font-black text-ministry-gold uppercase tracking-wider">{msg.username}</p>
-                       <span className="text-[9px] text-white/20 font-bold">{new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 bg-black/20 scrollbar-hide scroll-smooth">
+            {messages.map((msg) => {
+              const isAdmin = msg.user_id === 'admin-1' || msg.user_id.startsWith('admin');
+              return (
+                <div key={msg.id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="flex space-x-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black text-white flex-shrink-0 uppercase shadow-lg ${isAdmin ? 'bg-ministry-gold' : 'bg-slate-700'}`}>
+                      {msg.username.charAt(0)}
                     </div>
-                    <div className="text-sm text-slate-300 bg-white/5 p-4 rounded-[1.5rem] rounded-tl-none border border-white/5 leading-relaxed">{msg.text}</div>
+                    <div className="flex-grow">
+                      <div className="flex items-center space-x-2 mb-1">
+                         <p className={`text-[10px] font-black uppercase tracking-wider ${isAdmin ? 'text-ministry-gold' : 'text-slate-400'}`}>
+                           {msg.username}
+                         </p>
+                         {isAdmin && (
+                           <span className="bg-ministry-gold/20 text-ministry-gold text-[8px] px-2 py-0.5 rounded-full font-black border border-ministry-gold/30">ADMIN</span>
+                         )}
+                      </div>
+                      <div className={`text-sm p-4 rounded-2xl rounded-tl-none border ${isAdmin ? 'bg-ministry-gold/10 border-ministry-gold/20 text-white' : 'bg-white/5 border-white/5 text-slate-300'}`}>
+                        {msg.text}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="p-8 bg-black/60 border-t border-white/5">
             {user ? (
               <form onSubmit={handleSendMessage} className="relative">
                 <input 
                   type="text" 
-                  placeholder="Envie uma bênção..." 
+                  placeholder="Escreva uma mensagem..." 
                   value={newMessage} 
                   onChange={(e) => setNewMessage(e.target.value)} 
-                  className="w-full bg-slate-800/50 text-white text-sm rounded-[1.5rem] pl-6 pr-16 py-5 focus:ring-2 focus:ring-ministry-gold border-0 outline-none transition shadow-inner" 
+                  className="w-full bg-slate-800/50 text-white text-sm rounded-2xl pl-6 pr-16 py-5 focus:ring-2 focus:ring-ministry-gold border-0 outline-none transition shadow-inner" 
                 />
                 <button 
                   type="submit" 
-                  className="absolute right-3 top-3 bottom-3 px-5 bg-ministry-gold text-white rounded-2xl hover:bg-ministry-blue transition-all active:scale-90"
+                  className="absolute right-3 top-3 bottom-3 px-5 bg-ministry-gold text-white rounded-xl hover:bg-ministry-blue transition-all active:scale-90"
                 >
-                  <Send size={20} />
+                  <Send size={18} />
                 </button>
               </form>
             ) : (
-              <Link to="/register" className="w-full py-5 bg-ministry-blue text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest flex items-center justify-center space-x-3 shadow-xl hover:bg-ministry-gold transition-all">
-                <span className="font-bold">Registrar para Comentar</span>
+              <Link to="/register" className="w-full py-5 bg-ministry-blue text-white rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center space-x-3 shadow-xl hover:bg-ministry-gold transition-all">
+                <span>Identifique-se para interagir</span>
               </Link>
             )}
           </div>

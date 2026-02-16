@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, Heart, Shield, MessageSquare, Loader2 } from 'lucide-react';
+import { Send, Heart, Shield, MessageSquare } from 'lucide-react';
 import { useAuth } from '../App';
 import { ChatMessage } from '../types';
 import UniversalPlayer from '../components/UniversalPlayer';
@@ -19,63 +19,51 @@ const LivePrograms: React.FC = () => {
         const data = await res.json();
         setMessages(data);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error("Erro ao carregar chat privado", e);
+    }
   };
 
   useEffect(() => {
     fetchMessages();
-    // INTERVALO REDUZIDO PARA TEMPO REAL (2 SEGUNDOS)
-    const interval = setInterval(fetchMessages, 2000);
+    const interval = setInterval(fetchMessages, 1500);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     const container = chatContainerRef.current;
     if (container) {
-      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
-      if (isAtBottom) {
-        container.scrollTo({
-          top: container.scrollHeight,
-          behavior: 'smooth'
-        });
-      }
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      });
     }
   }, [messages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !user) return;
     
     const textToSend = newMessage;
     setNewMessage(''); 
 
-    const tempMsg: ChatMessage = {
-      id: 'temp-' + Date.now(),
-      user_id: user.id,
-      username: user.fullName,
-      text: textToSend,
-      channel: 'private',
-      timestamp: new Date().toISOString()
-    };
-
-    setMessages(prev => [...prev, tempMsg]);
-
-    setTimeout(() => {
-      if (chatContainerRef.current) {
-        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          username: user.fullName,
+          text: textToSend,
+          channel: 'private'
+        })
+      });
+      if (res.ok) {
+        fetchMessages();
       }
-    }, 10);
-
-    fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: user.id,
-        username: user.fullName,
-        text: textToSend,
-        channel: 'private'
-      })
-    }).catch(err => console.error("Sync error:", err));
+    } catch (err) {
+      console.error("Erro ao enviar mensagem:", err);
+    }
   };
 
   return (
@@ -118,20 +106,30 @@ const LivePrograms: React.FC = () => {
                <span className="text-[9px] text-green-400 font-black uppercase tracking-widest">Seguro</span>
             </div>
           </div>
-          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-8 space-y-6 bg-black/30 scrollbar-hide scroll-smooth">
-            {messages.map((msg) => (
-              <div key={msg.id} className="animate-in slide-in-from-bottom-2 duration-300">
-                <div className="flex space-x-4">
-                  <div className="w-12 h-12 rounded-[1.2rem] bg-ministry-blue flex items-center justify-center text-sm font-black text-white border border-white/10 overflow-hidden flex-shrink-0 shadow-lg">
-                    {msg.username.charAt(0)}
-                  </div>
-                  <div className="flex-grow">
-                    <p className="text-[10px] font-black text-ministry-gold uppercase tracking-wider mb-1.5">{msg.username}</p>
-                    <div className="text-sm text-gray-300 bg-white/5 p-4 rounded-[1.8rem] rounded-tl-none border border-white/10 leading-relaxed shadow-sm">{msg.text}</div>
+          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 bg-black/30 scrollbar-hide scroll-smooth">
+            {messages.map((msg) => {
+              const isAdmin = msg.user_id === 'admin-1' || msg.user_id.startsWith('admin');
+              return (
+                <div key={msg.id} className="animate-in slide-in-from-bottom-2 duration-300">
+                  <div className="flex space-x-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black text-white flex-shrink-0 shadow-lg ${isAdmin ? 'bg-ministry-gold' : 'bg-ministry-blue'}`}>
+                      {msg.username.charAt(0)}
+                    </div>
+                    <div className="flex-grow">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <p className={`text-[10px] font-black uppercase tracking-wider ${isAdmin ? 'text-ministry-gold' : 'text-slate-300'}`}>{msg.username}</p>
+                        {isAdmin && (
+                          <span className="bg-ministry-gold/20 text-ministry-gold text-[8px] px-2 py-0.5 rounded-full font-black border border-ministry-gold/30">ADMIN</span>
+                        )}
+                      </div>
+                      <div className={`text-sm p-4 rounded-2xl rounded-tl-none border shadow-sm ${isAdmin ? 'bg-ministry-gold/10 border-ministry-gold/20 text-white' : 'bg-white/5 border-white/10 text-gray-300'}`}>
+                        {msg.text}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="p-8 bg-black/70 border-t border-white/10">
             <form onSubmit={handleSendMessage} className="relative">
@@ -140,13 +138,13 @@ const LivePrograms: React.FC = () => {
                 placeholder="Declare sua vitória..." 
                 value={newMessage} 
                 onChange={(e) => setNewMessage(e.target.value)} 
-                className="w-full bg-slate-800 text-white text-sm rounded-[1.8rem] pl-6 pr-16 py-5 border-0 outline-none focus:ring-2 focus:ring-ministry-gold shadow-inner" 
+                className="w-full bg-slate-800 text-white text-sm rounded-2xl pl-6 pr-16 py-5 border-0 outline-none focus:ring-2 focus:ring-ministry-gold shadow-inner" 
               />
               <button 
                 type="submit" 
-                className="absolute right-3 top-3 bottom-3 px-5 bg-ministry-gold text-white rounded-[1.2rem] hover:scale-105 transition-all shadow-lg active:scale-90"
+                className="absolute right-3 top-3 bottom-3 px-5 bg-ministry-gold text-white rounded-xl hover:scale-105 transition-all shadow-lg active:scale-90"
               >
-                <Send size={20} />
+                <Send size={18} />
               </button>
             </form>
           </div>

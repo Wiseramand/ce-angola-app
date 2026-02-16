@@ -40,28 +40,37 @@ const initDb = async () => {
 };
 
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Content-Type', 'application/json');
-  const path = req.url.split('?')[0];
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  const urlParts = req.url.split('?');
+  const path = urlParts[0];
+  const queryParams = new URLSearchParams(urlParts[1] || '');
 
   try {
     await initDb();
 
-    // CHAT REAL-TIME
+    // ENDPOINT CHAT: CORREÇÃO DE QUERY PARAMS
     if (path.endsWith('/chat')) {
       if (req.method === 'GET') {
-        const url = new URL(req.url, `http://${req.headers.host}`);
-        const channel = url.searchParams.get('channel') || 'public';
+        const channel = queryParams.get('channel') || 'public';
         const r = await pool.query(
-          "SELECT id, user_id, username, text, channel, created_at as timestamp FROM chat_messages WHERE channel = $1 ORDER BY created_at ASC LIMIT 100",
+          "SELECT id, user_id, username, text, channel, created_at as timestamp FROM chat_messages WHERE channel = $1 ORDER BY created_at ASC LIMIT 150",
           [channel]
         );
         return res.status(200).json(r.rows);
       }
       if (req.method === 'POST') {
         const { userId, username, text, channel } = req.body;
+        if (!text || !userId) return res.status(400).json({ error: 'Missing fields' });
+        
         await pool.query(
           "INSERT INTO chat_messages (user_id, username, text, channel) VALUES ($1, $2, $3, $4)",
-          [userId, username, text, channel]
+          [userId, username, text, channel || 'public']
         );
         return res.status(200).json({ success: true });
       }
@@ -83,7 +92,7 @@ export default async function handler(req, res) {
       const normalized = username.toLowerCase().trim();
       
       if (normalized === 'master_admin' && pass === 'angola_faith_2025') {
-        return res.status(200).json({ role: 'admin', fullName: 'Super Admin', hasLiveAccess: true });
+        return res.status(200).json({ id: 'admin-1', role: 'admin', fullName: 'Super Admin', hasLiveAccess: true });
       }
 
       const r = await pool.query("SELECT * FROM managed_users WHERE username = $1 AND password = $2", [normalized, pass]);
@@ -99,7 +108,7 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Credenciais Inválidas' });
     }
 
-    // ADMIN: LISTAR VISITANTES
+    // ADMIN: VISITANTES
     if (req.method === 'GET' && path.endsWith('/admin/visitors')) {
       const r = await pool.query("SELECT * FROM visitors ORDER BY created_at DESC");
       return res.status(200).json(r.rows);
