@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, MessageSquare, Heart, ShieldCheck } from 'lucide-react';
+import { Send, MessageSquare, Heart } from 'lucide-react';
 import { useAuth } from '../App';
 import { ChatMessage } from '../types';
 import UniversalPlayer from '../components/UniversalPlayer';
@@ -11,33 +11,38 @@ const LiveTV: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isMounted = useRef(true);
 
   const fetchMessages = async () => {
     try {
-      const res = await fetch('/api/chat?channel=public');
-      if (res.ok) {
+      // t=${Date.now()} evita que o navegador sirva uma versão em cache do chat
+      const res = await fetch(`/api/chat?channel=public&t=${Date.now()}`);
+      if (res.ok && isMounted.current) {
         const data = await res.json();
-        // Apenas atualiza se houver mensagens novas para evitar saltos visuais
         setMessages(data);
       }
     } catch (e) {
-      console.error("Erro ao carregar chat", e);
+      console.error("Erro ao sincronizar chat", e);
     }
   };
 
   useEffect(() => {
+    isMounted.current = true;
     fetchMessages();
-    const interval = setInterval(fetchMessages, 2000); // Polling constante para ver mensagens de outros
-    return () => clearInterval(interval);
+    
+    // Polling agressivo de 2 segundos para interatividade máxima
+    const interval = setInterval(fetchMessages, 2000); 
+    
+    return () => {
+      isMounted.current = false;
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
     const container = chatContainerRef.current;
     if (container) {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: 'smooth'
-      });
+      container.scrollTop = container.scrollHeight;
     }
   }, [messages]);
 
@@ -47,18 +52,6 @@ const LiveTV: React.FC = () => {
     
     const textToSend = newMessage;
     setNewMessage(''); 
-
-    // Optimistic UI: Mostrar mensagem localmente antes de confirmar no servidor
-    const tempMsg: ChatMessage = {
-      id: 'temp-' + Date.now(),
-      user_id: user.id,
-      username: user.fullName,
-      text: textToSend,
-      channel: 'public',
-      timestamp: new Date().toISOString()
-    };
-    
-    setMessages(prev => [...prev, tempMsg]);
 
     try {
       const res = await fetch('/api/chat', {
@@ -71,8 +64,10 @@ const LiveTV: React.FC = () => {
           channel: 'public'
         })
       });
+      
       if (res.ok) {
-        fetchMessages(); // Sincroniza com o servidor
+        // Busca imediata após enviar para garantir que apareça na lista global
+        await fetchMessages();
       }
     } catch (err) {
       console.error("Erro ao enviar mensagem:", err);
@@ -111,11 +106,14 @@ const LiveTV: React.FC = () => {
               <MessageSquare size={20} className="text-ministry-gold" />
               <h2 className="font-black font-display uppercase tracking-[0.2em] text-xs">Comunidade Viva</h2>
             </div>
-            <span className="text-[10px] bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-black animate-pulse">INTERAÇÃO DIRETA</span>
+            <span className="text-[10px] bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-black animate-pulse">SALA ATIVA</span>
           </div>
-          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 bg-black/20 scrollbar-hide scroll-smooth">
+          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 bg-black/20 scrollbar-hide">
+            {messages.length === 0 && (
+              <div className="text-center py-10 text-slate-500 text-xs font-bold uppercase tracking-widest">Inicie a conversa...</div>
+            )}
             {messages.map((msg) => {
-              const isAdmin = msg.user_id === 'admin-1' || (msg.user_id && msg.user_id.startsWith('admin'));
+              const isAdmin = msg.user_id === 'admin-1' || msg.user_id?.startsWith('admin');
               return (
                 <div key={msg.id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div className="flex space-x-4">
@@ -131,7 +129,7 @@ const LiveTV: React.FC = () => {
                            <span className="bg-ministry-gold/20 text-ministry-gold text-[8px] px-2 py-0.5 rounded-full font-black border border-ministry-gold/30">ADMIN</span>
                          )}
                       </div>
-                      <div className={`text-sm p-4 rounded-2xl rounded-tl-none border ${isAdmin ? 'bg-ministry-gold/10 border-ministry-gold/20 text-white' : 'bg-white/5 border-white/5 text-slate-300'}`}>
+                      <div className={`text-sm p-4 rounded-2xl rounded-tl-none border shadow-sm ${isAdmin ? 'bg-ministry-gold/10 border-ministry-gold/20 text-white' : 'bg-white/5 border-white/5 text-slate-300'}`}>
                         {msg.text}
                       </div>
                     </div>
@@ -145,7 +143,7 @@ const LiveTV: React.FC = () => {
               <form onSubmit={handleSendMessage} className="relative">
                 <input 
                   type="text" 
-                  placeholder="Escreva uma mensagem..." 
+                  placeholder="Escreva sua mensagem aqui..." 
                   value={newMessage} 
                   onChange={(e) => setNewMessage(e.target.value)} 
                   className="w-full bg-slate-800/50 text-white text-sm rounded-2xl pl-6 pr-16 py-5 focus:ring-2 focus:ring-ministry-gold border-0 outline-none transition shadow-inner" 
@@ -158,9 +156,7 @@ const LiveTV: React.FC = () => {
                 </button>
               </form>
             ) : (
-              <Link to="/register" className="w-full py-5 bg-ministry-blue text-white rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center space-x-3 shadow-xl hover:bg-ministry-gold transition-all">
-                <span>Identifique-se para interagir</span>
-              </Link>
+              <div className="text-center text-slate-500 text-[10px] font-bold uppercase tracking-widest py-2">Identifique-se para falar</div>
             )}
           </div>
         </div>

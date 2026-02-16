@@ -39,10 +39,12 @@ const initDb = async () => {
   } catch (e) { console.error("DB Init Error:", e); }
 };
 
-// Auxiliar para ler o corpo da requisição de forma robusta
 async function getRequestBody(req) {
-  if (req.body && Object.keys(req.body).length > 0) return req.body;
-  return new Promise((resolve) => {
+  // Se o body já foi parseado pelo Vercel
+  if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) return req.body;
+  
+  // Caso contrário, lê o stream manualmente
+  return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', chunk => { body += chunk.toString(); });
     req.on('end', () => {
@@ -52,6 +54,7 @@ async function getRequestBody(req) {
         resolve({});
       }
     });
+    req.on('error', (err) => reject(err));
   });
 }
 
@@ -70,27 +73,28 @@ export default async function handler(req, res) {
   try {
     await initDb();
 
-    // ENDPOINT CHAT
+    // CHAT INTERATIVO
     if (path.endsWith('/chat')) {
       if (req.method === 'GET') {
         const channel = queryParams.get('channel') || 'public';
         const r = await pool.query(
-          "SELECT id, user_id, username, text, channel, created_at as timestamp FROM chat_messages WHERE channel = $1 ORDER BY created_at ASC LIMIT 150",
+          "SELECT id::text, user_id, username, text, channel, created_at as timestamp FROM chat_messages WHERE channel = $1 ORDER BY created_at ASC LIMIT 100",
           [channel]
         );
         return res.status(200).json(r.rows);
       }
+      
       if (req.method === 'POST') {
         const body = await getRequestBody(req);
         const { userId, username, text, channel } = body;
         
         if (!text || !userId) {
-          return res.status(400).json({ error: 'Campos obrigatórios em falta' });
+          return res.status(400).json({ error: 'Dados insuficientes para enviar mensagem' });
         }
         
         await pool.query(
           "INSERT INTO chat_messages (user_id, username, text, channel) VALUES ($1, $2, $3, $4)",
-          [userId, username, text, channel || 'public']
+          [String(userId), String(username), String(text), String(channel || 'public')]
         );
         return res.status(200).json({ success: true });
       }
@@ -106,13 +110,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // LOGIN DE MEMBROS
+    // LOGIN DE MEMBROS (Inclui Admin Master)
     if (req.method === 'POST' && path.endsWith('/login')) {
       const { username, pass } = await getRequestBody(req);
       const normalized = username?.toLowerCase().trim();
       
       if (normalized === 'master_admin' && pass === 'angola_faith_2025') {
-        return res.status(200).json({ id: 'admin-1', role: 'admin', fullName: 'Super Admin', hasLiveAccess: true });
+        return res.status(200).json({ id: 'admin-1', role: 'admin', fullName: 'Administrador Master', hasLiveAccess: true });
       }
 
       const r = await pool.query("SELECT * FROM managed_users WHERE username = $1 AND password = $2", [normalized, pass]);
@@ -125,19 +129,18 @@ export default async function handler(req, res) {
           country: 'Angola' 
         });
       }
-      return res.status(401).json({ error: 'Credenciais Inválidas' });
+      return res.status(401).json({ error: 'ID ou Senha incorretos' });
     }
 
-    // ADMIN: VISITANTES
+    // OUTROS ENDPOINTS (Admin & System)
     if (req.method === 'GET' && path.endsWith('/admin/visitors')) {
       const r = await pool.query("SELECT * FROM visitors ORDER BY created_at DESC");
       return res.status(200).json(r.rows);
     }
 
-    // ADMIN: GESTÃO DE USUÁRIOS
     if (path.endsWith('/admin/users')) {
       if (req.method === 'GET') {
-        const r = await pool.query("SELECT id, fullname as name, username, password FROM managed_users ORDER BY created_at DESC");
+        const r = await pool.query("SELECT id::text, fullname as name, username, password FROM managed_users ORDER BY created_at DESC");
         return res.status(200).json(r.rows);
       }
       if (req.method === 'POST') {
@@ -150,7 +153,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // SISTEMA / CONFIG
     if (path.endsWith('/system')) {
       if (req.method === 'GET') {
         const r = await pool.query("SELECT * FROM system_config WHERE id = 1");
@@ -166,9 +168,9 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(404).json({ error: 'Not Found' });
+    return res.status(404).json({ error: 'Endpoint não encontrado' });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Erro de Servidor' });
+    console.error("Handler Error:", err);
+    return res.status(500).json({ error: 'Erro interno no servidor de chat' });
   }
 }

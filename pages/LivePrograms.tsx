@@ -11,32 +11,34 @@ const LivePrograms: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isMounted = useRef(true);
 
   const fetchMessages = async () => {
     try {
-      const res = await fetch('/api/chat?channel=private');
-      if (res.ok) {
+      const res = await fetch(`/api/chat?channel=private&t=${Date.now()}`);
+      if (res.ok && isMounted.current) {
         const data = await res.json();
         setMessages(data);
       }
     } catch (e) {
-      console.error("Erro ao carregar chat privado", e);
+      console.error("Erro ao sincronizar chat privado", e);
     }
   };
 
   useEffect(() => {
+    isMounted.current = true;
     fetchMessages();
     const interval = setInterval(fetchMessages, 2000);
-    return () => clearInterval(interval);
+    return () => {
+      isMounted.current = false;
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
     const container = chatContainerRef.current;
     if (container) {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: 'smooth'
-      });
+      container.scrollTop = container.scrollHeight;
     }
   }, [messages]);
 
@@ -46,18 +48,6 @@ const LivePrograms: React.FC = () => {
     
     const textToSend = newMessage;
     setNewMessage(''); 
-
-    // Optimistic UI
-    const tempMsg: ChatMessage = {
-      id: 'temp-' + Date.now(),
-      user_id: user.id,
-      username: user.fullName,
-      text: textToSend,
-      channel: 'private',
-      timestamp: new Date().toISOString()
-    };
-    
-    setMessages(prev => [...prev, tempMsg]);
 
     try {
       const res = await fetch('/api/chat', {
@@ -70,8 +60,9 @@ const LivePrograms: React.FC = () => {
           channel: 'private'
         })
       });
+      
       if (res.ok) {
-        fetchMessages();
+        await fetchMessages();
       }
     } catch (err) {
       console.error("Erro ao enviar mensagem:", err);
@@ -111,16 +102,16 @@ const LivePrograms: React.FC = () => {
           <div className="p-8 border-b border-white/5 bg-black/40 flex items-center justify-between text-white">
             <div className="flex items-center space-x-4">
               <MessageSquare size={20} className="text-ministry-gold" />
-              <h2 className="font-black font-display uppercase tracking-widest text-[11px]">Chat de Ministros</h2>
+              <h2 className="font-black font-display uppercase tracking-widest text-[11px]">Painel de Comunhão</h2>
             </div>
             <div className="flex items-center space-x-2">
-               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_green]"></span>
-               <span className="text-[9px] text-green-400 font-black uppercase tracking-widest">Seguro</span>
+               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_green]"></span>
+               <span className="text-[9px] text-green-400 font-black uppercase tracking-widest">Global</span>
             </div>
           </div>
-          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 bg-black/30 scrollbar-hide scroll-smooth">
+          <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 bg-black/30 scrollbar-hide">
             {messages.map((msg) => {
-              const isAdmin = msg.user_id === 'admin-1' || (msg.user_id && msg.user_id.startsWith('admin'));
+              const isAdmin = msg.user_id === 'admin-1' || msg.user_id?.startsWith('admin');
               return (
                 <div key={msg.id} className="animate-in slide-in-from-bottom-2 duration-300">
                   <div className="flex space-x-4">
@@ -134,7 +125,7 @@ const LivePrograms: React.FC = () => {
                           <span className="bg-ministry-gold/20 text-ministry-gold text-[8px] px-2 py-0.5 rounded-full font-black border border-ministry-gold/30">ADMIN</span>
                         )}
                       </div>
-                      <div className={`text-sm p-4 rounded-2xl rounded-tl-none border shadow-sm ${isAdmin ? 'bg-ministry-gold/10 border-ministry-gold/20 text-white' : 'bg-white/5 border-white/10 text-gray-300'}`}>
+                      <div className={`text-sm p-4 rounded-2xl rounded-tl-none border shadow-md ${isAdmin ? 'bg-ministry-gold/10 border-ministry-gold/20 text-white' : 'bg-white/5 border-white/10 text-gray-300'}`}>
                         {msg.text}
                       </div>
                     </div>
