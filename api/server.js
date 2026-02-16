@@ -39,6 +39,22 @@ const initDb = async () => {
   } catch (e) { console.error("DB Init Error:", e); }
 };
 
+// Auxiliar para ler o corpo da requisição de forma robusta
+async function getRequestBody(req) {
+  if (req.body && Object.keys(req.body).length > 0) return req.body;
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (e) {
+        resolve({});
+      }
+    });
+  });
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -54,7 +70,7 @@ export default async function handler(req, res) {
   try {
     await initDb();
 
-    // ENDPOINT CHAT: CORREÇÃO DE QUERY PARAMS
+    // ENDPOINT CHAT
     if (path.endsWith('/chat')) {
       if (req.method === 'GET') {
         const channel = queryParams.get('channel') || 'public';
@@ -65,8 +81,12 @@ export default async function handler(req, res) {
         return res.status(200).json(r.rows);
       }
       if (req.method === 'POST') {
-        const { userId, username, text, channel } = req.body;
-        if (!text || !userId) return res.status(400).json({ error: 'Missing fields' });
+        const body = await getRequestBody(req);
+        const { userId, username, text, channel } = body;
+        
+        if (!text || !userId) {
+          return res.status(400).json({ error: 'Campos obrigatórios em falta' });
+        }
         
         await pool.query(
           "INSERT INTO chat_messages (user_id, username, text, channel) VALUES ($1, $2, $3, $4)",
@@ -78,7 +98,7 @@ export default async function handler(req, res) {
 
     // REGISTO DE VISITANTE
     if (req.method === 'POST' && path.endsWith('/register')) {
-      const b = req.body;
+      const b = await getRequestBody(req);
       await pool.query(
         "INSERT INTO visitors (fullname, email, phone, country, city, neighborhood) VALUES ($1, $2, $3, $4, $5, $6)",
         [b.fullName, b.email, b.phone, b.country, b.city, b.neighborhood]
@@ -88,8 +108,8 @@ export default async function handler(req, res) {
 
     // LOGIN DE MEMBROS
     if (req.method === 'POST' && path.endsWith('/login')) {
-      const { username, pass } = req.body;
-      const normalized = username.toLowerCase().trim();
+      const { username, pass } = await getRequestBody(req);
+      const normalized = username?.toLowerCase().trim();
       
       if (normalized === 'master_admin' && pass === 'angola_faith_2025') {
         return res.status(200).json({ id: 'admin-1', role: 'admin', fullName: 'Super Admin', hasLiveAccess: true });
@@ -121,7 +141,7 @@ export default async function handler(req, res) {
         return res.status(200).json(r.rows);
       }
       if (req.method === 'POST') {
-        const { fullname, username, password } = req.body;
+        const { fullname, username, password } = await getRequestBody(req);
         await pool.query(
           "INSERT INTO managed_users (fullname, username, password) VALUES ($1, $2, $3) ON CONFLICT (username) DO UPDATE SET password = $3, fullname = $1",
           [fullname, username.toLowerCase().trim(), password]
@@ -137,7 +157,7 @@ export default async function handler(req, res) {
         return res.status(200).json(r.rows[0]);
       }
       if (req.method === 'POST') {
-        const c = req.body;
+        const c = await getRequestBody(req);
         await pool.query(
           "UPDATE system_config SET public_url=$1, public_title=$2, public_description=$3, private_url=$4, private_title=$5, private_description=$6, is_private_mode=$7 WHERE id=1",
           [c.public_url, c.public_title, c.public_description, c.private_url, c.private_title, c.private_description, !!c.is_private_mode]

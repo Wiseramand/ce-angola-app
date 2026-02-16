@@ -17,7 +17,7 @@ const LiveTV: React.FC = () => {
       const res = await fetch('/api/chat?channel=public');
       if (res.ok) {
         const data = await res.json();
-        // Atualiza as mensagens se o tamanho for diferente (simplificação)
+        // Apenas atualiza se houver mensagens novas para evitar saltos visuais
         setMessages(data);
       }
     } catch (e) {
@@ -27,8 +27,7 @@ const LiveTV: React.FC = () => {
 
   useEffect(() => {
     fetchMessages();
-    // INTERVALO DE 1.5 SEGUNDOS PARA MELHOR INTERATIVIDADE
-    const interval = setInterval(fetchMessages, 1500);
+    const interval = setInterval(fetchMessages, 2000); // Polling constante para ver mensagens de outros
     return () => clearInterval(interval);
   }, []);
 
@@ -49,7 +48,18 @@ const LiveTV: React.FC = () => {
     const textToSend = newMessage;
     setNewMessage(''); 
 
-    // Envio para o servidor
+    // Optimistic UI: Mostrar mensagem localmente antes de confirmar no servidor
+    const tempMsg: ChatMessage = {
+      id: 'temp-' + Date.now(),
+      user_id: user.id,
+      username: user.fullName,
+      text: textToSend,
+      channel: 'public',
+      timestamp: new Date().toISOString()
+    };
+    
+    setMessages(prev => [...prev, tempMsg]);
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -62,7 +72,7 @@ const LiveTV: React.FC = () => {
         })
       });
       if (res.ok) {
-        fetchMessages(); // Recarrega imediatamente após enviar
+        fetchMessages(); // Sincroniza com o servidor
       }
     } catch (err) {
       console.error("Erro ao enviar mensagem:", err);
@@ -101,16 +111,16 @@ const LiveTV: React.FC = () => {
               <MessageSquare size={20} className="text-ministry-gold" />
               <h2 className="font-black font-display uppercase tracking-[0.2em] text-xs">Comunidade Viva</h2>
             </div>
-            <span className="text-[10px] bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-black animate-pulse">EM TEMPO REAL</span>
+            <span className="text-[10px] bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-black animate-pulse">INTERAÇÃO DIRETA</span>
           </div>
           <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 bg-black/20 scrollbar-hide scroll-smooth">
             {messages.map((msg) => {
-              const isAdmin = msg.user_id === 'admin-1' || msg.user_id.startsWith('admin');
+              const isAdmin = msg.user_id === 'admin-1' || (msg.user_id && msg.user_id.startsWith('admin'));
               return (
                 <div key={msg.id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div className="flex space-x-4">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black text-white flex-shrink-0 uppercase shadow-lg ${isAdmin ? 'bg-ministry-gold' : 'bg-slate-700'}`}>
-                      {msg.username.charAt(0)}
+                      {msg.username ? msg.username.charAt(0) : '?'}
                     </div>
                     <div className="flex-grow">
                       <div className="flex items-center space-x-2 mb-1">

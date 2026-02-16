@@ -26,7 +26,7 @@ const LivePrograms: React.FC = () => {
 
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 1500);
+    const interval = setInterval(fetchMessages, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -46,6 +46,18 @@ const LivePrograms: React.FC = () => {
     
     const textToSend = newMessage;
     setNewMessage(''); 
+
+    // Optimistic UI
+    const tempMsg: ChatMessage = {
+      id: 'temp-' + Date.now(),
+      user_id: user.id,
+      username: user.fullName,
+      text: textToSend,
+      channel: 'private',
+      timestamp: new Date().toISOString()
+    };
+    
+    setMessages(prev => [...prev, tempMsg]);
 
     try {
       const res = await fetch('/api/chat', {
@@ -108,12 +120,12 @@ const LivePrograms: React.FC = () => {
           </div>
           <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 bg-black/30 scrollbar-hide scroll-smooth">
             {messages.map((msg) => {
-              const isAdmin = msg.user_id === 'admin-1' || msg.user_id.startsWith('admin');
+              const isAdmin = msg.user_id === 'admin-1' || (msg.user_id && msg.user_id.startsWith('admin'));
               return (
                 <div key={msg.id} className="animate-in slide-in-from-bottom-2 duration-300">
                   <div className="flex space-x-4">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black text-white flex-shrink-0 shadow-lg ${isAdmin ? 'bg-ministry-gold' : 'bg-ministry-blue'}`}>
-                      {msg.username.charAt(0)}
+                      {msg.username ? msg.username.charAt(0) : '?'}
                     </div>
                     <div className="flex-grow">
                       <div className="flex items-center space-x-2 mb-1">
