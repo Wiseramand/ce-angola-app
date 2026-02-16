@@ -23,6 +23,11 @@ const initDb = async () => {
         role TEXT DEFAULT 'user', status TEXT DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT, username TEXT, text TEXT, channel TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
       CREATE TABLE IF NOT EXISTS system_config (
         id INTEGER PRIMARY KEY,
         public_url TEXT, public_title TEXT, public_description TEXT,
@@ -41,7 +46,28 @@ export default async function handler(req, res) {
   try {
     await initDb();
 
-    // REGISTO DE VISITANTE (Acesso Público Apenas)
+    // CHAT REAL-TIME
+    if (path.endsWith('/chat')) {
+      if (req.method === 'GET') {
+        const url = new URL(req.url, `http://${req.headers.host}`);
+        const channel = url.searchParams.get('channel') || 'public';
+        const r = await pool.query(
+          "SELECT id, user_id, username, text, channel, created_at as timestamp FROM chat_messages WHERE channel = $1 ORDER BY created_at ASC LIMIT 100",
+          [channel]
+        );
+        return res.status(200).json(r.rows);
+      }
+      if (req.method === 'POST') {
+        const { userId, username, text, channel } = req.body;
+        await pool.query(
+          "INSERT INTO chat_messages (user_id, username, text, channel) VALUES ($1, $2, $3, $4)",
+          [userId, username, text, channel]
+        );
+        return res.status(200).json({ success: true });
+      }
+    }
+
+    // REGISTO DE VISITANTE
     if (req.method === 'POST' && path.endsWith('/register')) {
       const b = req.body;
       await pool.query(
@@ -51,7 +77,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // LOGIN DE MEMBROS (Acesso Privado Concedido)
+    // LOGIN DE MEMBROS
     if (req.method === 'POST' && path.endsWith('/login')) {
       const { username, pass } = req.body;
       const normalized = username.toLowerCase().trim();
@@ -62,7 +88,6 @@ export default async function handler(req, res) {
 
       const r = await pool.query("SELECT * FROM managed_users WHERE username = $1 AND password = $2", [normalized, pass]);
       if (r.rows.length > 0) {
-        // Membros da BD sempre têm hasLiveAccess: true
         return res.status(200).json({ 
           id: 'm-' + r.rows[0].id, 
           fullName: r.rows[0].fullname, 
@@ -74,7 +99,13 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Credenciais Inválidas' });
     }
 
-    // GESTÃO DE MEMBROS (ADMIN)
+    // ADMIN: LISTAR VISITANTES
+    if (req.method === 'GET' && path.endsWith('/admin/visitors')) {
+      const r = await pool.query("SELECT * FROM visitors ORDER BY created_at DESC");
+      return res.status(200).json(r.rows);
+    }
+
+    // ADMIN: GESTÃO DE USUÁRIOS
     if (path.endsWith('/admin/users')) {
       if (req.method === 'GET') {
         const r = await pool.query("SELECT id, fullname as name, username, password FROM managed_users ORDER BY created_at DESC");
@@ -90,13 +121,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // LISTAR VISITANTES (ADMIN)
-    if (req.method === 'GET' && path.endsWith('/admin/visitors')) {
-      const r = await pool.query("SELECT * FROM visitors ORDER BY created_at DESC");
-      return res.status(200).json(r.rows);
-    }
-
-    // CONFIGURAÇÕES DO SISTEMA
+    // SISTEMA / CONFIG
     if (path.endsWith('/system')) {
       if (req.method === 'GET') {
         const r = await pool.query("SELECT * FROM system_config WHERE id = 1");

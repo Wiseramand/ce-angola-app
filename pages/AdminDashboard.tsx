@@ -111,7 +111,7 @@ const AdminDashboard: React.FC = () => {
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `relatorio_visitantes_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`);
+    link.setAttribute("download", `export_visitors_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -176,11 +176,11 @@ const AdminDashboard: React.FC = () => {
               <>
                 <button onClick={exportVisitors} className="flex items-center space-x-2 px-6 py-4 bg-green-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-green-700 transition shadow-lg">
                   <FileSpreadsheet size={18} />
-                  <span>Excel (Filtrado)</span>
+                  <span>Exportar CSV</span>
                 </button>
                 <button onClick={() => window.print()} className="flex items-center space-x-2 px-6 py-4 bg-slate-800 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition shadow-lg">
                   <Printer size={18} />
-                  <span>PDF</span>
+                  <span>PDF / Imprimir</span>
                 </button>
               </>
             )}
@@ -194,11 +194,11 @@ const AdminDashboard: React.FC = () => {
           <div className="mb-8 p-8 bg-white rounded-[2.5rem] shadow-sm border border-slate-100 print:hidden">
             <div className="flex items-center space-x-4 mb-6">
               <Filter size={18} className="text-ministry-gold" />
-              <h3 className="font-black text-ministry-blue uppercase text-xs tracking-widest">Filtrar por Período (Data e Hora)</h3>
+              <h3 className="font-black text-ministry-blue uppercase text-xs tracking-widest">Filtrar por Período (Dia/Mês/Ano e Hora)</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
               <div>
-                <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">De (Início)</label>
+                <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">Início do Período</label>
                 <input 
                   type="datetime-local" 
                   value={filterStart} 
@@ -207,7 +207,7 @@ const AdminDashboard: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">Até (Fim)</label>
+                <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">Fim do Período</label>
                 <input 
                   type="datetime-local" 
                   value={filterEnd} 
@@ -268,7 +268,7 @@ const AdminDashboard: React.FC = () => {
           <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
              <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 print:hidden">
                <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">
-                 Resultados: {filteredVisitors.length} visitantes
+                 Visitantes Listados: {filteredVisitors.length}
                </h3>
              </div>
              <div className="overflow-x-auto">
@@ -278,12 +278,12 @@ const AdminDashboard: React.FC = () => {
                      <th className="px-8 py-5">Visitante</th>
                      <th className="px-8 py-5">Contacto</th>
                      <th className="px-8 py-5">Localização</th>
-                     <th className="px-8 py-5 text-right">Data/Hora</th>
+                     <th className="px-8 py-5 text-right">Data e Hora</th>
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-slate-100">
                    {filteredVisitors.length === 0 ? (
-                     <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum visitante encontrado no período.</td></tr>
+                     <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Sem registos para o período selecionado.</td></tr>
                    ) : filteredVisitors.map(v => (
                      <tr key={v.id} className="hover:bg-slate-50/30 transition">
                        <td className="px-8 py-6">
