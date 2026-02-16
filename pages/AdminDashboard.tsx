@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Video, Shield, RefreshCw, ArrowLeft, UserPlus, FileSpreadsheet, Printer, X, Save
+  Users, Video, Shield, RefreshCw, ArrowLeft, UserPlus, FileSpreadsheet, Printer, X, Save, Calendar, Clock, Filter
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
@@ -33,6 +33,10 @@ const AdminDashboard: React.FC = () => {
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
+  
+  // Filtros de Data e Hora
+  const [filterStart, setFilterStart] = useState('');
+  const [filterEnd, setFilterEnd] = useState('');
   
   const [newUser, setNewUser] = useState({ fullname: '', username: '', password: '' });
   const [streamForm, setStreamForm] = useState({
@@ -70,6 +74,14 @@ const AdminDashboard: React.FC = () => {
     } catch (e) { console.error(e); } finally { setIsRefreshing(false); }
   };
 
+  const filteredVisitors = visitors.filter(v => {
+    if (!filterStart && !filterEnd) return true;
+    const vDate = new Date(v.created_at).getTime();
+    const start = filterStart ? new Date(filterStart).getTime() : 0;
+    const end = filterEnd ? new Date(filterEnd).getTime() : Infinity;
+    return vDate >= start && vDate <= end;
+  });
+
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsRefreshing(true);
@@ -89,16 +101,17 @@ const AdminDashboard: React.FC = () => {
   };
 
   const exportVisitors = () => {
-    if (visitors.length === 0) return;
-    const headers = "Nome,Email,Telefone,Pais,Cidade,Bairro,Data\n";
-    const rows = visitors.map(v => 
-      `"${v.fullname}","${v.email}","${v.phone}","${v.country}","${v.city}","${v.neighborhood}","${new Date(v.created_at).toLocaleDateString()}"`
-    ).join("\n");
+    if (filteredVisitors.length === 0) return;
+    const headers = "Nome,Email,Telefone,Pais,Cidade,Bairro,Data,Hora\n";
+    const rows = filteredVisitors.map(v => {
+      const d = new Date(v.created_at);
+      return `"${v.fullname}","${v.email}","${v.phone}","${v.country}","${v.city}","${v.neighborhood}","${d.toLocaleDateString()}","${d.toLocaleTimeString()}"`;
+    }).join("\n");
     
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `visitantes_ce_angola_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `relatorio_visitantes_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -123,7 +136,6 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="bg-[#f8fafc] min-h-screen flex relative">
-      {/* Sidebar */}
       <aside className="w-80 bg-ministry-blue text-white flex flex-col h-screen sticky top-0 shadow-2xl z-20 print:hidden">
         <div className="p-10 border-b border-white/10">
           <Logo className="h-12 w-auto mb-6 brightness-110" />
@@ -153,7 +165,6 @@ const AdminDashboard: React.FC = () => {
         </nav>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-grow p-12 overflow-y-auto">
         <header className="flex justify-between items-center mb-12 print:hidden">
           <div>
@@ -165,7 +176,7 @@ const AdminDashboard: React.FC = () => {
               <>
                 <button onClick={exportVisitors} className="flex items-center space-x-2 px-6 py-4 bg-green-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-green-700 transition shadow-lg">
                   <FileSpreadsheet size={18} />
-                  <span>Excel</span>
+                  <span>Excel (Filtrado)</span>
                 </button>
                 <button onClick={() => window.print()} className="flex items-center space-x-2 px-6 py-4 bg-slate-800 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition shadow-lg">
                   <Printer size={18} />
@@ -179,7 +190,41 @@ const AdminDashboard: React.FC = () => {
           </div>
         </header>
 
-        {/* Tab: Users */}
+        {activeTab === 'visitors' && (
+          <div className="mb-8 p-8 bg-white rounded-[2.5rem] shadow-sm border border-slate-100 print:hidden">
+            <div className="flex items-center space-x-4 mb-6">
+              <Filter size={18} className="text-ministry-gold" />
+              <h3 className="font-black text-ministry-blue uppercase text-xs tracking-widest">Filtrar por Período (Data e Hora)</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
+              <div>
+                <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">De (Início)</label>
+                <input 
+                  type="datetime-local" 
+                  value={filterStart} 
+                  onChange={(e) => setFilterStart(e.target.value)}
+                  className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-ministry-gold transition shadow-inner" 
+                />
+              </div>
+              <div>
+                <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">Até (Fim)</label>
+                <input 
+                  type="datetime-local" 
+                  value={filterEnd} 
+                  onChange={(e) => setFilterEnd(e.target.value)}
+                  className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-ministry-gold transition shadow-inner" 
+                />
+              </div>
+              <button 
+                onClick={() => { setFilterStart(''); setFilterEnd(''); }}
+                className="px-6 py-3.5 text-[9px] font-black uppercase text-slate-400 hover:text-red-500 transition tracking-widest"
+              >
+                Limpar Filtros
+              </button>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'users' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center print:hidden">
@@ -219,11 +264,12 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Tab: Visitors */}
         {activeTab === 'visitors' && (
           <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
              <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 print:hidden">
-               <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">Registo de Visitantes</h3>
+               <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">
+                 Resultados: {filteredVisitors.length} visitantes
+               </h3>
              </div>
              <div className="overflow-x-auto">
                <table className="w-full">
@@ -232,13 +278,13 @@ const AdminDashboard: React.FC = () => {
                      <th className="px-8 py-5">Visitante</th>
                      <th className="px-8 py-5">Contacto</th>
                      <th className="px-8 py-5">Localização</th>
-                     <th className="px-8 py-5 text-right">Data</th>
+                     <th className="px-8 py-5 text-right">Data/Hora</th>
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-slate-100">
-                   {visitors.length === 0 ? (
-                     <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum visitante registado.</td></tr>
-                   ) : visitors.map(v => (
+                   {filteredVisitors.length === 0 ? (
+                     <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum visitante encontrado no período.</td></tr>
+                   ) : filteredVisitors.map(v => (
                      <tr key={v.id} className="hover:bg-slate-50/30 transition">
                        <td className="px-8 py-6">
                           <div className="font-bold text-ministry-blue uppercase text-xs">{v.fullname}</div>
@@ -249,7 +295,10 @@ const AdminDashboard: React.FC = () => {
                           <div className="text-xs font-black text-slate-600 uppercase">{v.city || 'Angola'}</div>
                           <div className="text-[10px] text-slate-400 font-bold uppercase">{v.neighborhood || v.country}</div>
                        </td>
-                       <td className="px-8 py-6 text-right text-[10px] text-slate-400 font-bold">{new Date(v.created_at).toLocaleDateString()}</td>
+                       <td className="px-8 py-6 text-right">
+                         <div className="text-[10px] text-slate-600 font-black">{new Date(v.created_at).toLocaleDateString()}</div>
+                         <div className="text-[9px] text-slate-400 font-bold">{new Date(v.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                       </td>
                      </tr>
                    ))}
                  </tbody>
@@ -258,7 +307,6 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Tab: Streams */}
         {activeTab === 'streams' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-500">
              <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
@@ -303,7 +351,6 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Modal: New User */}
         {showUserModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300">

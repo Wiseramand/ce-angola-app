@@ -24,7 +24,8 @@ const LivePrograms: React.FC = () => {
 
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 4000);
+    // INTERVALO REDUZIDO PARA TEMPO REAL (2 SEGUNDOS)
+    const interval = setInterval(fetchMessages, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -46,7 +47,7 @@ const LivePrograms: React.FC = () => {
     if (!newMessage.trim() || !user) return;
     
     const textToSend = newMessage;
-    setNewMessage(''); // Limpa o campo INSTANTANEAMENTE
+    setNewMessage(''); 
 
     const tempMsg: ChatMessage = {
       id: 'temp-' + Date.now(),

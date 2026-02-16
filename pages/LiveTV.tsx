@@ -24,7 +24,8 @@ const LiveTV: React.FC = () => {
 
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 4000);
+    // INTERVALO REDUZIDO PARA TEMPO REAL (2 SEGUNDOS)
+    const interval = setInterval(fetchMessages, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -46,9 +47,8 @@ const LiveTV: React.FC = () => {
     if (!newMessage.trim() || !user) return;
     
     const textToSend = newMessage;
-    setNewMessage(''); // Limpa o campo INSTANTANEAMENTE
+    setNewMessage(''); 
 
-    // Cria mensagem otimista para exibir logo no chat
     const tempMsg: ChatMessage = {
       id: 'temp-' + Date.now(),
       user_id: user.id,
@@ -60,14 +60,12 @@ const LiveTV: React.FC = () => {
 
     setMessages(prev => [...prev, tempMsg]);
 
-    // Força scroll imediato para a nova mensagem
     setTimeout(() => {
       if (chatContainerRef.current) {
         chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
       }
     }, 10);
 
-    // Envia para o servidor em background
     fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
