@@ -17,7 +17,7 @@ const Footer: React.FC = () => {
               Spreading the gospel of our Lord Jesus Christ in the city of Luanda and across all the provinces of Angola. Bringing hope to millions.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-ministry-gold hover:text-white transition"><Facebook size={20} /></a>
+              <a href="web.facebook.com/Christ-Embassy-Angola-Group-Pastors-Brief-102305119055634 " className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-ministry-gold hover:text-white transition"><Facebook size={20} /></a>
               <a href="#" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-ministry-gold hover:text-white transition"><Instagram size={20} /></a>
               <a href="https://www.youtube.com/@christembassyangola-groupp2059 target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-ministry-gold hover:text-white transition"><Youtube size={20} /></a>
               <a href="#" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-ministry-gold hover:text-white transition"><Twitter size={20} /></a>
