@@ -19,7 +19,7 @@ const Footer: React.FC = () => {
             <div className="flex space-x-4">
               <a href="#" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-ministry-gold hover:text-white transition"><Facebook size={20} /></a>
               <a href="#" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-ministry-gold hover:text-white transition"><Instagram size={20} /></a>
-              <a href="https://www.youtube.com/@christembassyangola-groupp2059 target="_blank" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-ministry-gold hover:text-white transition"><Youtube size={20} /></a>
+              <a href="https://www.youtube.com/@christembassyangola-groupp2059 target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-ministry-gold hover:text-white transition"><Youtube size={20} /></a>
               <a href="#" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-ministry-gold hover:text-white transition"><Twitter size={20} /></a>
             </div>
           </div>
