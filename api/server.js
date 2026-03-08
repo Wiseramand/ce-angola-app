@@ -71,9 +71,10 @@ const initDb = async () => {
         private_url TEXT, private_url2 TEXT, private_title TEXT, private_description TEXT,
         is_private_mode BOOLEAN DEFAULT FALSE,
         is_teacher_live BOOLEAN DEFAULT FALSE,
-        live_teacher_name TEXT
+        live_teacher_name TEXT,
+        school_live_url TEXT
       );
-      INSERT INTO system_config (id, public_title) VALUES (1, 'LoveWorld TV Angola') ON CONFLICT DO NOTHING;
+      INSERT INTO system_config (id, public_title, public_url, public_url2, public_description, private_url, private_url2, private_title, private_description, is_private_mode, is_teacher_live, live_teacher_name, school_live_url) VALUES (1, 'LoveWorld TV Angola', '', '', '', '', '', '', '', FALSE, FALSE, '', '') ON CONFLICT (id) DO NOTHING;
     `);
 
     // GArantir que a tabela school_users e foundation_modules têm as colunas corretas
@@ -93,7 +94,8 @@ const initDb = async () => {
       "private_url TEXT", "private_url2 TEXT", "private_title TEXT", "private_description TEXT",
       "is_private_mode BOOLEAN DEFAULT FALSE",
       "is_teacher_live BOOLEAN DEFAULT FALSE",
-      "live_teacher_name TEXT"
+      "live_teacher_name TEXT",
+      "school_live_url TEXT"
     ];
     for (const col of systemColumns) {
       try { await pool.query(`ALTER TABLE system_config ADD COLUMN IF NOT EXISTS ${col}`); } catch (e) { }
@@ -498,6 +500,7 @@ export default async function handler(req, res) {
             public_description = COALESCE($4, public_description),
             private_url = COALESCE($5, private_url),
             private_url2 = COALESCE($6, private_url2),
+            school_live_url = COALESCE($11, school_live_url),
             private_title = COALESCE($7, private_title),
             private_description = COALESCE($8, private_description),
             is_private_mode = COALESCE($9, is_private_mode),

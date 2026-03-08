@@ -1,22 +1,13 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Users, Video, Calendar, BookOpen, Settings,
-    LogOut, ChevronRight, Plus, Clock, Search,
-    UserCheck, AlertCircle, Save, X, Calendar as CalendarIcon, Play, Menu
+    Users, Video, Settings, LogOut, Search,
+    UserCheck, AlertCircle, Save, X, Menu,
+    MessageSquare, Send, Play, Plus, Clock, ChevronRight, BookOpen, Calendar
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Logo from '../components/Logo';
 import { api } from '../services/api';
-
-interface Student {
-    id: number;
-    name: string;
-    progress: number;
-    lastActive: string;
-    status: 'active' | 'inactive';
-}
 
 const TeacherPortal: React.FC = () => {
     const { t } = useTranslation();
@@ -26,6 +17,7 @@ const TeacherPortal: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isEditingSettings, setIsEditingSettings] = useState(false);
+
     const [teacher, setTeacher] = useState({
         id: null,
         fullName: 'Professor',
@@ -34,6 +26,7 @@ const TeacherPortal: React.FC = () => {
         username: '',
         profilePicture: ''
     });
+
     const [settingsData, setSettingsData] = useState({
         fullname: '',
         email: '',
@@ -41,12 +34,16 @@ const TeacherPortal: React.FC = () => {
         password: ''
     });
 
-    const [students, setStudents] = useState<Student[]>([]);
+    const [myStudents, setMyStudents] = useState<any[]>([]);
     const [isLive, setIsLive] = useState(false);
+    const [liveUrl, setLiveUrl] = useState('');
+    const [chatMessages, setChatMessages] = useState<any[]>([]);
+    const [newChatMessage, setNewChatMessage] = useState('');
+    const chatContainerRef = useRef<HTMLDivElement>(null);
     const [devices, setDevices] = useState<{ video: MediaDeviceInfo[], audio: MediaDeviceInfo[] }>({ video: [], audio: [] });
     const [selectedVideo, setSelectedVideo] = useState('');
     const [selectedAudio, setSelectedAudio] = useState('');
-    const videoRef = React.useRef<HTMLVideoElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
     const [stream, setStream] = useState<MediaStream | null>(null);
 
     const loadDevices = async () => {
@@ -77,7 +74,8 @@ const TeacherPortal: React.FC = () => {
         try {
             await api.system.updateConfig({
                 is_teacher_live: true,
-                live_teacher_name: teacher.fullName
+                live_teacher_name: teacher.fullName,
+                school_live_url: liveUrl
             });
             setIsLive(true);
             alert("VOCÊ ESTÁ AO VIVO! Os alunos foram notificados.");
@@ -94,12 +92,45 @@ const TeacherPortal: React.FC = () => {
         } catch (e) { }
     };
 
-    useEffect(() => {
-        loadDevices();
-    }, []);
-    const [myStudents, setMyStudents] = useState<any[]>([]);
+    const fetchChatMessages = async () => {
+        try {
+            const msgs = await api.chat.getMessages('school-live');
+            setChatMessages(msgs);
+        } catch (e) { }
+    };
 
     useEffect(() => {
+        let interval: any;
+        if (isLive) {
+            fetchChatMessages();
+            interval = setInterval(fetchChatMessages, 3000);
+        }
+        return () => clearInterval(interval);
+    }, [isLive]);
+
+    useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [chatMessages]);
+
+    const handleSendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newChatMessage.trim()) return;
+        try {
+            await api.chat.sendMessage({
+                userId: 'admin-1',
+                username: teacher.fullName,
+                text: newChatMessage,
+                channel: 'school-live'
+            });
+            setNewChatMessage('');
+            fetchChatMessages();
+        } catch (e) { }
+    };
+
+    useEffect(() => {
+        loadDevices();
         const loadPortalData = async () => {
             setIsLoading(true);
             try {
@@ -108,29 +139,26 @@ const TeacherPortal: React.FC = () => {
                     navigate('/school/teacher/login');
                     return;
                 }
-                if (savedUser) {
-                    const parsed = JSON.parse(savedUser);
-                    const teacherData = {
-                        id: parsed.id || null,
-                        fullName: parsed.fullname || parsed.fullName || 'Professor',
-                        email: parsed.email || '',
-                        phone: parsed.phone || '',
-                        username: parsed.username || '',
-                        profilePicture: ''
-                    };
-                    setTeacher(teacherData);
-                    setSettingsData({
-                        fullname: teacherData.fullName,
-                        email: teacherData.email,
-                        phone: teacherData.phone,
-                        password: ''
-                    });
+                const parsed = JSON.parse(savedUser);
+                const teacherData = {
+                    id: parsed.id || null,
+                    fullName: parsed.fullname || parsed.fullName || 'Professor',
+                    email: parsed.email || '',
+                    phone: parsed.phone || '',
+                    username: parsed.username || '',
+                    profilePicture: ''
+                };
+                setTeacher(teacherData);
+                setSettingsData({
+                    fullname: teacherData.fullName,
+                    email: teacherData.email,
+                    phone: teacherData.phone,
+                    password: ''
+                });
 
-                    // Load assigned students
-                    if (parsed.id) {
-                        const assignedStudents = await api.school.getTeacherStudents(parsed.id);
-                        setMyStudents(assignedStudents || []);
-                    }
+                if (parsed.id) {
+                    const assignedStudents = await api.school.getTeacherStudents(parsed.id);
+                    setMyStudents(assignedStudents || []);
                 }
             } catch (e) {
                 console.error(e);
@@ -139,7 +167,7 @@ const TeacherPortal: React.FC = () => {
             }
         };
         loadPortalData();
-    }, []);
+    }, [navigate]);
 
     const handleLogout = () => {
         localStorage.removeItem('school_teacher');
@@ -290,60 +318,34 @@ const TeacherPortal: React.FC = () => {
                 )}
 
                 {activeTab === 'classes' && (
-                    <div className="space-y-12 animate-in fade-in duration-500">
+                    <div className="space-y-12 animate-in fade-in duration-500 overflow-visible">
                         <header className="flex justify-between items-end">
                             <div>
                                 <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-2">Aulas ao Vivo</h1>
                                 <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em]">Agende sessões interativas com seus alunos.</p>
                             </div>
-                            {!isLive ? (
-                                <button onClick={() => { setActiveTab('classes'); startPreview(); }} className="flex items-center space-x-3 px-8 py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-red-700 transition-all">
-                                    <Video size={18} />
-                                    <span>Iniciar Transmissão</span>
-                                </button>
-                            ) : (
-                                <button onClick={handleEndLive} className="flex items-center space-x-3 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all">
-                                    <X size={18} />
-                                    <span>Encerrar Aula</span>
-                                </button>
-                            )}
                         </header>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            {/* Área da Câmera / Transmissão */}
-                            <div className="lg:col-span-2 space-y-6">
-                                <div className="relative aspect-video bg-black rounded-[3rem] overflow-hidden shadow-2xl border border-slate-200 group">
-                                    <video
-                                        ref={videoRef}
-                                        autoPlay
-                                        muted
-                                        playsInline
-                                        className="w-full h-full object-cover"
-                                    />
-                                    {isLive && (
-                                        <div className="absolute top-8 left-8 flex items-center space-x-3">
-                                            <div className="flex items-center space-x-2 bg-red-600 px-4 py-2 rounded-full shadow-lg animate-pulse">
-                                                <div className="w-2 h-2 bg-white rounded-full" />
-                                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Ao Vivo</span>
-                                            </div>
-                                            <div className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-full text-[10px] font-black text-white uppercase tracking-widest border border-white/10">
-                                                {new Date().toLocaleTimeString()}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {!stream && !isLive && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-                                            <button onClick={startPreview} className="p-8 bg-white/10 hover:bg-white/20 rounded-full transition-all group-hover:scale-110">
-                                                <Play className="text-white fill-white" size={48} />
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                            {/* Controls */}
+                            <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-gray-100 space-y-8">
+                                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Status da Transmissão</h3>
 
-                                <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-8">
-                                    <div className="flex flex-col md:flex-row gap-6 flex-grow w-full">
+                                <div className="space-y-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">URL da Transmissão (YouTube/Drive/etc.)</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Link do vídeo ao vivo..."
+                                            value={liveUrl}
+                                            onChange={e => setLiveUrl(e.target.value)}
+                                            className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition"
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-4">
                                         <div className="flex-grow space-y-2">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Câmera / Fonte</label>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Câmera</label>
                                             <select
                                                 value={selectedVideo}
                                                 onChange={e => { setSelectedVideo(e.target.value); setTimeout(startPreview, 100); }}
@@ -368,49 +370,82 @@ const TeacherPortal: React.FC = () => {
                                             </select>
                                         </div>
                                     </div>
-                                    {!isLive ? (
-                                        <button
-                                            onClick={handleGoLive}
-                                            disabled={!stream}
-                                            className="w-full md:w-auto px-12 py-5 bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-red-700 transition-all disabled:opacity-50"
-                                        >
-                                            Ir ao Vivo Now
-                                        </button>
-                                    ) : (
-                                        <button
-                                            onClick={handleEndLive}
-                                            className="w-full md:w-auto px-12 py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-slate-800 transition-all"
-                                        >
-                                            Sair do Ar
-                                        </button>
-                                    )}
+                                </div>
+
+                                {!isLive ? (
+                                    <button
+                                        onClick={handleGoLive}
+                                        className="w-full px-12 py-5 bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-red-700 transition-all"
+                                    >
+                                        Iniciar Transmissão
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleEndLive}
+                                        className="w-full px-12 py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-slate-800 transition-all"
+                                    >
+                                        Encerrar Aula
+                                    </button>
+                                )}
+
+                                {/* Preview Screen */}
+                                <div className="aspect-video bg-slate-900 rounded-3xl overflow-hidden shadow-2xl relative group">
+                                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                                    <div className="absolute top-6 left-6 flex items-center space-x-2">
+                                        <div className={`w-3 h-3 ${isLive ? 'bg-red-500 animate-pulse' : 'bg-slate-500'} rounded-full shadow-lg`}></div>
+                                        <span className="text-[10px] font-black text-white uppercase tracking-widest drop-shadow-md">
+                                            {isLive ? 'Live Preview' : 'Camera Preview'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Chat (Simulado ou Real) */}
-                            <div className="h-full min-h-[500px] flex flex-col bg-white rounded-[3rem] shadow-xl border border-gray-100 overflow-hidden">
+                            {/* Chat */}
+                            <div className="h-full min-h-[600px] flex flex-col bg-white rounded-[3rem] shadow-xl border border-gray-100 overflow-hidden">
                                 <div className="p-8 border-b border-gray-50 flex items-center justify-between">
                                     <div>
-                                        <h3 className="font-black text-slate-900 uppercase text-xs tracking-tight">Chat da Aula</h3>
-                                        <p className="text-[9px] text-green-500 font-bold uppercase mt-0.5">Sessão Ativa</p>
+                                        <h3 className="font-black text-slate-900 uppercase text-xs tracking-tight">Chat em Tempo Real</h3>
+                                        <p className={`text-[9px] font-bold uppercase mt-0.5 ${isLive ? 'text-green-500' : 'text-slate-400'}`}>
+                                            {isLive ? 'Aula On-line' : 'Chat em Espera'}
+                                        </p>
                                     </div>
-                                    <Users size={18} className="text-slate-300" />
+                                    <MessageSquare size={18} className="text-slate-300" />
                                 </div>
-                                <div className="flex-grow p-8 space-y-6 overflow-y-auto">
-                                    <div className="flex gap-4">
-                                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex-shrink-0" />
-                                        <div className="space-y-1">
-                                            <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Wilson Carlos</p>
-                                            <p className="text-xs text-slate-700 font-medium bg-slate-50 p-3 rounded-2xl rounded-tl-none">Professor, tenho uma dúvida sobre o Módulo 2!</p>
+                                <div ref={chatContainerRef} className="flex-grow p-8 space-y-6 overflow-y-auto bg-slate-50/30 scrollbar-hide">
+                                    {chatMessages.length === 0 && (
+                                        <div className="text-center py-20">
+                                            <p className="text-[10px] text-slate-300 font-black uppercase tracking-widest">Aguardando interações...</p>
                                         </div>
-                                    </div>
+                                    )}
+                                    {chatMessages.map((msg, i) => (
+                                        <div key={i} className={`flex flex-col ${msg.user_id === 'admin-1' ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">{msg.username}</span>
+                                                {msg.user_id === 'admin-1' && <span className="bg-blue-600 text-white text-[7px] px-1.5 py-0.5 rounded-full font-black uppercase">Professor</span>}
+                                            </div>
+                                            <div className={`p-4 rounded-2xl text-xs max-w-[85%] shadow-sm ${msg.user_id === 'admin-1' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white border border-gray-100 text-slate-700 rounded-tl-none'}`}>
+                                                {msg.text}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                                <div className="p-6 border-t border-gray-50 bg-slate-50/50">
-                                    <div className="flex gap-3">
-                                        <input type="text" placeholder="Responder aos alunos..." className="flex-grow bg-white border border-gray-100 rounded-xl px-4 py-3 text-xs font-bold outline-none" />
-                                        <button className="p-3 bg-blue-600 text-white rounded-xl"><Plus size={16} /></button>
+                                <form onSubmit={handleSendMessage} className="p-6 border-t border-gray-50 bg-white">
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            placeholder="Escrever para a turma..."
+                                            value={newChatMessage}
+                                            onChange={e => setNewChatMessage(e.target.value)}
+                                            className="w-full bg-slate-50 border border-gray-100 rounded-2xl py-4 pl-6 pr-14 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-600 transition"
+                                        />
+                                        <button
+                                            type="submit"
+                                            className="absolute right-3 top-3 bottom-3 px-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition flex items-center justify-center active:scale-90 shadow-lg"
+                                        >
+                                            <Send size={16} />
+                                        </button>
                                     </div>
-                                </div>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -529,7 +564,7 @@ const TeacherPortal: React.FC = () => {
                                                             email: settingsData.email,
                                                             phone: settingsData.phone,
                                                             password: settingsData.password || null
-                                                        };
+                                                        } as any;
                                                         await api.school.saveUser(updatePayload);
                                                         setTeacher({
                                                             ...teacher,
@@ -601,17 +636,6 @@ const SidebarLink = ({ icon: Icon, label, active, onClick }: any) => (
         <Icon size={20} />
         <span>{label}</span>
     </button>
-);
-
-const InputField = ({ label, type = "text", placeholder }: any) => (
-    <div className="space-y-2">
-        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{label}</label>
-        <input
-            type={type}
-            placeholder={placeholder}
-            className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-6 py-4 h-[58px] text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition shadow-sm"
-        />
-    </div>
 );
 
 export default TeacherPortal;
