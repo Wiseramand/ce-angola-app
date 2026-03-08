@@ -390,6 +390,16 @@ export const api = {
       if (res.ok) return await res.json();
       return [];
     },
+    uploadModuleVideo: async (file: File): Promise<{ url: string }> => {
+      const formData = new FormData();
+      formData.append('video', file);
+      const res = await fetch(`${CURRENT_API_URL}/school/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      if (!res.ok) throw new Error("Erro ao fazer upload do vídeo.");
+      return res.json();
+    },
     saveModule: async (moduleData: any): Promise<void> => {
       await fetch(`${CURRENT_API_URL}/school/modules`, {
         method: 'POST',

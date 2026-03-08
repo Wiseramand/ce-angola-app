@@ -26,9 +26,18 @@ const StudentPortal: React.FC = () => {
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [student, setStudent] = useState({
+        id: null,
         fullName: 'Estudante',
         email: '',
         phone: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+        country: '',
+        churchName: '',
+        churchAddress: '',
+        churchPhone: '',
+        isMember: false,
         profilePicture: ''
     });
 
@@ -62,9 +71,18 @@ const StudentPortal: React.FC = () => {
                 if (savedUser) {
                     const parsed = JSON.parse(savedUser);
                     setStudent({
+                        id: parsed.id || null,
                         fullName: parsed.fullname || parsed.fullName || 'Estudante',
                         email: parsed.email || '',
                         phone: parsed.phone || '',
+                        neighborhood: parsed.neighborhood || '',
+                        city: parsed.city || '',
+                        state: parsed.state || '',
+                        country: parsed.country || '',
+                        churchName: parsed.church_name || parsed.churchName || '',
+                        churchAddress: parsed.church_address || parsed.churchAddress || '',
+                        churchPhone: parsed.church_phone || parsed.churchPhone || '',
+                        isMember: !!parsed.is_member,
                         profilePicture: ''
                     });
                 }
@@ -110,7 +128,7 @@ const StudentPortal: React.FC = () => {
 
                 <nav className="flex-grow p-6 space-y-2">
                     <SidebarLink icon={LayoutDashboardIcon} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-                    <SidebarLink icon={BookOpen} label="Meus Módulos" active={activeTab === 'modules'} onClick={() => setActiveTab('modules')} />
+                    <SidebarLink icon={BookOpen} label="Meus Classes" active={activeTab === 'modules'} onClick={() => setActiveTab('modules')} />
                     <SidebarLink icon={Video} label="Aulas ao Vivo" active={activeTab === 'live'} onClick={() => setActiveTab('live')} />
                     <SidebarLink icon={User} label="Meu Perfil" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
                 </nav>
@@ -147,7 +165,7 @@ const StudentPortal: React.FC = () => {
                         </button>
                     </div>
                 )}
-                {activeTab === 'dashboard' && <DashboardView student={student} modules={modules} onStartCourse={() => setActiveTab('modules')} />}
+                {activeTab === 'dashboard' && <DashboardView student={student} modules={modules} onStartCourse={() => setActiveTab('modules')} onCompleteProfile={() => setActiveTab('profile')} />}
                 {activeTab === 'modules' && <ModulesView modules={modules} />}
                 {activeTab === 'live' && <LiveClassesView isLive={isTeacherLive} teacherName={liveTeacherName} />}
                 {activeTab === 'profile' && (
@@ -156,7 +174,31 @@ const StudentPortal: React.FC = () => {
                         isEditing={isEditingProfile}
                         onEdit={() => setIsEditingProfile(true)}
                         onCancel={() => setIsEditingProfile(false)}
-                        onSave={(data) => { setStudent(data); setIsEditingProfile(false); }}
+                        onSave={async (data: any) => {
+                            try {
+                                await api.school.saveUser({
+                                    ...data,
+                                    fullname: data.fullName,
+                                    church_name: data.churchName,
+                                    church_address: data.churchAddress,
+                                    church_phone: data.churchPhone,
+                                    is_member: data.isMember
+                                });
+                                setStudent(data);
+                                localStorage.setItem('school_user', JSON.stringify({
+                                    ...data,
+                                    fullname: data.fullName,
+                                    church_name: data.churchName,
+                                    church_address: data.churchAddress,
+                                    church_phone: data.churchPhone,
+                                    is_member: data.isMember
+                                }));
+                                setIsEditingProfile(false);
+                                alert("Perfil atualizado!");
+                            } catch (e) {
+                                alert("Erro ao salvar perfil.");
+                            }
+                        }}
                     />
                 )}
             </main>
@@ -166,7 +208,7 @@ const StudentPortal: React.FC = () => {
 
 // --- SUB-VIEWS ---
 
-const DashboardView = ({ student, modules, onStartCourse }: any) => {
+const DashboardView = ({ student, modules, onStartCourse, onCompleteProfile }: any) => {
     const completedCount = modules.filter((m: any) => m.isCompleted).length;
     const progress = (completedCount / modules.length) * 100;
 
@@ -178,10 +220,30 @@ const DashboardView = ({ student, modules, onStartCourse }: any) => {
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <StatCard icon={Trophy} label="Módulos Concluídos" value={`${completedCount}/8`} color="text-ministry-gold" bg="bg-ministry-gold/10" />
+                <StatCard icon={Trophy} label="Classes Concluídos" value={`${completedCount}/8`} color="text-ministry-gold" bg="bg-ministry-gold/10" />
                 <StatCard icon={Clock} label="Status do Curso" value={progress === 100 ? "Concluído" : "Em Progresso"} color="text-blue-600" bg="bg-blue-50" />
-                <StatCard icon={CheckCircle} label="Próxima Classe" value="Módulo 2" color="text-green-600" bg="bg-green-50" />
+                <StatCard icon={CheckCircle} label="Próxima Classe" value="Classe 2" color="text-green-600" bg="bg-green-50" />
             </div>
+
+            {(!student.neighborhood || !student.churchName) && (
+                <div className="bg-ministry-gold/10 border-2 border-dashed border-ministry-gold rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+                    <div className="flex items-center space-x-6">
+                        <div className="w-14 h-14 bg-ministry-gold text-white rounded-2xl flex items-center justify-center">
+                            <Settings size={28} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-black uppercase text-ministry-blue tracking-tight">Complete o seu Perfil</h3>
+                            <p className="text-[10px] font-bold uppercase text-slate-500 tracking-widest mt-1">Faltam dados importantes como a sua Igreja e Bairro.</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onCompleteProfile}
+                        className="px-8 py-4 bg-ministry-blue text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-ministry-gold transition-all shadow-lg"
+                    >
+                        Preencher Agora
+                    </button>
+                </div>
+            )}
 
             <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-gray-100 flex flex-col md:flex-row items-center gap-10">
                 <div className="w-48 h-48 relative flex-shrink-0">
@@ -198,7 +260,7 @@ const DashboardView = ({ student, modules, onStartCourse }: any) => {
                 </div>
                 <div className="flex-grow space-y-6">
                     <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tight">Escola de Fundação Christ Embassy</h2>
-                    <p className="text-gray-500 leading-relaxed font-medium">Continue onde parou! O Módulo 2 está aguardando você para aprofundar seu conhecimento sobre a Natureza de Deus.</p>
+                    <p className="text-gray-500 leading-relaxed font-medium">Continue onde parou! O Classe 2 está aguardando você para aprofundar seu conhecimento sobre a Natureza de Deus.</p>
                     <button
                         onClick={onStartCourse}
                         className="px-10 py-5 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:scale-105 transition-all"
@@ -217,7 +279,7 @@ const ModulesView = ({ modules }: { modules: Module[] }) => {
             <header className="flex justify-between items-end">
                 <div>
                     <h1 className="text-4xl font-black text-ministry-blue uppercase tracking-tighter mb-2">Conteúdo do Curso</h1>
-                    <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em]">8 Módulos de Preparação para a Vida em Cristo.</p>
+                    <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em]">8 Classes de Preparação para a Vida em Cristo.</p>
                 </div>
                 <div className="bg-ministry-gold/10 px-4 py-2 rounded-full border border-ministry-gold/20 flex items-center space-x-2">
                     <Trophy size={14} className="text-ministry-gold" />
@@ -374,6 +436,21 @@ const ProfileView = ({ student, isEditing, onEdit, onCancel, onSave }: any) => {
                     <ProfileField label="Nome Completo" value={editData.fullName} isEditing={isEditing} onChange={(v: string) => setEditData({ ...editData, fullName: v })} />
                     <ProfileField label="E-mail" value={editData.email} isEditing={isEditing} onChange={(v: string) => setEditData({ ...editData, email: v })} />
                     <ProfileField label="Telefone" value={editData.phone} isEditing={isEditing} onChange={(v: string) => setEditData({ ...editData, phone: v })} />
+                    <ProfileField label="País" value={editData.country} isEditing={isEditing} onChange={(v: string) => setEditData({ ...editData, country: v })} />
+                    <ProfileField label="Cidade" value={editData.city} isEditing={isEditing} onChange={(v: string) => setEditData({ ...editData, city: v })} />
+                    <ProfileField label="Bairro" value={editData.neighborhood} isEditing={isEditing} onChange={(v: string) => setEditData({ ...editData, neighborhood: v })} />
+
+                    <div className="md:col-span-2 pt-6 border-t border-slate-50">
+                        <h4 className="text-[10px] font-black text-ministry-gold uppercase tracking-[0.3em] mb-6 underline decoration-2 underline-offset-8">Dados da Igreja Local</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                            <ProfileField label="Nome da Igreja" value={editData.churchName} isEditing={isEditing} onChange={(v: string) => setEditData({ ...editData, churchName: v })} />
+                            <ProfileField label="Telefone da Igreja" value={editData.churchPhone} isEditing={isEditing} onChange={(v: string) => setEditData({ ...editData, churchPhone: v })} />
+                            <div className="md:col-span-2">
+                                <ProfileField label="Endereço Completo da Igreja" value={editData.churchAddress} isEditing={isEditing} onChange={(v: string) => setEditData({ ...editData, churchAddress: v })} />
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status da Conta</label>
                         <div className="flex items-center space-x-2 text-green-600 font-black text-xs uppercase tracking-widest bg-green-50 px-4 py-3 rounded-xl border border-green-100">

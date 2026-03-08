@@ -91,23 +91,25 @@ const initDb = async () => {
       await pool.query("ALTER TABLE foundation_modules ADD COLUMN IF NOT EXISTS module_order INTEGER");
     } catch (e) { }
 
-    // Initialize 8 Modules if not present
+    // Initialize Foundation Classes
     const modulesCount = await pool.query("SELECT COUNT(*) FROM foundation_modules");
-    if (parseInt(modulesCount.rows[0].count) === 0) {
-      const defaultModules = [
-        ["Módulo 1", "Introdução à Escola de Fundação"],
-        ["Módulo 2", "A Nova Criatura"],
-        ["Módulo 3", "Integridade da Palavra"],
-        ["Módulo 4", "Doutrinas Fundamentais 1"],
-        ["Módulo 5", "Doutrinas Fundamentais 2"],
-        ["Módulo 6", "O Espírito Santo"],
-        ["Módulo 7", "Evangelismo e Missões"],
-        ["Módulo 8", "Crescimento Espiritual"]
+    const mod1 = await pool.query("SELECT title FROM foundation_modules ORDER BY module_order ASC LIMIT 1");
+    if (parseInt(modulesCount.rows[0].count) === 0 || (mod1.rows.length > 0 && mod1.rows[0].title.includes('Módulo'))) {
+      await pool.query("DELETE FROM foundation_modules");
+      const defaultClasses = [
+        ["Classe 1- Nova Criatura", ""],
+        ["Classe 2- O Espirito Santo", ""],
+        ["Classe 3- Doutrinas Cristãs", ""],
+        ["Classe 4A- Evangelismo", ""],
+        ["Classe 4B- Introdução ao Ministerio de Celulas", ""],
+        ["Classe 5- Carácter cristão e Prosperidade", ""],
+        ["Classe 6- Igreja Local e o Ministério Loveworld Inc. ( Christ Embassy)", ""],
+        ["Classe 7- Introdução á tecnologias movel para o crescimento pessoal, Evangelismo e Crescimento da Igreja", ""]
       ];
-      for (let i = 0; i < defaultModules.length; i++) {
+      for (let i = 0; i < defaultClasses.length; i++) {
         await pool.query(
           "INSERT INTO foundation_modules (title, description, module_order) VALUES ($1, $2, $3)",
-          [defaultModules[i][0], defaultModules[i][1], i + 1]
+          [defaultClasses[i][0], defaultClasses[i][1], i + 1]
         );
       }
     }
@@ -185,24 +187,32 @@ export default async function handler(req, res) {
         return res.status(200).json(r.rows);
       }
       if (req.method === 'POST') {
-        const { id, action } = await getRequestBody(req);
-        if (action === 'approve') {
-          const reqData = await pool.query("SELECT * FROM school_requests WHERE id = $1", [id]);
-          if (reqData.rows.length > 0) {
-            const r = reqData.rows[0];
-            const username = r.fullname.split(' ')[0].toLowerCase() + Math.floor(1000 + Math.random() * 9000);
+        try {
+          const { id, action } = await getRequestBody(req);
+          if (action === 'approve') {
+            const reqData = await pool.query("SELECT * FROM school_requests WHERE id = $1", [id]);
+            if (reqData.rows.length > 0) {
+              const r = reqData.rows[0];
+              const username = r.fullname.split(' ')[0].toLowerCase() + Math.random().toString(36).substring(2, 6);
 
-            // Aprovação: Cria o usuário MAS não gera password ainda
-            await pool.query(
-              "INSERT INTO school_users (fullname, username, role, email, phone, country, state, city, neighborhood, is_member, church_name, church_address, church_phone, is_credentials_generated) VALUES ($1, $2, 'student', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, FALSE)",
-              [r.fullname, username, r.email, r.phone, r.country, r.state, r.city, r.neighborhood, !!r.is_member, r.church_name, r.church_address, r.church_phone]
-            );
-            await pool.query("UPDATE school_requests SET status = 'approved' WHERE id = $1", [id]);
-            return res.status(200).json({ success: true, message: 'Student approved. Credentials pending.' });
+              // Aprovação: Cria o usuário MAS não gera password ainda
+              await pool.query(
+                "INSERT INTO school_users (fullname, username, role, email, phone, country, state, city, neighborhood, is_member, church_name, church_address, church_phone, is_credentials_generated) VALUES ($1, $2, 'student', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, FALSE)",
+                [r.fullname, username, r.email, r.phone, r.country, r.state, r.city, r.neighborhood, !!r.is_member, r.church_name, r.church_address, r.church_phone]
+              );
+              await pool.query("UPDATE school_requests SET status = 'approved' WHERE id = $1", [id]);
+              return res.status(200).json({ success: true, message: 'Student approved.' });
+            }
+            return res.status(404).json({ error: 'Request not found' });
+          } else if (action === 'reject') {
+            await pool.query("UPDATE school_requests SET status = 'rejected' WHERE id = $1", [id]);
+            return res.status(200).json({ success: true });
           }
+          return res.status(400).json({ error: 'Invalid action' });
+        } catch (err) {
+          console.error("Approval Error:", err);
+          return res.status(500).json({ error: 'Erro ao aprovar: ' + err.message });
         }
-        await pool.query("UPDATE school_requests SET status = 'rejected' WHERE id = $1", [id]);
-        return res.status(200).json({ success: true });
       }
     }
 
@@ -257,19 +267,24 @@ export default async function handler(req, res) {
         return res.status(200).json(r.rows);
       }
       if (req.method === 'POST') {
-        const { id, fullname, username, password, role, email, phone } = await getRequestBody(req);
-        if (id) {
-          await pool.query(
-            "UPDATE school_users SET fullname=$1, username=$2, password=$3, role=$4, email=$5, phone=$6 WHERE id=$7",
-            [fullname, username, password, role || 'student', email, phone, id]
-          );
-        } else {
-          await pool.query(
-            "INSERT INTO school_users (fullname, username, password, role, email, phone) VALUES ($1,$2,$3,$4,$5,$6)",
-            [fullname, username, password, role || 'teacher', email, phone]
-          );
+        try {
+          const b = await getRequestBody(req);
+          if (b.id) {
+            await pool.query(
+              "UPDATE school_users SET fullname=$1, username=$2, password=$3, role=$4, email=$5, phone=$6, state=$7, city=$8, neighborhood=$9, is_member=$10, church_name=$11, church_address=$12, church_phone=$13 WHERE id=$14",
+              [b.fullname, b.username, b.password, b.role || 'student', b.email, b.phone, b.state, b.city, b.neighborhood, !!b.is_member, b.church_name, b.church_address, b.church_phone, b.id]
+            );
+          } else {
+            await pool.query(
+              "INSERT INTO school_users (fullname, username, password, role, email, phone, is_credentials_generated) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+              [b.fullname, b.username, b.password, b.role || 'student', b.email, b.phone, true]
+            );
+          }
+          return res.status(200).json({ success: true });
+        } catch (err) {
+          console.error("Save User Error:", err);
+          return res.status(500).json({ error: 'Erro ao salvar: ' + err.message });
         }
-        return res.status(200).json({ success: true });
       }
       if (req.method === 'DELETE') {
         const id = queryParams.get('id');

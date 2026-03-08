@@ -58,10 +58,13 @@ const AdminDashboard: React.FC = () => {
   const [schoolSubTab, setSchoolSubTab] = useState<'requests' | 'students' | 'teachers' | 'media'>('requests');
   const [showSchoolModal, setShowSchoolModal] = useState(false);
   const [showTeacherModal, setShowTeacherModal] = useState(false);
+  const [showStudentModal, setShowStudentModal] = useState(false);
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [editingModule, setEditingModule] = useState<any>(null);
   const [newTeacher, setNewTeacher] = useState({ fullname: '', username: '', password: '', email: '', phone: '' });
+  const [newStudent, setNewStudent] = useState({ fullname: '', username: '', password: '', email: '', phone: '' });
   const [moduleForm, setModuleForm] = useState({ title: '', description: '', video_url: '', module_order: 1 });
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<SchoolRequest | null>(null);
   const [credentials, setCredentials] = useState<{ username: string, password: string, phone: string, email: string } | null>(null);
 
@@ -283,16 +286,34 @@ const AdminDashboard: React.FC = () => {
     e.preventDefault();
     setIsRefreshing(true);
     try {
+      if (!newTeacher.fullname || !newTeacher.username || !newTeacher.password) throw new Error("Preencha os campos obrigatórios.");
       await api.school.saveUser({ ...newTeacher, role: 'teacher' });
       setShowTeacherModal(false);
       setNewTeacher({ fullname: '', username: '', password: '', email: '', phone: '' });
       loadData();
-    } catch (e) {
-      alert("Erro ao salvar professor.");
+    } catch (e: any) {
+      alert("Erro ao salvar professor: " + e.message);
     } finally {
       setIsRefreshing(false);
     }
   };
+
+  const handleSaveStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsRefreshing(true);
+    try {
+      if (!newStudent.fullname || !newStudent.username || !newStudent.password) throw new Error("Preencha os campos obrigatórios.");
+      await api.school.saveUser({ ...newStudent, role: 'student' });
+      setShowStudentModal(false);
+      setNewStudent({ fullname: '', username: '', password: '', email: '', phone: '' });
+      loadData();
+    } catch (e: any) {
+      alert("Erro ao salvar aluno: " + e.message);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
 
   const handleSaveModule = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -308,9 +329,25 @@ const AdminDashboard: React.FC = () => {
       setModuleForm({ title: '', description: '', video_url: '', module_order: schoolModules.length + 1 });
       loadData();
     } catch (e) {
-      alert("Erro ao salvar módulo.");
+      alert("Erro ao salvar classe.");
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingVideo(true);
+    try {
+      const { url } = await api.school.uploadModuleVideo(file);
+      setModuleForm({ ...moduleForm, video_url: url });
+      alert("Vídeo carregado com sucesso!");
+    } catch (e: any) {
+      alert("Falha no upload: " + e.message);
+    } finally {
+      setIsUploadingVideo(false);
     }
   };
 
@@ -324,7 +361,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleDeleteModule = async (id: number) => {
-    if (!confirm("Eliminar este módulo?")) return;
+    if (!confirm("Eliminar este classe?")) return;
     setIsRefreshing(true);
     try {
       await api.school.deleteModule(id);
@@ -672,52 +709,61 @@ const AdminDashboard: React.FC = () => {
             )}
 
             {schoolSubTab === 'students' && (
-              <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
-                      <th className="px-8 py-5">Aluno</th>
-                      <th className="px-8 py-5">Credenciais</th>
-                      <th className="px-8 py-5">Data Registo</th>
-                      <th className="px-8 py-5 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {schoolUsers.filter(u => u.role === 'student').length === 0 ? (
-                      <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum aluno registado.</td></tr>
-                    ) : schoolUsers.filter(u => u.role === 'student').map(u => (
-                      <tr key={u.id} className="hover:bg-slate-50 transition">
-                        <td className="px-8 py-6">
-                          <div className="font-bold text-ministry-blue uppercase text-xs">{u.fullname}</div>
-                          <div className="text-[10px] text-slate-400 font-bold">{u.email} • {u.phone}</div>
-                        </td>
-                        <td className="px-8 py-6 font-mono text-[10px] text-slate-500">
-                          {u.is_credentials_generated ? (
-                            <span className="text-green-600 font-black">● {u.username}</span>
-                          ) : (
-                            <span className="text-orange-500 italic">Pendente</span>
-                          )}
-                        </td>
-                        <td className="px-8 py-6 text-[10px] text-slate-400 font-bold">
-                          {new Date(u.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-8 py-6 text-right">
-                          <div className="flex justify-end space-x-2">
-                            {!u.is_credentials_generated && (
-                              <button
-                                onClick={() => handleGenerateSchoolCredentials(u.id)}
-                                className="px-4 py-2 bg-ministry-gold text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:translate-y-[-1px] transition-all"
-                              >
-                                Gerar Credenciais
-                              </button>
-                            )}
-                            <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={16} /></button>
-                          </div>
-                        </td>
+              <div className="space-y-6">
+                <div className="flex justify-between items-center px-4">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alunos Registados</h4>
+                  <button onClick={() => setShowStudentModal(true)} className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md">
+                    <UserPlus size={14} />
+                    <span>Novo Aluno</span>
+                  </button>
+                </div>
+                <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
+                        <th className="px-8 py-5">Aluno</th>
+                        <th className="px-8 py-5">Credenciais</th>
+                        <th className="px-8 py-5">Data Registo</th>
+                        <th className="px-8 py-5 text-right">Ações</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {schoolUsers.filter(u => u.role === 'student').length === 0 ? (
+                        <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum aluno registado.</td></tr>
+                      ) : schoolUsers.filter(u => u.role === 'student').map(u => (
+                        <tr key={u.id} className="hover:bg-slate-50 transition">
+                          <td className="px-8 py-6">
+                            <div className="font-bold text-ministry-blue uppercase text-xs">{u.fullname}</div>
+                            <div className="text-[10px] text-slate-400 font-bold">{u.email} • {u.phone}</div>
+                          </td>
+                          <td className="px-8 py-6 font-mono text-[10px] text-slate-500">
+                            {u.is_credentials_generated ? (
+                              <span className="text-green-600 font-black">● {u.username}</span>
+                            ) : (
+                              <span className="text-orange-500 italic">Pendente</span>
+                            )}
+                          </td>
+                          <td className="px-8 py-6 text-[10px] text-slate-400 font-bold">
+                            {new Date(u.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-8 py-6 text-right">
+                            <div className="flex justify-end space-x-2">
+                              {!u.is_credentials_generated && (
+                                <button
+                                  onClick={() => handleGenerateSchoolCredentials(u.id)}
+                                  className="px-4 py-2 bg-ministry-gold text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:translate-y-[-1px] transition-all"
+                                >
+                                  Gerar Credenciais
+                                </button>
+                              )}
+                              <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={16} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
@@ -776,7 +822,7 @@ const AdminDashboard: React.FC = () => {
                     className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md"
                   >
                     <Video size={14} />
-                    <span>Adicionar Módulo</span>
+                    <span>Adicionar Classe</span>
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -805,7 +851,7 @@ const AdminDashboard: React.FC = () => {
                             <Play size={14} />
                             <span>{m.video_url ? 'Vídeo OK' : 'Sem Vídeo'}</span>
                           </div>
-                          <span className="text-slate-400 font-bold">Módulo {m.module_order}</span>
+                          <span className="text-slate-400 font-bold">Classe {m.module_order}</span>
                         </div>
                       </div>
                     </div>
@@ -965,18 +1011,18 @@ const AdminDashboard: React.FC = () => {
 
         {showModuleModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300">
+            <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
               <button onClick={() => { setShowModuleModal(false); setEditingModule(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
                 <X size={28} />
               </button>
-              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingModule ? 'Editar' : 'Novo'} Módulo</h2>
+              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingModule ? 'Editar' : 'Novo'} Classe</h2>
               <form onSubmit={handleSaveModule} className="space-y-6">
                 <div className="grid grid-cols-4 gap-4 items-end">
                   <div className="col-span-3">
-                    <InputField label="Título do Módulo" value={moduleForm.title} onChange={v => setModuleForm({ ...moduleForm, title: v })} placeholder="Ex: Módulo 1" />
+                    <InputField label="Título do Classe" value={moduleForm.title} onChange={(v: string) => setModuleForm({ ...moduleForm, title: v })} placeholder="Ex: Classe 1" />
                   </div>
                   <div className="col-span-1">
-                    <InputField label="Ordem" value={String(moduleForm.module_order)} onChange={v => setModuleForm({ ...moduleForm, module_order: parseInt(v) || 1 })} />
+                    <InputField label="Ordem" value={String(moduleForm.module_order)} onChange={(v: string) => setModuleForm({ ...moduleForm, module_order: parseInt(v) || 1 })} />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -988,14 +1034,70 @@ const AdminDashboard: React.FC = () => {
                     placeholder="O que os alunos vão aprender?"
                   />
                 </div>
-                <InputField label="ID do Vídeo / URL" value={moduleForm.video_url} onChange={v => setModuleForm({ ...moduleForm, video_url: v })} placeholder="Link Drive ou Embed" />
+                <div className="space-y-6">
+                  <InputField label="URL do Vídeo (YouTube/Drive)" value={moduleForm.video_url} onChange={(v: string) => setModuleForm({ ...moduleForm, video_url: v })} placeholder="Link ou ID" />
+
+                  <div className="relative group">
+                    <input
+                      type="file"
+                      accept="video/*"
+                      onChange={handleVideoUpload}
+                      disabled={isUploadingVideo}
+                      className="w-full opacity-0 absolute inset-0 cursor-pointer z-10 h-full"
+                    />
+                    <div className={`w-full border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center transition-colors ${isUploadingVideo ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200 group-hover:border-ministry-gold'}`}>
+                      {isUploadingVideo ? (
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ministry-gold mb-2"></div>
+                      ) : (
+                        <Video className="text-slate-300 mb-2" size={24} />
+                      )}
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center leading-relaxed">
+                        {isUploadingVideo ? 'A Enviar Vídeo...' : 'Ou carregar do computador (MP4, MKV...)'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
                 <div className="pt-6">
-                  <button type="submit" className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-gold transition-all">
-                    {editingModule ? 'Atualizar Módulo' : 'Publicar Módulo'}
+                  <button type="submit" disabled={isRefreshing || isUploadingVideo} className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-gold transition-all disabled:opacity-50">
+                    {editingModule ? 'Atualizar Classe' : 'Publicar Classe'}
                   </button>
                 </div>
               </form>
             </div>
+          </div>
+        )}
+
+        {/* Modal Novo Aluno */}
+        {showStudentModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[110] p-6 text-left">
+            <form onSubmit={handleSaveStudent} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in duration-300">
+              <div className="p-8 border-b border-slate-50 flex justify-between items-center">
+                <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Registar Aluno Manualmente</h3>
+                <button type="button" onClick={() => setShowStudentModal(false)}><X className="text-slate-400" /></button>
+              </div>
+              <div className="p-10 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
+                  <input type="text" required className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold" value={newStudent.fullname} onChange={e => setNewStudent({ ...newStudent, fullname: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ID de Utilizador</label>
+                    <input type="text" required className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold" value={newStudent.username} onChange={e => setNewStudent({ ...newStudent, username: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
+                    <input type="text" required className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold" value={newStudent.password} onChange={e => setNewStudent({ ...newStudent, password: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+              <div className="p-8 bg-slate-50 flex space-x-4">
+                <button type="button" onClick={() => setShowStudentModal(false)} className="flex-1 py-4 bg-white text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-slate-200">Cancelar</button>
+                <button type="submit" disabled={isRefreshing} className="flex-1 py-4 bg-ministry-blue text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-ministry-gold transition">
+                  {isRefreshing ? 'A Processar...' : 'Criar Conta de Aluno'}
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </main>
