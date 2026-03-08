@@ -20,7 +20,9 @@ const TeacherLogin: React.FC = () => {
         setIsLoading(true);
         setError('');
         try {
-            const res = await api.school.teacherLogin(formData.username, formData.password);
+            const normalizedUsername = formData.username.trim().toLowerCase();
+            const normalizedPassword = formData.password.trim();
+            const res = await api.school.teacherLogin(normalizedUsername, normalizedPassword);
             if (res.success) {
                 localStorage.setItem('school_teacher', JSON.stringify(res.user));
                 navigate('/school/teacher');
@@ -58,7 +60,7 @@ const TeacherLogin: React.FC = () => {
                             </div>
                         )}
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">ID de Estudante</label>
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">ID de Professor</label>
                             <div className="relative">
                                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" size={18} />
                                 <input

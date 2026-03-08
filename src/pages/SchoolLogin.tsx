@@ -21,7 +21,9 @@ const SchoolLogin: React.FC = () => {
         setIsLoading(true);
         setError('');
         try {
-            const res = await api.school.login(formData.username, formData.password);
+            const normalizedUsername = formData.username.trim().toLowerCase();
+            const normalizedPassword = formData.password.trim();
+            const res = await api.school.login(normalizedUsername, normalizedPassword);
             if (res.success) {
                 localStorage.setItem('school_student', JSON.stringify(res.user));
                 navigate('/school/portal');
