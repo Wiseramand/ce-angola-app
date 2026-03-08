@@ -30,9 +30,14 @@ const initDb = async () => {
       );
       CREATE TABLE IF NOT EXISTS system_config (
         id INTEGER PRIMARY KEY,
-        public_url TEXT, public_title TEXT, public_description TEXT,
-        private_url TEXT, private_title TEXT, private_description TEXT,
+        public_url TEXT, public_url2 TEXT, public_title TEXT, public_description TEXT,
+        private_url TEXT, private_url2 TEXT, private_title TEXT, private_description TEXT,
         is_private_mode BOOLEAN DEFAULT false
+      );
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       INSERT INTO system_config (id, public_title) VALUES (1, 'LoveWorld TV Angola') ON CONFLICT DO NOTHING;
     `);
@@ -73,6 +78,21 @@ export default async function handler(req, res) {
   try {
     await initDb();
 
+    // HEARTBEAT (Sessões Ativas)
+    if (path.endsWith('/heartbeat')) {
+      if (req.method === 'POST') {
+        const { userId, sessionId } = await getRequestBody(req);
+        if (sessionId) {
+          await pool.query(
+            "INSERT INTO sessions (id, user_id, last_seen) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET last_seen = CURRENT_TIMESTAMP",
+            [sessionId, String(userId || 'visitor')]
+          );
+          return res.status(200).json({ success: true });
+        }
+        return res.status(400).json({ error: 'Session ID required' });
+      }
+    }
+
     // CHAT INTERATIVO
     if (path.endsWith('/chat')) {
       if (req.method === 'GET') {
@@ -112,21 +132,25 @@ export default async function handler(req, res) {
 
     // LOGIN DE MEMBROS (Inclui Admin Master)
     if (req.method === 'POST' && path.endsWith('/login')) {
-      const { username, pass } = await getRequestBody(req);
-      const normalized = username?.toLowerCase().trim();
+      const { email, password } = await getRequestBody(req);
+      const normalized = email?.toLowerCase().trim();
 
-      if (normalized === 'master_admin' && pass === 'angola_faith_2025') {
-        return res.status(200).json({ id: 'admin-1', role: 'admin', fullName: 'Administrador Master', hasLiveAccess: true });
+      if (normalized === 'master_admin' && password === 'angola_faith_2025') {
+        return res.status(200).json({ user: { id: 'admin-1', role: 'admin', fullName: 'Administrador Master', hasLiveAccess: true } });
       }
 
-      const r = await pool.query("SELECT * FROM managed_users WHERE username = $1 AND password = $2", [normalized, pass]);
+      const r = await pool.query("SELECT * FROM managed_users WHERE username = $1 AND password = $2", [normalized, password]);
       if (r.rows.length > 0) {
+        const sessionId = Math.random().toString(36).substring(2, 15);
         return res.status(200).json({
-          id: 'm-' + r.rows[0].id,
-          fullName: r.rows[0].fullname,
-          role: 'user',
-          hasLiveAccess: true,
-          country: 'Angola'
+          user: {
+            id: 'm-' + r.rows[0].id,
+            fullName: r.rows[0].fullname,
+            role: 'user',
+            hasLiveAccess: true,
+            country: 'Angola',
+            sessionId: sessionId
+          }
         });
       }
       return res.status(401).json({ error: 'ID ou Senha incorretos' });
@@ -172,14 +196,21 @@ export default async function handler(req, res) {
 
     if (path.endsWith('/system')) {
       if (req.method === 'GET') {
-        const r = await pool.query("SELECT * FROM system_config WHERE id = 1");
-        return res.status(200).json(r.rows[0]);
+        // Obter Configuração
+        const configRes = await pool.query("SELECT * FROM system_config WHERE id = 1");
+        const config = configRes.rows[0];
+
+        // Contar Espectadores (vistos nos últimos 60 segundos)
+        const viewerRes = await pool.query("SELECT COUNT(DISTINCT id) FROM sessions WHERE last_seen > NOW() - interval '60 seconds'");
+        const viewerCount = parseInt(viewerRes.rows[0].count) || 0;
+
+        return res.status(200).json({ ...config, viewer_count: viewerCount });
       }
       if (req.method === 'POST') {
         const c = await getRequestBody(req);
         await pool.query(
-          "UPDATE system_config SET public_url=$1, public_title=$2, public_description=$3, private_url=$4, private_title=$5, private_description=$6, is_private_mode=$7 WHERE id=1",
-          [c.public_url, c.public_title, c.public_description, c.private_url, c.private_title, c.private_description, !!c.is_private_mode]
+          "UPDATE system_config SET public_url=$1, public_url2=$2, public_title=$3, public_description=$4, private_url=$5, private_url2=$6, private_title=$7, private_description=$8, is_private_mode=$9 WHERE id=1",
+          [c.public_url, c.public_url2, c.public_title, c.public_description, c.private_url, c.private_url2, c.private_title, c.private_description, !!c.is_private_mode]
         );
         return res.status(200).json({ success: true });
       }

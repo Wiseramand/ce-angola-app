@@ -45,9 +45,11 @@ const AdminDashboard: React.FC = () => {
   const [newUser, setNewUser] = useState({ fullname: '', username: '', password: '' });
   const [streamForm, setStreamForm] = useState({
     public_url: '',
+    public_url2: '',
     public_title: '',
     public_description: '',
     private_url: '',
+    private_url2: '',
     private_title: '',
     private_description: '',
     is_private_mode: false
@@ -67,9 +69,11 @@ const AdminDashboard: React.FC = () => {
       if (sData) {
         setStreamForm({
           public_url: sData.public_url || '',
+          public_url2: sData.public_url2 || '',
           public_title: sData.public_title || '',
           public_description: sData.public_description || '',
           private_url: sData.private_url || '',
+          private_url2: sData.private_url2 || '',
           private_title: sData.private_title || '',
           private_description: sData.private_description || '',
           is_private_mode: !!sData.is_private_mode
@@ -389,7 +393,8 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Canal TV Público</h3>
               </div>
-              <InputField label="URL Transmissão" value={streamForm.public_url} onChange={v => setStreamForm({ ...streamForm, public_url: v })} />
+              <InputField label="URL Transmissão (Principal)" value={streamForm.public_url} onChange={v => setStreamForm({ ...streamForm, public_url: v })} />
+              <InputField label="URL Transmissão (Suporte/Player 2)" value={streamForm.public_url2} onChange={v => setStreamForm({ ...streamForm, public_url2: v })} />
               <InputField label="Título da Emissão" value={streamForm.public_title} onChange={v => setStreamForm({ ...streamForm, public_title: v })} />
               <InputField label="Descrição" value={streamForm.public_description} onChange={v => setStreamForm({ ...streamForm, public_description: v })} />
             </div>
@@ -401,7 +406,8 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Canal de Parceiros</h3>
               </div>
-              <InputField label="URL Privada (HLS/YT)" value={streamForm.private_url} onChange={v => setStreamForm({ ...streamForm, private_url: v })} />
+              <InputField label="URL Transmissão (Principal)" value={streamForm.private_url} onChange={v => setStreamForm({ ...streamForm, private_url: v })} />
+              <InputField label="URL Transmissão (Suporte/Player 2)" value={streamForm.private_url2} onChange={v => setStreamForm({ ...streamForm, private_url2: v })} />
               <InputField label="Título Privado" value={streamForm.private_title} onChange={v => setStreamForm({ ...streamForm, private_title: v })} />
 
               <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border border-slate-100 mt-6">

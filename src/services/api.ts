@@ -182,7 +182,8 @@ export const api = {
             viewers: Number(s.viewers || 0),
             thumbnailUrl: s.thumbnail_url || s.thumbnailUrl,
             streamSource: s.stream_source || s.streamSource,
-            streamUrl: s.stream_url || s.streamUrl
+            streamUrl: s.stream_url || s.streamUrl,
+            streamUrl2: s.stream_url2 || s.streamUrl2
           })) : [];
         }
       } catch (e) {

@@ -5,9 +5,10 @@ import { AlertCircle, VideoOff, Loader2 } from 'lucide-react';
 interface UniversalPlayerProps {
   url: string;
   title: string;
+  isAudioOnly?: boolean;
 }
 
-const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title }) => {
+const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOnly }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,7 +27,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title }) => {
   useEffect(() => {
     setError(null);
     setLoading(true);
-    
+
     if (!url || url.trim() === "") {
       setLoading(false);
       return;
@@ -41,7 +42,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title }) => {
           hls.attachMedia(videoRef.current);
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
             setLoading(false);
-            videoRef.current?.play().catch(() => {});
+            videoRef.current?.play().catch(() => { });
           });
           hls.on(Hls.Events.ERROR, (event: any, data: any) => {
             if (data.fatal) {
@@ -109,13 +110,25 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title }) => {
               <p className="text-[10px] font-black uppercase tracking-widest">{error}</p>
             </div>
           ) : (
-            <video
-              ref={videoRef}
-              className="w-full h-full object-contain"
-              controls
-              autoPlay
-              playsInline
-            ></video>
+            <div className="relative w-full h-full">
+              {isAudioOnly && (
+                <div className="absolute inset-0 z-20 bg-slate-900 flex flex-col items-center justify-center space-y-4">
+                  <div className="flex items-center space-x-2">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <div key={i} className="w-1.5 h-8 bg-ministry-gold rounded-full animate-pulse" style={{ animationDelay: `${i * 0.1}s` }} />
+                    ))}
+                  </div>
+                  <span className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">Modo Áudio Ativo</span>
+                </div>
+              )}
+              <video
+                ref={videoRef}
+                className={`w-full h-full object-contain ${isAudioOnly ? 'opacity-0' : ''}`}
+                controls
+                autoPlay
+                playsInline
+              ></video>
+            </div>
           )}
         </div>
       )}

@@ -17,11 +17,22 @@ import Profile from './pages/Profile';
 import Welcome from './pages/Welcome';
 import OnlineGiving from './pages/Donations'; // Reusing Donations for Online Giving
 import TermsOfService from './pages/TermsOfService';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import ContactUs from './pages/ContactUs';
-import { User, StreamConfig, UserRole } from './types';
+import { User, StreamConfig as TSStreamConfig, UserRole } from './types';
 import { ShieldAlert, Loader2 } from 'lucide-react';
 import { api } from './services/api';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import ContactUs from './pages/ContactUs';
+export interface StreamConfig {
+  publicUrl: string;
+  publicUrl2?: string;
+  publicTitle: string;
+  publicDescription: string;
+  privateUrl: string;
+  privateUrl2?: string;
+  privateTitle: string;
+  privateDescription: string;
+  isPrivateMode: boolean;
+}
 
 interface UserExtended extends User {
   sessionId?: string;
@@ -29,6 +40,7 @@ interface UserExtended extends User {
 
 interface SystemState extends StreamConfig {
   activeSessions: string[];
+  viewerCount: number;
 }
 
 interface AuthContextType {
@@ -57,13 +69,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const heartbeatRef = useRef<number | null>(null);
   const [system, setSystem] = useState<SystemState>({
     publicUrl: '',
+    publicUrl2: '',
     publicTitle: 'LoveWorld TV Angola',
     publicDescription: 'Transmissão pública e gratuita.',
     privateUrl: '',
+    privateUrl2: '',
     privateTitle: 'Conferência Ministerial',
     privateDescription: 'Acesso restrito para parceiros.',
     isPrivateMode: false,
-    activeSessions: []
+    activeSessions: [],
+    viewerCount: 0
   });
 
   const logout = () => {
@@ -94,12 +109,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSystem(prev => ({
           ...prev,
           publicUrl: data.public_url || data.publicUrl,
+          publicUrl2: data.public_url2 || data.publicUrl2,
           publicTitle: data.public_title || data.publicTitle,
           publicDescription: data.public_description || data.publicDescription,
           privateUrl: data.private_url || data.privateUrl,
+          privateUrl2: data.private_url2 || data.privateUrl2,
           privateTitle: data.private_title || data.privateTitle,
           privateDescription: data.private_description || data.privateDescription,
-          isPrivateMode: !!(data.is_private_mode || data.isPrivateMode)
+          isPrivateMode: !!(data.is_private_mode || data.isPrivateMode),
+          viewerCount: data.viewer_count || 0
         }));
       }
     } catch (e) { }

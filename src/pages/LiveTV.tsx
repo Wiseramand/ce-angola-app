@@ -10,6 +10,7 @@ const LiveTV: React.FC = () => {
   const { user, system } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [activePlayer, setActivePlayer] = useState<'p1' | 'p2' | 'audio'>('p1');
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isMounted = useRef(true);
 
@@ -71,19 +72,33 @@ const LiveTV: React.FC = () => {
       <div className="max-w-[1800px] mx-auto px-4 h-full flex flex-col lg:flex-row gap-6">
         <div className="flex-grow lg:w-[75%] flex flex-col">
           <div className="relative aspect-video bg-black rounded-[3rem] overflow-hidden shadow-2xl border border-white/5">
-            <UniversalPlayer url={system.publicUrl} title={system.publicTitle} />
-            <div className="absolute top-8 left-8 flex items-center space-x-3">
-              <div className="bg-red-600 px-5 py-2 rounded-xl text-white text-xs font-black uppercase flex items-center shadow-2xl">
-                <span className="w-2.5 h-2.5 bg-white rounded-full mr-3 animate-ping"></span>
-                Direto em Angola
-              </div>
-            </div>
+            <UniversalPlayer
+              url={activePlayer === 'p2' ? (system.publicUrl2 || system.publicUrl) : system.publicUrl}
+              title={system.publicTitle}
+              isAudioOnly={activePlayer === 'audio'}
+            />
           </div>
 
           <div className="mt-8 bg-gray-900 p-10 rounded-[3rem] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl">
-            <div className="flex-grow">
-              <h1 className="text-4xl font-black text-white font-display mb-2 uppercase tracking-tight">{system.publicTitle}</h1>
-              <p className="text-gray-400 text-lg font-light leading-relaxed max-w-2xl">{system.publicDescription}</p>
+            <div className="flex items-center bg-black/40 p-2 rounded-2xl border border-white/5">
+              <button
+                onClick={() => setActivePlayer('p1')}
+                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'p1' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
+              >
+                Player 1
+              </button>
+              <button
+                onClick={() => setActivePlayer('p2')}
+                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'p2' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
+              >
+                Player 2
+              </button>
+              <button
+                onClick={() => setActivePlayer('audio')}
+                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'audio' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
+              >
+                Audio Only
+              </button>
             </div>
             <Link to="/donations" className="flex items-center space-x-4 px-12 py-6 bg-ministry-gold text-white font-black text-xl rounded-2xl hover:scale-105 transition-all shadow-2xl">
               <Heart size={24} fill="white" />
@@ -96,9 +111,14 @@ const LiveTV: React.FC = () => {
           <div className="p-8 border-b border-white/5 bg-black/40 flex items-center justify-between text-white">
             <div className="flex items-center space-x-3">
               <MessageSquare size={20} className="text-ministry-gold" />
-              <h2 className="font-black font-display uppercase tracking-[0.2em] text-xs">Comunidade Viva</h2>
+              <h2 className="font-black font-display uppercase tracking-[0.2em] text-xs">Comunidade</h2>
             </div>
-            <span className="text-[10px] bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-black animate-pulse">SALA ATIVA</span>
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2 bg-green-500/10 px-3 py-1.5 rounded-full border border-green-500/20">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                <span className="text-[10px] text-green-400 font-black">{system.viewerCount} Online</span>
+              </div>
+            </div>
           </div>
           <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 bg-black/20 scrollbar-hide">
             {messages.length === 0 && (
