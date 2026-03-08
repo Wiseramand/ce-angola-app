@@ -354,20 +354,20 @@ const AdminDashboard: React.FC = () => {
 
   const shareSchoolUserViaWhatsApp = (u: any) => {
     const loginLink = u.role === 'teacher' ? `${window.location.origin}/school/teacher/login` : `${window.location.origin}/school/login`;
-    const text = `Olá ${u.fullname}, aqui estão as suas credenciais para a Escola de Fundação:\n\nLink: ${loginLink}\nUsuário: ${u.username}\nSenha: [Sua senha atual]\n\nSeja bem-vindo!`;
-    window.open(`https://wa.me/${u.phone.replace(/\D/g, '') || ''}?text=${encodeURIComponent(text)}`, '_blank');
+    const text = `Olá ${u.fullname}, aqui estão as suas credenciais para a Escola de Fundação:\n\nLink: ${loginLink}\nUsuário: ${u.username}\nSenha: ${u.password || '[Pendente]'}\n\nSeja bem-vindo!`;
+    window.open(`https://wa.me/${(u.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const shareSchoolUserViaEmail = (u: any) => {
     const loginLink = u.role === 'teacher' ? `${window.location.origin}/school/teacher/login` : `${window.location.origin}/school/login`;
     const subject = "Suas Credenciais - Escola de Fundação";
-    const body = `Olá ${u.fullname},\n\nAqui estão as suas credenciais para a Escola de Fundação:\n\nLink: ${loginLink}\nUsuário: ${u.username}\nSenha: [Sua senha atual]\n\nDeus o abençoe!`;
+    const body = `Olá ${u.fullname},\n\nAqui estão as suas credenciais para a Escola de Fundação:\n\nLink: ${loginLink}\nUsuário: ${u.username}\nSenha: ${u.password || '[Pendente]'}\n\nDeus o abençoe!`;
     window.location.href = `mailto:${u.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const copySchoolUserCredentials = (u: any) => {
     const loginLink = u.role === 'teacher' ? `${window.location.origin}/school/teacher/login` : `${window.location.origin}/school/login`;
-    const text = `Acesso Escola de Fundação:\nLink: ${loginLink}\nUsuário: ${u.username}\nSenha: [Sua senha atual]`;
+    const text = `Acesso Escola de Fundação:\nLink: ${loginLink}\nUsuário: ${u.username}\nSenha: ${u.password || '[Pendente]'}`;
     navigator.clipboard.writeText(text);
     alert("Credenciais copiadas!");
   };

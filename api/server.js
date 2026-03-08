@@ -286,9 +286,9 @@ export default async function handler(req, res) {
         const role = queryParams.get('role');
         let r;
         if (role) {
-          r = await pool.query("SELECT id, fullname, username, role, email, phone, status, is_credentials_generated, access_expiry, teacher_id, class_id, created_at FROM school_users WHERE role = $1 ORDER BY created_at DESC", [role]);
+          r = await pool.query("SELECT id, fullname, username, password, role, email, phone, status, is_credentials_generated, access_expiry, teacher_id, class_id, created_at FROM school_users WHERE role = $1 ORDER BY created_at DESC", [role]);
         } else {
-          r = await pool.query("SELECT id, fullname, username, role, email, phone, status, is_credentials_generated, access_expiry, teacher_id, class_id, created_at FROM school_users ORDER BY role, created_at DESC");
+          r = await pool.query("SELECT id, fullname, username, password, role, email, phone, status, is_credentials_generated, access_expiry, teacher_id, class_id, created_at FROM school_users ORDER BY role, created_at DESC");
         }
         return res.status(200).json(r.rows);
       }
