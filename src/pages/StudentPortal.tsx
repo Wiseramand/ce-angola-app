@@ -172,7 +172,7 @@ const StudentPortal: React.FC = () => {
                     </div>
                 )}
                 {activeTab === 'dashboard' && <DashboardView student={student} modules={modules} onStartCourse={() => setActiveTab('modules')} onCompleteProfile={() => setActiveTab('profile')} />}
-                {activeTab === 'modules' && <ModulesView modules={modules} />}
+                {activeTab === 'modules' && <ModulesView modules={modules} onSelectVideo={setSelectedVideo} />}
                 {activeTab === 'live' && <LiveClassesView isLive={isTeacherLive} teacherName={liveTeacherName} />}
                 {activeTab === 'profile' && (
                     <ProfileView
@@ -287,7 +287,7 @@ const DashboardView = ({ student, modules, onStartCourse, onCompleteProfile }: a
     );
 };
 
-const ModulesView = ({ modules }: { modules: Module[] }) => {
+const ModulesView = ({ modules, onSelectVideo }: { modules: Module[], onSelectVideo: (v: any) => void }) => {
     return (
         <div className="space-y-12 animate-in fade-in duration-500">
             <header className="flex justify-between items-end">
@@ -305,7 +305,7 @@ const ModulesView = ({ modules }: { modules: Module[] }) => {
                 {modules.map((m, idx) => (
                     <div
                         key={m.id}
-                        onClick={() => m.isUnlocked && setSelectedVideo({ title: m.title, url: (m as any).video_url })}
+                        onClick={() => m.isUnlocked && onSelectVideo({ title: m.title, url: (m as any).video_url })}
                         className={`group relative p-8 rounded-[2.5rem] border-2 transition-all duration-500 ${m.isUnlocked
                             ? 'bg-white border-gray-100 hover:border-ministry-gold hover:shadow-2xl cursor-pointer'
                             : 'bg-gray-50 border-transparent opacity-60 grayscale'
@@ -508,7 +508,12 @@ const VideoPlayerModal = ({ title, url, onClose }: { title: string, url: string,
         if (rawUrl.includes('youtu.be/')) {
             return rawUrl.replace('youtu.be/', 'youtube.com/embed/');
         }
-        if (rawUrl.includes('drive.google.com/file/d/')) {
+        if (rawUrl.includes('drive.google.com')) {
+            // Robust Drive ID extraction
+            const match = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (match && match[1]) {
+                return `https://docs.google.com/get_video_info?docid=${match[1]}&sle=true&hl=en`.replace('get_video_info', 'file/d/' + match[1] + '/preview');
+            }
             return rawUrl.replace('/view?usp=sharing', '/preview').replace('/view', '/preview');
         }
         return rawUrl;

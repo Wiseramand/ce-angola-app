@@ -299,8 +299,8 @@ export default async function handler(req, res) {
 
           if (b.id) {
             await pool.query(
-              "UPDATE school_users SET fullname=$1, username=$2, password=$3, role=$4, email=$5, phone=$6, state=$7, city=$8, neighborhood=$9, is_member=$10, church_name=$11, church_address=$12, church_phone=$13, access_expiry=$14, teacher_id=$15, class_id=$16 WHERE id=$17",
-              [b.fullname, b.username, b.password, b.role || 'student', b.email, b.phone, b.state, b.city, b.neighborhood, !!b.is_member, b.church_name, b.church_address, b.church_phone, expiryVal, b.teacher_id || null, b.class_id || null, b.id]
+              "UPDATE school_users SET fullname=$1, username=$2, password=COALESCE($3, password), role=$4, email=$5, phone=$6, state=$7, city=$8, neighborhood=$9, is_member=$10, church_name=$11, church_address=$12, church_phone=$13, access_expiry=$14, teacher_id=$15, class_id=$16 WHERE id=$17",
+              [b.fullname, b.username, b.password || null, b.role || 'student', b.email, b.phone, b.state, b.city, b.neighborhood, !!b.is_member, b.church_name, b.church_address, b.church_phone, expiryVal, b.teacher_id || null, b.class_id || null, b.id]
             );
           } else {
             await pool.query(
