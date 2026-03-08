@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
     Users, Video, Settings, LogOut, Search,
     UserCheck, AlertCircle, Save, X, Menu,
-    MessageSquare, Send, Play, Plus, Clock, ChevronRight, BookOpen, Calendar
+    MessageSquare, Send, Play, Plus, Clock, ChevronRight, BookOpen, Calendar,
+    Mic, MicOff
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Logo from '../components/Logo';
@@ -432,10 +433,13 @@ const TeacherPortal: React.FC = () => {
                                         <div className="flex items-center space-x-2">
                                             <button
                                                 onClick={toggleMic}
-                                                className={`p-3 rounded-xl transition-all ${isMicMuted ? 'bg-red-500 text-white' : 'bg-white text-slate-400 hover:text-blue-600 shadow-sm'}`}
+                                                className={`flex items-center space-x-2 px-4 py-3 rounded-xl transition-all ${isMicMuted ? 'bg-red-600 text-white animate-pulse' : 'bg-white text-slate-600 hover:text-blue-600 shadow-sm border border-gray-100'}`}
                                                 title={isMicMuted ? "Ativar Microfone" : "Silenciar Microfone"}
                                             >
-                                                {isMicMuted ? <AlertCircle size={20} /> : <BookOpen size={20} />}
+                                                {isMicMuted ? <MicOff size={20} /> : <Mic size={20} />}
+                                                <span className="text-[10px] font-black uppercase tracking-widest">
+                                                    {isMicMuted ? "MUDO" : "MIC ATIVO"}
+                                                </span>
                                             </button>
                                         </div>
                                     </div>

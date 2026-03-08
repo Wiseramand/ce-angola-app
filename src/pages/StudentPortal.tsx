@@ -2,9 +2,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    GraduationCap, BookOpen, Video, Calendar, User, Settings,
-    LogOut, ChevronRight, Lock, CheckCircle, PlayCircle,
-    Trophy, Clock, MessageSquare, ArrowLeft, Camera, Save, X, Menu, Send
+    GraduationCap, BookOpen, Video, Calendar, Users, Settings, LogOut, Search,
+    UserCheck, AlertCircle, Save, X, Menu, MessageSquare, Send, Play, Plus, Clock,
+    ChevronRight, CheckCircle, Lock, PlayCircle, Volume2, VolumeX, Trash2,
+    LayoutDashboard, User, Trophy, Camera, ArrowLeft
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Logo from '../components/Logo';
@@ -77,7 +78,14 @@ const StudentPortal: React.FC = () => {
                 };
 
                 pc.ontrack = (event) => {
-                    setRemoteStream(event.streams[0]);
+                    console.log("Student received track:", event.track.kind);
+                    if (event.streams && event.streams[0]) {
+                        setRemoteStream(event.streams[0]);
+                    } else {
+                        const inboundStream = new MediaStream();
+                        inboundStream.addTrack(event.track);
+                        setRemoteStream(inboundStream);
+                    }
                 };
 
                 await pc.setRemoteDescription(new RTCSessionDescription(signal.data));
@@ -486,13 +494,19 @@ const LiveClassesView = ({ isLive, teacherName, liveUrl, studentName, studentId,
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const [volume, setVolume] = useState(0.8);
-    const [isMuted, setIsMuted] = useState(false);
+    const [isMuted, setIsMuted] = useState(true); // Default to muted for autoplay
 
     useEffect(() => {
         if (videoRef.current && remoteStream) {
             videoRef.current.srcObject = remoteStream;
         }
     }, [remoteStream]);
+
+    useEffect(() => {
+        if (videoRef.current) {
+            videoRef.current.volume = volume;
+        }
+    }, [volume]);
 
     const fetchMessages = async () => {
         try {
@@ -585,9 +599,9 @@ const LiveClassesView = ({ isLive, teacherName, liveUrl, studentName, studentId,
                                         <div className="flex items-center space-x-6 bg-slate-900/80 backdrop-blur-xl px-8 py-4 rounded-3xl border border-white/10 shadow-2xl">
                                             <button
                                                 onClick={() => setIsMuted(!isMuted)}
-                                                className="text-white hover:text-ministry-gold transition"
+                                                className={`p-3 rounded-xl transition-all ${isMuted ? 'bg-red-500 text-white' : 'bg-white text-slate-800'}`}
                                             >
-                                                {isMuted || volume === 0 ? <X size={24} /> : <Video size={24} />}
+                                                {isMuted || volume === 0 ? <VolumeX size={24} /> : <Volume2 size={24} />}
                                             </button>
                                             <input
                                                 type="range"
