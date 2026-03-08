@@ -82,6 +82,7 @@ const TeacherPortal: React.FC = () => {
     useEffect(() => {
         loadDevices();
     }, []);
+    const [myStudents, setMyStudents] = useState<any[]>([]);
 
     useEffect(() => {
         const loadPortalData = async () => {
@@ -98,21 +99,12 @@ const TeacherPortal: React.FC = () => {
                         fullName: parsed.fullname || parsed.fullName || 'Professor',
                         profilePicture: ''
                     });
-                }
 
-                const allUsers = await api.school.getUsers();
-                if (allUsers) {
-                    // Filter for students and map to required format
-                    const studentList = allUsers
-                        .filter((u: any) => u.role === 'student')
-                        .map((s: any) => ({
-                            id: s.id,
-                            name: s.fullname,
-                            progress: Math.floor(Math.random() * 100), // Mocked progress
-                            lastActive: 'Ativo agora',
-                            status: 'active' as 'active' | 'inactive'
-                        }));
-                    setStudents(studentList);
+                    // Load assigned students
+                    if (parsed.id) {
+                        const assignedStudents = await api.school.getTeacherStudents(parsed.id);
+                        setMyStudents(assignedStudents || []);
+                    }
                 }
             } catch (e) {
                 console.error(e);
@@ -145,7 +137,7 @@ const TeacherPortal: React.FC = () => {
                 </div>
 
                 <nav className="flex-grow p-6 space-y-2">
-                    <SidebarLink icon={Users} label="Meus Alunos" active={activeTab === 'students'} onClick={() => setActiveTab('students')} />
+                    <SidebarLink icon={UserCheck} label="Meus Alunos" active={activeTab === 'students'} onClick={() => setActiveTab('students')} />
                     <SidebarLink icon={Video} label="Aulas ao Vivo" active={activeTab === 'classes'} onClick={() => setActiveTab('classes')} />
                     <SidebarLink icon={Settings} label="Configurações" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
                 </nav>
@@ -163,11 +155,11 @@ const TeacherPortal: React.FC = () => {
 
             <main className="flex-grow p-6 md:p-12 overflow-y-auto">
                 {activeTab === 'students' && (
-                    <div className="space-y-12 animate-in fade-in duration-500">
+                    <div className="space-y-8 animate-in fade-in duration-500">
                         <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                             <div>
-                                <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-2">Gestão de Alunos</h1>
-                                <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em]">Acompanhe o crescimento espiritual da sua turma.</p>
+                                <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-2">Meus Alunos</h1>
+                                <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em]">Alunos atribuídos a si pelo administrador.</p>
                             </div>
                             <div className="relative">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -185,41 +177,46 @@ const TeacherPortal: React.FC = () => {
                             <table className="w-full">
                                 <thead>
                                     <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
-                                        <th className="px-8 py-6">Aluno</th>
-                                        <th className="px-8 py-6">Progresso</th>
-                                        <th className="px-8 py-6">Última Atividade</th>
-                                        <th className="px-8 py-6 text-right">Ações</th>
+                                        <th className="px-8 py-6">Nome Completo</th>
+                                        <th className="px-8 py-6">Turma / Classe</th>
+                                        <th className="px-8 py-6">Contato</th>
+                                        <th className="px-8 py-6">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
-                                    {students.map(s => (
+                                    {myStudents.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-8 py-12 text-center">
+                                                <UserCheck className="text-slate-200 mx-auto mb-3" size={40} />
+                                                <p className="text-slate-400 font-bold text-sm uppercase">Nenhum aluno atribuído ainda.</p>
+                                                <p className="text-slate-300 font-bold text-xs mt-1">O administrador pode atribuir alunos ao criar ou aprovar uma inscrição.</p>
+                                            </td>
+                                        </tr>
+                                    ) : myStudents.filter(s =>
+                                        (s.fullname || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        (s.class_title || '').toLowerCase().includes(searchTerm.toLowerCase())
+                                    ).map(s => (
                                         <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-8 py-6">
+                                            <td className="px-8 py-5">
                                                 <div className="flex items-center space-x-4">
-                                                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-sm">
-                                                        {s.name.charAt(0)}
+                                                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-500 font-bold text-sm">
+                                                        {(s.fullname || 'A').charAt(0)}
                                                     </div>
-                                                    <div>
-                                                        <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{s.name}</p>
-                                                        <p className="text-[10px] text-gray-400 font-bold uppercase">Foundation Student</p>
-                                                    </div>
+                                                    <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{s.fullname}</p>
                                                 </div>
                                             </td>
-                                            <td className="px-8 py-6">
-                                                <div className="flex items-center space-x-4">
-                                                    <div className="flex-grow h-2 bg-gray-100 rounded-full overflow-hidden max-w-[100px]">
-                                                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${s.progress}%` }} />
-                                                    </div>
-                                                    <span className="text-xs font-black text-slate-600">{s.progress}%</span>
-                                                </div>
+                                            <td className="px-8 py-5">
+                                                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${s.class_title ? 'bg-blue-50 text-blue-600' : 'bg-slate-50 text-slate-400'}`}>
+                                                    {s.class_title || 'Sem turma'}
+                                                </span>
                                             </td>
-                                            <td className="px-8 py-6">
-                                                <span className="text-xs font-bold text-gray-400">{s.lastActive}</span>
-                                            </td>
-                                            <td className="px-8 py-6 text-right">
-                                                <button className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition">
-                                                    <ChevronRight size={20} />
-                                                </button>
+                                            <td className="px-8 py-5 text-xs text-slate-500 font-bold">{s.email || s.phone || '—'}</td>
+                                            <td className="px-8 py-5">
+                                                {s.access_expiry && new Date(s.access_expiry) < new Date() ? (
+                                                    <span className="px-3 py-1 bg-red-50 text-red-500 rounded-full text-[9px] font-black uppercase">Expirado</span>
+                                                ) : (
+                                                    <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase">Ativo</span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

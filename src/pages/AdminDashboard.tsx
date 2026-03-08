@@ -66,11 +66,28 @@ const AdminDashboard: React.FC = () => {
   const [newTeacher, setNewTeacher] = useState({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '' });
 
   const [editingStudent, setEditingStudent] = useState<any>(null);
-  const [newStudent, setNewStudent] = useState({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '' });
+  const [newStudent, setNewStudent] = useState({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '', teacher_id: '', class_id: '' });
+
   const [moduleForm, setModuleForm] = useState({ title: '', description: '', video_url: '', module_order: 1 });
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<SchoolRequest | null>(null);
   const [credentials, setCredentials] = useState<{ username: string, password: string, phone: string, email: string } | null>(null);
+
+  // Approval assignment
+  const [approvalTeacherId, setApprovalTeacherId] = useState<string>('');
+  const [approvalClassId, setApprovalClassId] = useState<string>('');
+
+  // Filters
+  const [studentSearch, setStudentSearch] = useState('');
+  const [teacherSearch, setTeacherSearch] = useState('');
+  const [visitorSearch, setVisitorSearch] = useState('');
+
+  // Pagination
+  const PAGE_SIZE = 8;
+  const [studentPage, setStudentPage] = useState(0);
+  const [teacherPage, setTeacherPage] = useState(0);
+  const [visitorPage, setVisitorPage] = useState(0);
+  const [requestPage, setRequestPage] = useState(0);
 
   // Filtros de Data e Hora
   const [filterStart, setFilterStart] = useState('');
@@ -235,7 +252,10 @@ const AdminDashboard: React.FC = () => {
   const handleApproveSchool = async (id: number) => {
     setIsRefreshing(true);
     try {
-      await api.school.approveRequest(id, 'approve');
+      await api.school.approveRequest(id, 'approve', approvalTeacherId ? Number(approvalTeacherId) : undefined, approvalClassId ? Number(approvalClassId) : undefined);
+      setApprovalTeacherId('');
+      setApprovalClassId('');
+      setSelectedRequest(null);
       alert("Solicitação aprovada. O aluno agora aparece na lista de Alunos para geração de credenciais.");
       loadData();
     } catch (e) {
@@ -314,7 +334,9 @@ const AdminDashboard: React.FC = () => {
       password: '',
       email: u.email || '',
       phone: u.phone || '',
-      access_expiry: u.access_expiry ? new Date(u.access_expiry).toISOString().split('T')[0] : ''
+      access_expiry: u.access_expiry ? new Date(u.access_expiry).toISOString().split('T')[0] : '',
+      teacher_id: u.teacher_id ? String(u.teacher_id) : '',
+      class_id: u.class_id ? String(u.class_id) : ''
     });
     setShowStudentModal(true);
   };
@@ -361,7 +383,7 @@ const AdminDashboard: React.FC = () => {
       await api.school.saveUser(userData);
       setShowStudentModal(false);
       setEditingStudent(null);
-      setNewStudent({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '' });
+      setNewStudent({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '', teacher_id: '', class_id: '' });
       loadData();
     } catch (e: any) {
       alert("Erro ao salvar aluno: " + e.message);
@@ -764,123 +786,177 @@ const AdminDashboard: React.FC = () => {
               </div>
             )}
 
-            {schoolSubTab === 'students' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center px-4">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alunos Registados</h4>
-                  <button onClick={() => setShowStudentModal(true)} className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md">
-                    <UserPlus size={14} />
-                    <span>Novo Aluno</span>
-                  </button>
-                </div>
-                <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
-                        <th className="px-8 py-5">Aluno</th>
-                        <th className="px-8 py-5">Credenciais</th>
-                        <th className="px-8 py-5">Data Registo</th>
-                        <th className="px-8 py-5 text-right">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {schoolUsers.filter(u => u.role === 'student').length === 0 ? (
-                        <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum aluno registado.</td></tr>
-                      ) : schoolUsers.filter(u => u.role === 'student').map(u => (
-                        <tr key={u.id} className="hover:bg-slate-50 transition">
-                          <td className="px-8 py-6">
-                            <div className="font-bold text-ministry-blue uppercase text-xs">{u.fullname}</div>
-                            <div className="text-[10px] text-slate-400 font-bold">{u.email} • {u.phone}</div>
-                          </td>
-                          <td className="px-8 py-6 font-mono text-[10px] text-slate-500">
-                            {u.is_credentials_generated ? (
-                              <span className="text-green-600 font-black">● {u.username}</span>
-                            ) : (
-                              <span className="text-orange-500 italic">Pendente</span>
-                            )}
-                          </td>
-                          <td className="px-8 py-6 text-[10px] text-slate-400 font-bold">
-                            <div>{new Date(u.created_at).toLocaleDateString()}</div>
-                            {u.access_expiry && <div className="text-red-400 mt-1">Val.: {new Date(u.access_expiry).toLocaleDateString()}</div>}
-                          </td>
-                          <td className="px-8 py-6 text-right">
-                            <div className="flex justify-end space-x-2">
-                              {!u.is_credentials_generated && (
-                                <button
-                                  onClick={() => handleGenerateSchoolCredentials(u.id)}
-                                  className="px-4 py-2 bg-ministry-gold text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:translate-y-[-1px] transition-all"
-                                >
-                                  Gerar
-                                </button>
+            {schoolSubTab === 'students' && (() => {
+              const allStudents = schoolUsers.filter(u => u.role === 'student');
+              const filtered = allStudents.filter(u =>
+                (u.fullname || '').toLowerCase().includes(studentSearch.toLowerCase()) ||
+                (u.username || '').toLowerCase().includes(studentSearch.toLowerCase()) ||
+                (u.email || '').toLowerCase().includes(studentSearch.toLowerCase())
+              );
+              const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+              const page = Math.min(studentPage, Math.max(0, totalPages - 1));
+              const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+              return (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center px-4">
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                      <input
+                        type="text" value={studentSearch}
+                        onChange={e => { setStudentSearch(e.target.value); setStudentPage(0); }}
+                        placeholder="Buscar aluno..."
+                        className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold"
+                      />
+                    </div>
+                    <button onClick={() => { setEditingStudent(null); setNewStudent({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '', teacher_id: '', class_id: '' }); setShowStudentModal(true); }} className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md">
+                      <UserPlus size={14} /><span>Novo Aluno</span>
+                    </button>
+                  </div>
+                  <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
+                          <th className="px-8 py-5">Aluno</th>
+                          <th className="px-8 py-5">Credenciais</th>
+                          <th className="px-8 py-5">Professor / Turma</th>
+                          <th className="px-8 py-5">Data / Validade</th>
+                          <th className="px-8 py-5 text-right">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {paged.length === 0 ? (
+                          <tr><td colSpan={5} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum aluno encontrado.</td></tr>
+                        ) : paged.map(u => (
+                          <tr key={u.id} className="hover:bg-slate-50 transition">
+                            <td className="px-8 py-6">
+                              <div className="font-bold text-ministry-blue uppercase text-xs">{u.fullname}</div>
+                              <div className="text-[10px] text-slate-400 font-bold">{u.email} • {u.phone}</div>
+                            </td>
+                            <td className="px-8 py-6 font-mono text-[10px] text-slate-500">
+                              {u.is_credentials_generated ? (
+                                <span className="text-green-600 font-black">● {u.username}</span>
+                              ) : (
+                                <span className="text-orange-500 italic">Pendente</span>
                               )}
-                              <button onClick={() => shareSchoolUserViaWhatsApp(u)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition" title="Partilhar no WhatsApp"><MessageCircle size={14} /></button>
-                              <button onClick={() => shareSchoolUserViaEmail(u)} className="p-2 text-ministry-gold hover:bg-ministry-gold/10 rounded-lg transition" title="Enviar Email"><Mail size={14} /></button>
-                              <button onClick={() => copySchoolUserCredentials(u)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition" title="Copiar"><Copy size={14} /></button>
-                              <button onClick={() => handleEditStudent(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
-                              <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                            </td>
+                            <td className="px-8 py-6 text-[10px] text-slate-500">
+                              <div className="font-bold">{schoolUsers.find(t => t.id === u.teacher_id)?.fullname || '—'}</div>
+                              <div className="text-slate-400">{schoolModules.find(m => m.id === u.class_id)?.title || '—'}</div>
+                            </td>
+                            <td className="px-8 py-6 text-[10px] text-slate-400 font-bold">
+                              <div>{new Date(u.created_at).toLocaleDateString()}</div>
+                              {u.access_expiry && <div className="text-red-400 mt-1">Val.: {new Date(u.access_expiry).toLocaleDateString()}</div>}
+                            </td>
+                            <td className="px-8 py-6 text-right">
+                              <div className="flex justify-end space-x-2">
+                                {!u.is_credentials_generated && (
+                                  <button onClick={() => handleGenerateSchoolCredentials(u.id)} className="px-4 py-2 bg-ministry-gold text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:translate-y-[-1px] transition-all">Gerar</button>
+                                )}
+                                <button onClick={() => shareSchoolUserViaWhatsApp(u)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition" title="WhatsApp"><MessageCircle size={14} /></button>
+                                <button onClick={() => shareSchoolUserViaEmail(u)} className="p-2 text-ministry-gold hover:bg-ministry-gold/10 rounded-lg transition" title="Email"><Mail size={14} /></button>
+                                <button onClick={() => copySchoolUserCredentials(u)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition" title="Copiar"><Copy size={14} /></button>
+                                <button onClick={() => handleEditStudent(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
+                                <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {totalPages > 1 && (
+                      <div className="flex justify-between items-center px-8 py-4 border-t border-slate-100 bg-slate-50">
+                        <span className="text-[10px] font-black text-slate-400 uppercase">{filtered.length} alunos · Pág. {page + 1}/{totalPages}</span>
+                        <div className="flex gap-2">
+                          <button disabled={page === 0} onClick={() => setStudentPage(p => p - 1)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:border-ministry-gold transition">Anterior</button>
+                          <button disabled={page >= totalPages - 1} onClick={() => setStudentPage(p => p + 1)} className="px-4 py-2 bg-ministry-blue text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:bg-ministry-gold transition">Próxima</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
-            {schoolSubTab === 'teachers' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center px-4">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Docentes Ativos</h4>
-                  <button onClick={() => setShowTeacherModal(true)} className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md">
-                    <UserPlus size={14} />
-                    <span>Novo Professor</span>
-                  </button>
-                </div>
-                <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
-                        <th className="px-8 py-5">Professor</th>
-                        <th className="px-8 py-5">Login</th>
-                        <th className="px-8 py-5">Status</th>
-                        <th className="px-8 py-5 text-right">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {schoolUsers.filter(u => u.role === 'teacher').length === 0 ? (
-                        <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum professor registado.</td></tr>
-                      ) : schoolUsers.filter(u => u.role === 'teacher').map(u => (
-                        <tr key={u.id} className="hover:bg-slate-50 transition">
-                          <td className="px-8 py-6">
-                            <div className="font-bold text-ministry-blue uppercase text-xs">{u.fullname}</div>
-                            <div className="text-[10px] text-slate-400 font-bold">{u.email}</div>
-                          </td>
-                          <td className="px-8 py-6 font-mono text-xs text-slate-500">{u.username}</td>
-                          <td className="px-8 py-6">
-                            {u.access_expiry && new Date(u.access_expiry) < new Date() ? (
-                              <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-[9px] font-black uppercase tracking-widest">Expirado</span>
-                            ) : (
-                              <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">Ativo</span>
-                            )}
-                            {u.access_expiry && <div className="text-[9px] text-slate-400 font-bold mt-2">Val.: {new Date(u.access_expiry).toLocaleDateString()}</div>}
-                          </td>
-                          <td className="px-8 py-6 text-right">
-                            <div className="flex justify-end space-x-2">
-                              <button onClick={() => shareSchoolUserViaWhatsApp(u)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition" title="Partilhar no WhatsApp"><MessageCircle size={14} /></button>
-                              <button onClick={() => shareSchoolUserViaEmail(u)} className="p-2 text-ministry-gold hover:bg-ministry-gold/10 rounded-lg transition" title="Enviar Email"><Mail size={14} /></button>
-                              <button onClick={() => copySchoolUserCredentials(u)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition" title="Copiar"><Copy size={14} /></button>
-                              <button onClick={() => handleEditTeacher(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
-                              <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
-                            </div>
-                          </td>
+            {schoolSubTab === 'teachers' && (() => {
+              const allTeachers = schoolUsers.filter(u => u.role === 'teacher');
+              const filtered = allTeachers.filter(u =>
+                (u.fullname || '').toLowerCase().includes(teacherSearch.toLowerCase()) ||
+                (u.username || '').toLowerCase().includes(teacherSearch.toLowerCase()) ||
+                (u.email || '').toLowerCase().includes(teacherSearch.toLowerCase())
+              );
+              const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+              const page = Math.min(teacherPage, Math.max(0, totalPages - 1));
+              const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+              return (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center px-4">
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                      <input
+                        type="text" value={teacherSearch}
+                        onChange={e => { setTeacherSearch(e.target.value); setTeacherPage(0); }}
+                        placeholder="Buscar professor..."
+                        className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold"
+                      />
+                    </div>
+                    <button onClick={() => { setEditingTeacher(null); setNewTeacher({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '' }); setShowTeacherModal(true); }} className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md">
+                      <UserPlus size={14} /><span>Novo Professor</span>
+                    </button>
+                  </div>
+                  <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
+                          <th className="px-8 py-5">Professor</th>
+                          <th className="px-8 py-5">Login</th>
+                          <th className="px-8 py-5">Status</th>
+                          <th className="px-8 py-5 text-right">Ações</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {paged.length === 0 ? (
+                          <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum professor encontrado.</td></tr>
+                        ) : paged.map(u => (
+                          <tr key={u.id} className="hover:bg-slate-50 transition">
+                            <td className="px-8 py-6">
+                              <div className="font-bold text-ministry-blue uppercase text-xs">{u.fullname}</div>
+                              <div className="text-[10px] text-slate-400 font-bold">{u.email}</div>
+                            </td>
+                            <td className="px-8 py-6 font-mono text-xs text-slate-500">{u.username}</td>
+                            <td className="px-8 py-6">
+                              {u.access_expiry && new Date(u.access_expiry) < new Date() ? (
+                                <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-[9px] font-black uppercase tracking-widest">Expirado</span>
+                              ) : (
+                                <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">Ativo</span>
+                              )}
+                              {u.access_expiry && <div className="text-[9px] text-slate-400 font-bold mt-2">Val.: {new Date(u.access_expiry).toLocaleDateString()}</div>}
+                            </td>
+                            <td className="px-8 py-6 text-right">
+                              <div className="flex justify-end space-x-2">
+                                <button onClick={() => shareSchoolUserViaWhatsApp(u)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition" title="WhatsApp"><MessageCircle size={14} /></button>
+                                <button onClick={() => shareSchoolUserViaEmail(u)} className="p-2 text-ministry-gold hover:bg-ministry-gold/10 rounded-lg transition" title="Email"><Mail size={14} /></button>
+                                <button onClick={() => copySchoolUserCredentials(u)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition" title="Copiar"><Copy size={14} /></button>
+                                <button onClick={() => handleEditTeacher(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
+                                <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {totalPages > 1 && (
+                      <div className="flex justify-between items-center px-8 py-4 border-t border-slate-100 bg-slate-50">
+                        <span className="text-[10px] font-black text-slate-400 uppercase">{filtered.length} professores · Pág. {page + 1}/{totalPages}</span>
+                        <div className="flex gap-2">
+                          <button disabled={page === 0} onClick={() => setTeacherPage(p => p - 1)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:border-ministry-gold transition">Anterior</button>
+                          <button disabled={page >= totalPages - 1} onClick={() => setTeacherPage(p => p + 1)} className="px-4 py-2 bg-ministry-blue text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:bg-ministry-gold transition">Próxima</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {schoolSubTab === 'media' && (
               <div className="space-y-6">
@@ -996,25 +1072,52 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-8 border-t border-white/5 flex gap-4">
-                <button
-                  onClick={() => {
-                    handleApproveSchool(selectedRequest.id);
-                    setSelectedRequest(null);
-                  }}
-                  className="flex-grow py-4 bg-green-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-green-500/20 active:scale-95 transition-all"
-                >
-                  Aprovar Agora
-                </button>
-                <button
-                  onClick={() => {
-                    handleRejectSchool(selectedRequest.id);
-                    setSelectedRequest(null);
-                  }}
-                  className="flex-grow py-4 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all"
-                >
-                  Rejeitar
-                </button>
+              <div className="p-8 border-t border-white/5 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-2">Atribuir Professor</label>
+                    <select
+                      value={approvalTeacherId}
+                      onChange={e => setApprovalTeacherId(e.target.value)}
+                      className="w-full bg-white/10 text-white border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-ministry-gold"
+                    >
+                      <option value="">Sem professor</option>
+                      {schoolUsers.filter(u => u.role === 'teacher').map(t => (
+                        <option key={t.id} value={t.id}>{t.fullname}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-2">Atribuir Turma/Classe</label>
+                    <select
+                      value={approvalClassId}
+                      onChange={e => setApprovalClassId(e.target.value)}
+                      className="w-full bg-white/10 text-white border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-ministry-gold"
+                    >
+                      <option value="">Sem turma</option>
+                      {schoolModules.map(m => (
+                        <option key={m.id} value={m.id}>{m.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => handleApproveSchool(selectedRequest.id)}
+                    className="flex-grow py-4 bg-green-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-green-500/20 active:scale-95 transition-all"
+                  >
+                    Aprovar Agora
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleRejectSchool(selectedRequest.id);
+                      setSelectedRequest(null);
+                    }}
+                    className="flex-grow py-4 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all"
+                  >
+                    Rejeitar
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1160,6 +1263,28 @@ const AdminDashboard: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <InputField label="Senha Secreta" value={newStudent.password} onChange={(v: string) => setNewStudent({ ...newStudent, password: v })} placeholder={editingStudent ? "Deixe vazio para manter" : "Mínimo 6 caracteres"} type={editingStudent ? "text" : "password"} required={!editingStudent} />
                   <InputField label="Validade do Acesso" value={newStudent.access_expiry || ''} onChange={(v: string) => setNewStudent({ ...newStudent, access_expiry: v })} placeholder="" type="date" required={false} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="mb-6">
+                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">Atribuir Professor</label>
+                    <select value={newStudent.teacher_id || ''} onChange={e => setNewStudent({ ...newStudent, teacher_id: e.target.value })}
+                      className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm">
+                      <option value="">Sem professor</option>
+                      {schoolUsers.filter(u => u.role === 'teacher').map(t => (
+                        <option key={t.id} value={t.id}>{t.fullname}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mb-6">
+                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">Turma/Classe</label>
+                    <select value={newStudent.class_id || ''} onChange={e => setNewStudent({ ...newStudent, class_id: e.target.value })}
+                      className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm">
+                      <option value="">Sem turma</option>
+                      {schoolModules.map(m => (
+                        <option key={m.id} value={m.id}>{m.title}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div className="pt-6">
                   <button type="submit" disabled={isRefreshing} className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-gold transition-all disabled:opacity-50">

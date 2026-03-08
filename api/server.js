@@ -81,7 +81,8 @@ const initDb = async () => {
       "is_credentials_generated BOOLEAN DEFAULT FALSE",
       "email TEXT", "phone TEXT", "country TEXT", "state TEXT",
       "city TEXT", "neighborhood TEXT", "is_member BOOLEAN",
-      "church_name TEXT", "church_address TEXT", "church_phone TEXT", "access_expiry TIMESTAMP"
+      "church_name TEXT", "church_address TEXT", "church_phone TEXT", "access_expiry TIMESTAMP",
+      "teacher_id INTEGER", "class_id INTEGER"
     ];
     for (const col of userColumns) {
       try { await pool.query(`ALTER TABLE school_users ADD COLUMN IF NOT EXISTS ${col}`); } catch (e) { }
@@ -187,17 +188,17 @@ export default async function handler(req, res) {
       }
       if (req.method === 'POST') {
         try {
-          const { id, action } = await getRequestBody(req);
+          const { id, action, teacher_id, class_id } = await getRequestBody(req);
           if (action === 'approve') {
             const reqData = await pool.query("SELECT * FROM school_requests WHERE id = $1", [id]);
             if (reqData.rows.length > 0) {
               const r = reqData.rows[0];
               const username = r.fullname.split(' ')[0].toLowerCase() + Math.random().toString(36).substring(2, 6);
 
-              // Aprovação: Cria o usuário MAS não gera password ainda
+              // Aprovação: Cria o usuário com professor e turma
               await pool.query(
-                "INSERT INTO school_users (fullname, username, role, email, phone, country, state, city, neighborhood, is_member, church_name, church_address, church_phone, is_credentials_generated) VALUES ($1, $2, 'student', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, FALSE)",
-                [r.fullname, username, r.email, r.phone, r.country, r.state, r.city, r.neighborhood, !!r.is_member, r.church_name, r.church_address, r.church_phone]
+                "INSERT INTO school_users (fullname, username, role, email, phone, country, state, city, neighborhood, is_member, church_name, church_address, church_phone, is_credentials_generated, teacher_id, class_id) VALUES ($1, $2, 'student', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, FALSE, $13, $14)",
+                [r.fullname, username, r.email, r.phone, r.country, r.state, r.city, r.neighborhood, !!r.is_member, r.church_name, r.church_address, r.church_phone, teacher_id || null, class_id || null]
               );
               await pool.query("UPDATE school_requests SET status = 'approved' WHERE id = $1", [id]);
               return res.status(200).json({ success: true, message: 'Student approved.' });
@@ -237,6 +238,24 @@ export default async function handler(req, res) {
       }
     }
 
+    // ESCOLA DE FUNDAÇÃO: ESTUDANTES DO PROFESSOR
+    if (path.endsWith('/school/teacher/students')) {
+      if (req.method === 'GET') {
+        const teacherId = queryParams.get('teacher_id');
+        if (!teacherId) return res.status(400).json({ error: 'teacher_id required' });
+        const r = await pool.query(
+          `SELECT su.id, su.fullname, su.username, su.email, su.phone, su.status, su.access_expiry,
+                  su.class_id, fm.title AS class_title
+           FROM school_users su
+           LEFT JOIN foundation_modules fm ON fm.id = su.class_id
+           WHERE su.teacher_id = $1 AND su.role = 'student'
+           ORDER BY su.fullname ASC`,
+          [teacherId]
+        );
+        return res.status(200).json(r.rows);
+      }
+    }
+
     // ESCOLA DE FUNDAÇÃO: LOGIN ALUNO E PROFESSOR
     if (path.endsWith('/school/login') || path.endsWith('/school/teacher/login')) {
       if (req.method === 'POST') {
@@ -267,9 +286,9 @@ export default async function handler(req, res) {
         const role = queryParams.get('role');
         let r;
         if (role) {
-          r = await pool.query("SELECT id, fullname, username, role, email, phone, status, is_credentials_generated, access_expiry, created_at FROM school_users WHERE role = $1 ORDER BY created_at DESC", [role]);
+          r = await pool.query("SELECT id, fullname, username, role, email, phone, status, is_credentials_generated, access_expiry, teacher_id, class_id, created_at FROM school_users WHERE role = $1 ORDER BY created_at DESC", [role]);
         } else {
-          r = await pool.query("SELECT id, fullname, username, role, email, phone, status, is_credentials_generated, access_expiry, created_at FROM school_users ORDER BY role, created_at DESC");
+          r = await pool.query("SELECT id, fullname, username, role, email, phone, status, is_credentials_generated, access_expiry, teacher_id, class_id, created_at FROM school_users ORDER BY role, created_at DESC");
         }
         return res.status(200).json(r.rows);
       }
@@ -280,13 +299,13 @@ export default async function handler(req, res) {
 
           if (b.id) {
             await pool.query(
-              "UPDATE school_users SET fullname=$1, username=$2, password=$3, role=$4, email=$5, phone=$6, state=$7, city=$8, neighborhood=$9, is_member=$10, church_name=$11, church_address=$12, church_phone=$13, access_expiry=$14 WHERE id=$15",
-              [b.fullname, b.username, b.password, b.role || 'student', b.email, b.phone, b.state, b.city, b.neighborhood, !!b.is_member, b.church_name, b.church_address, b.church_phone, expiryVal, b.id]
+              "UPDATE school_users SET fullname=$1, username=$2, password=$3, role=$4, email=$5, phone=$6, state=$7, city=$8, neighborhood=$9, is_member=$10, church_name=$11, church_address=$12, church_phone=$13, access_expiry=$14, teacher_id=$15, class_id=$16 WHERE id=$17",
+              [b.fullname, b.username, b.password, b.role || 'student', b.email, b.phone, b.state, b.city, b.neighborhood, !!b.is_member, b.church_name, b.church_address, b.church_phone, expiryVal, b.teacher_id || null, b.class_id || null, b.id]
             );
           } else {
             await pool.query(
-              "INSERT INTO school_users (fullname, username, password, role, email, phone, is_credentials_generated, access_expiry) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-              [b.fullname, b.username, b.password, b.role || 'student', b.email, b.phone, true, expiryVal]
+              "INSERT INTO school_users (fullname, username, password, role, email, phone, is_credentials_generated, access_expiry, teacher_id, class_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+              [b.fullname, b.username, b.password, b.role || 'student', b.email, b.phone, true, expiryVal, b.teacher_id || null, b.class_id || null]
             );
           }
           return res.status(200).json({ success: true });

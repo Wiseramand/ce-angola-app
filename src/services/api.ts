@@ -367,11 +367,11 @@ export const api = {
       if (res.ok) return await res.json();
       return [];
     },
-    approveRequest: async (id: number, action: 'approve' | 'reject'): Promise<any> => {
+    approveRequest: async (id: number, action: 'approve' | 'reject', teacher_id?: number, class_id?: number): Promise<any> => {
       const res = await fetch(`${CURRENT_API_URL}/admin/school/requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action })
+        body: JSON.stringify({ id, action, teacher_id, class_id })
       });
       if (res.ok) return await res.json();
       throw new Error("Falha ao processar solicitação.");
@@ -429,6 +429,12 @@ export const api = {
       });
       if (res.ok) return await res.json();
       throw new Error("Falha ao gerar credenciais.");
+    },
+
+    getTeacherStudents: async (teacherId: number): Promise<any[]> => {
+      const res = await fetch(`${CURRENT_API_URL}/school/teacher/students?teacher_id=${teacherId}`);
+      if (res.ok) return await res.json();
+      return [];
     }
   }
 }
