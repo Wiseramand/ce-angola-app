@@ -44,6 +44,7 @@ const StudentPortal: React.FC = () => {
     const [modules, setModules] = useState<Module[]>([]);
     const [isTeacherLive, setIsTeacherLive] = useState(false);
     const [liveTeacherName, setLiveTeacherName] = useState('');
+    const [liveUrl, setLiveUrl] = useState('');
     const [selectedVideo, setSelectedVideo] = useState<{ title: string, url: string } | null>(null);
 
 
@@ -53,6 +54,7 @@ const StudentPortal: React.FC = () => {
             if (config.is_teacher_live) {
                 setIsTeacherLive(true);
                 setLiveTeacherName(config.live_teacher_name || 'Professor');
+                setLiveUrl(config.private_url || '');
             } else {
                 setIsTeacherLive(false);
             }
@@ -173,7 +175,7 @@ const StudentPortal: React.FC = () => {
                 )}
                 {activeTab === 'dashboard' && <DashboardView student={student} modules={modules} onStartCourse={() => setActiveTab('modules')} onCompleteProfile={() => setActiveTab('profile')} />}
                 {activeTab === 'modules' && <ModulesView modules={modules} onSelectVideo={setSelectedVideo} />}
-                {activeTab === 'live' && <LiveClassesView isLive={isTeacherLive} teacherName={liveTeacherName} />}
+                {activeTab === 'live' && <LiveClassesView isLive={isTeacherLive} teacherName={liveTeacherName} liveUrl={liveUrl} />}
                 {activeTab === 'profile' && (
                     <ProfileView
                         student={student}
@@ -344,7 +346,21 @@ const ModulesView = ({ modules, onSelectVideo }: { modules: Module[], onSelectVi
     );
 };
 
-const LiveClassesView = ({ isLive, teacherName }: { isLive: boolean, teacherName: string }) => {
+const LiveClassesView = ({ isLive, teacherName, liveUrl }: { isLive: boolean, teacherName: string, liveUrl: string }) => {
+    const getEmbedUrl = (url: string) => {
+        if (!url) return '';
+        if (url.includes('youtube.com/watch?v=')) return url.replace('watch?v=', 'embed/');
+        if (url.includes('youtu.be/')) return url.replace('youtu.be/', 'youtube.com/embed/');
+        if (url.includes('drive.google.com')) {
+            const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (idMatch && idMatch[1]) return `https://drive.google.com/file/d/${idMatch[1]}/preview`;
+        }
+        if (url.startsWith('/uploads')) return `${window.location.origin}/api/school${url}`;
+        return url;
+    };
+
+    const embedUrl = getEmbedUrl(liveUrl);
+
     return (
         <div className="space-y-12 animate-in fade-in duration-500">
             <header>
@@ -385,15 +401,20 @@ const LiveClassesView = ({ isLive, teacherName }: { isLive: boolean, teacherName
                 </div>
 
                 {isLive ? (
-                    <div className="p-12 aspect-video bg-black flex items-center justify-center relative group">
-                        <div className="absolute inset-0 bg-ministry-blue/20 backdrop-blur-sm flex flex-col items-center justify-center space-y-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <PlayCircle size={64} className="text-white fill-white/20" />
-                            <p className="text-white font-black uppercase tracking-widest text-[10px]">Clique para Iniciar o Player</p>
-                        </div>
-                        <div className="text-center space-y-4">
-                            <Video size={48} className="text-white/20 mx-auto" />
-                            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Sinal de Vídeo pronto para recepção</p>
-                        </div>
+                    <div className="p-0 aspect-video bg-black flex items-center justify-center relative overflow-hidden group">
+                        {embedUrl ? (
+                            <iframe
+                                src={embedUrl}
+                                className="w-full h-full border-0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            />
+                        ) : (
+                            <div className="text-center space-y-4">
+                                <Video size={48} className="text-white/20 mx-auto" />
+                                <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Sinal de Vídeo pronto para recepção</p>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="p-12 text-center py-24">

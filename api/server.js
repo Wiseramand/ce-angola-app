@@ -480,8 +480,32 @@ export default async function handler(req, res) {
       if (req.method === 'POST') {
         const c = await getRequestBody(req);
         await pool.query(
-          "UPDATE system_config SET public_url=$1, public_url2=$2, public_title=$3, public_description=$4, private_url=$5, private_url2=$6, private_title=$7, private_description=$8, is_private_mode=$9, is_teacher_live=$10, live_teacher_name=$11 WHERE id=1",
-          [c.public_url, c.public_url2, c.public_title, c.public_description, c.private_url, c.private_url2, c.private_title, c.private_description, !!c.is_private_mode, !!c.is_teacher_live, c.live_teacher_name]
+          `UPDATE system_config SET 
+            public_url = COALESCE($1, public_url),
+            public_url2 = COALESCE($2, public_url2),
+            public_title = COALESCE($3, public_title),
+            public_description = COALESCE($4, public_description),
+            private_url = COALESCE($5, private_url),
+            private_url2 = COALESCE($6, private_url2),
+            private_title = COALESCE($7, private_title),
+            private_description = COALESCE($8, private_description),
+            is_private_mode = COALESCE($9, is_private_mode),
+            is_teacher_live = COALESCE($10, is_teacher_live),
+            live_teacher_name = COALESCE($11, live_teacher_name)
+          WHERE id=1`,
+          [
+            c.public_url !== undefined ? c.public_url : null,
+            c.public_url2 !== undefined ? c.public_url2 : null,
+            c.public_title !== undefined ? c.public_title : null,
+            c.public_description !== undefined ? c.public_description : null,
+            c.private_url !== undefined ? c.private_url : null,
+            c.private_url2 !== undefined ? c.private_url2 : null,
+            c.private_title !== undefined ? c.private_title : null,
+            c.private_description !== undefined ? c.private_description : null,
+            c.is_private_mode !== undefined ? !!c.is_private_mode : null,
+            c.is_teacher_live !== undefined ? !!c.is_teacher_live : null,
+            c.live_teacher_name !== undefined ? c.live_teacher_name : null
+          ]
         );
         return res.status(200).json({ success: true });
       }

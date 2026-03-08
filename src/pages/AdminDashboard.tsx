@@ -109,7 +109,9 @@ const AdminDashboard: React.FC = () => {
     private_url2: '',
     private_title: '',
     private_description: '',
-    is_private_mode: false
+    is_private_mode: false,
+    is_teacher_live: false,
+    live_teacher_name: ''
   });
 
   const loadData = async () => {
@@ -133,7 +135,9 @@ const AdminDashboard: React.FC = () => {
           private_url2: sData.private_url2 || '',
           private_title: sData.private_title || '',
           private_description: sData.private_description || '',
-          is_private_mode: !!sData.is_private_mode
+          is_private_mode: !!sData.is_private_mode,
+          is_teacher_live: !!sData.is_teacher_live,
+          live_teacher_name: sData.live_teacher_name || ''
         });
       }
 
@@ -802,6 +806,28 @@ const AdminDashboard: React.FC = () => {
                   <button onClick={() => setStreamForm({ ...streamForm, is_private_mode: !streamForm.is_private_mode })} className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_private_mode ? 'bg-ministry-gold shadow-[0_0_15px_rgba(197,160,89,0.5)]' : 'bg-slate-300'}`}>
                     <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${streamForm.is_private_mode ? 'left-7' : 'left-1'}`} />
                   </button>
+                </div>
+
+                <div className="mt-8 pt-8 border-t border-slate-100">
+                  <div className="flex items-center space-x-3 mb-6">
+                    <Radio size={18} className={streamForm.is_teacher_live ? 'text-red-500 animate-pulse' : 'text-slate-400'} />
+                    <h4 className="text-[11px] font-black text-ministry-blue uppercase tracking-widest">Status da Escola de Fundação</h4>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-6 bg-red-50/30 rounded-2xl border border-red-100">
+                      <div>
+                        <span className="text-[11px] font-black text-red-600 uppercase tracking-widest block">Professor está AO VIVO</span>
+                        <span className="text-[9px] text-red-400 font-bold uppercase mt-1">Ativa a notificação no Portal do Aluno.</span>
+                      </div>
+                      <button onClick={() => setStreamForm({ ...streamForm, is_teacher_live: !streamForm.is_teacher_live })} className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_teacher_live ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-slate-300'}`}>
+                        <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${streamForm.is_teacher_live ? 'left-7' : 'left-1'}`} />
+                      </button>
+                    </div>
+                    {streamForm.is_teacher_live && (
+                      <InputField label="Nome do Professor (que está live)" value={streamForm.live_teacher_name} onChange={v => setStreamForm({ ...streamForm, live_teacher_name: v })} placeholder="Ex: Pr. Lucas" />
+                    )}
+                  </div>
                 </div>
               </div>
 
