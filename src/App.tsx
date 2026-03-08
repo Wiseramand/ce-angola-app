@@ -211,6 +211,11 @@ const AppContent: React.FC = () => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
 
+  // Scroll to top on every route change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   const isAdminPath = location.pathname === '/central-admin' || location.pathname === '/admin';
 
   if (isLoading) {
