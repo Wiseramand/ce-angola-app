@@ -367,6 +367,7 @@ const TeacherPortal: React.FC = () => {
                                                 {devices.audio.map(d => (
                                                     <option key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${d.deviceId.slice(0, 5)}`}</option>
                                                 ))}
+                                                <option value="">OBS Audio / Padrão do Sistema</option>
                                             </select>
                                         </div>
                                     </div>
