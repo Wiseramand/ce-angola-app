@@ -49,6 +49,7 @@ const StudentPortal: React.FC = () => {
     const [selectedVideo, setSelectedVideo] = useState<{ title: string, url: string } | null>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
+    const isLiveRef = useRef(false);
     const peerConnection = useRef<RTCPeerConnection | null>(null);
     const signalingInterval = useRef<any>(null);
     const studentSignalingId = useRef(`student-${Math.random().toString(36).substr(2, 9)}`);
@@ -118,28 +119,42 @@ const StudentPortal: React.FC = () => {
                     config.is_teacher_live === 1 ||
                     config.is_teacher_live === '1';
 
-                const wasLive = isTeacherLive;
-                setIsTeacherLive(live);
-                setLiveTeacherName(config.live_teacher_name || 'Professor');
-                setLiveUrl(config.school_live_url || '');
+                const wasLive = isLiveRef.current;
 
-                if (live && !wasLive && config.live_teacher_id) {
-                    joinLiveSession(config.live_teacher_id);
-                } else if (!live && wasLive) {
+                if (live !== wasLive) {
+                    setIsTeacherLive(live);
+                    isLiveRef.current = live;
+
+                    if (live && config.live_teacher_id) {
+                        joinLiveSession(config.live_teacher_id);
+                    } else if (!live) {
+                        if (signalingInterval.current) clearInterval(signalingInterval.current);
+                        if (peerConnection.current) peerConnection.current.close();
+                        peerConnection.current = null;
+                        setRemoteStream(null);
+                    }
+                }
+
+                if (live) {
+                    setLiveTeacherName(config.live_teacher_name || 'Professor');
+                    setLiveUrl(config.school_live_url || '');
+                }
+            } else {
+                if (isLiveRef.current) {
+                    setIsTeacherLive(false);
+                    isLiveRef.current = false;
                     if (signalingInterval.current) clearInterval(signalingInterval.current);
                     if (peerConnection.current) peerConnection.current.close();
                     peerConnection.current = null;
                     setRemoteStream(null);
                 }
-            } else {
-                setIsTeacherLive(false);
             }
         } catch (e) { }
     };
 
     useEffect(() => {
         checkLiveStatus();
-        const interval = setInterval(checkLiveStatus, 10000); // 10s
+        const interval = setInterval(checkLiveStatus, 3000); // 3s
         return () => clearInterval(interval);
     }, []);
 

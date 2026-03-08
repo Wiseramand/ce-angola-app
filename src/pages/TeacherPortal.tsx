@@ -120,6 +120,7 @@ const TeacherPortal: React.FC = () => {
     };
 
     const handleSignaling = async () => {
+        if (!teacher.id) return;
         const signals = await api.school.live.getSignals(`teacher-${teacher.id}`);
         for (const signal of signals) {
             let pc = peerConnections.current.get(signal.sender_id);
@@ -146,6 +147,10 @@ const TeacherPortal: React.FC = () => {
     };
 
     const handleGoLive = async () => {
+        if (!teacher.id) {
+            alert("Erro: ID do professor não encontrado. Tente sair e entrar novamente.");
+            return;
+        }
         try {
             await api.system.updateConfig({
                 is_teacher_live: true,
@@ -154,6 +159,7 @@ const TeacherPortal: React.FC = () => {
                 school_live_url: 'WEBRTC_DIRECT'
             });
             setIsLive(true);
+            if (signalingInterval.current) clearInterval(signalingInterval.current);
             signalingInterval.current = setInterval(handleSignaling, 2000);
             alert("VOCÊ ESTÁ AO VIVO! Os alunos podem entrar agora.");
         } catch (e) { alert("Erro ao iniciar transmissão"); }

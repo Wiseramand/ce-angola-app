@@ -515,6 +515,7 @@ export default async function handler(req, res) {
       }
       if (req.method === 'POST') {
         const c = await getRequestBody(req);
+        console.log("SYSTEM_CONFIG_UPDATE:", c);
         await pool.query(
           `UPDATE system_config SET 
             public_url = COALESCE($1, public_url),
