@@ -57,7 +57,20 @@ const StudentPortal: React.FC = () => {
 
 
     const handleSignaling = async (teacherSignalingId: string) => {
+        if (!isLiveRef.current) return;
+
         const signals = await api.school.live.getSignals(studentSignalingId.current);
+
+        // If we haven't received an offer yet, aggressively resend JOIN heartbeat
+        if (!peerConnection.current || peerConnection.current.signalingState === "closed") {
+            api.school.live.sendSignal({
+                sender_id: studentSignalingId.current,
+                receiver_id: teacherSignalingId,
+                type: 'join',
+                data: {}
+            });
+        }
+
         for (const signal of signals) {
             if (signal.type === 'offer') {
                 if (peerConnection.current) peerConnection.current.close();
@@ -113,6 +126,7 @@ const StudentPortal: React.FC = () => {
     };
 
     const joinLiveSession = async (teacherSignalingId: string) => {
+        // The first JOIN is sent here, subsequent JOINs acts as heartbeats inside handleSignaling
         await api.school.live.sendSignal({
             sender_id: studentSignalingId.current,
             receiver_id: teacherSignalingId,
@@ -120,7 +134,7 @@ const StudentPortal: React.FC = () => {
             data: {}
         });
         if (signalingInterval.current) clearInterval(signalingInterval.current);
-        signalingInterval.current = setInterval(() => handleSignaling(teacherSignalingId), 2000);
+        signalingInterval.current = setInterval(() => handleSignaling(teacherSignalingId), 3000);
     };
 
     const checkLiveStatus = async () => {
@@ -599,7 +613,7 @@ const LiveClassesView = ({ isLive, teacherName, liveUrl, studentName, studentId,
                                         ref={videoRef}
                                         autoPlay
                                         playsInline
-                                        muted={isMuted}
+                                        muted // Mandatory raw attribute for Chrome Autoplay
                                         className="w-full h-full object-cover"
                                     />
                                     <div className="absolute bottom-10 left-10 right-10 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all duration-500">

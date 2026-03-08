@@ -129,6 +129,12 @@ const TeacherPortal: React.FC = () => {
 
             if (signal.type === 'join') {
                 console.log("Teacher: Received JOIN from", signal.sender_id);
+                // Only create a new connection if we don't already have an active one
+                if (pc && pc.signalingState !== "closed" && pc.connectionState !== "closed" && pc.connectionState !== "failed") {
+                    console.log("Teacher: Ignoring JOIN because connection is already active.");
+                    continue;
+                }
+
                 if (pc) pc.close();
                 pc = createPeerConnection(signal.sender_id);
                 peerConnections.current.set(signal.sender_id, pc);
