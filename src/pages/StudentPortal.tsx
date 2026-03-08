@@ -52,10 +52,17 @@ const StudentPortal: React.FC = () => {
     const checkLiveStatus = async () => {
         try {
             const config = await api.system.getConfig();
-            if (config && config.is_teacher_live) {
-                setIsTeacherLive(!!config.is_teacher_live);
-                setLiveTeacherName(config.live_teacher_name || 'Professor');
-                setLiveUrl(config.school_live_url || '');
+            if (config) {
+                // Robust boolean check (handles 't', 'f', 1, 0, or true/false)
+                const live = config.is_teacher_live === true ||
+                    config.is_teacher_live === 'true' ||
+                    config.is_teacher_live === 't' ||
+                    config.is_teacher_live === 1 ||
+                    config.is_teacher_live === '1';
+
+                setIsTeacherLive(live);
+                setLiveTeacherName(config.live_teacher_name || config.live_teacher_name || 'Professor');
+                setLiveUrl(config.school_live_url || config.school_live_url || '');
             } else {
                 setIsTeacherLive(false);
             }
@@ -174,6 +181,7 @@ const StudentPortal: React.FC = () => {
                         icon={Video}
                         label="Aulas ao Vivo"
                         active={activeTab === 'live'}
+                        isLive={isTeacherLive}
                         onClick={() => { setActiveTab('live'); setIsMenuOpen(false); }}
                     />
                     <SidebarLink
@@ -691,13 +699,21 @@ const VideoPlayerModal = ({ title, url, onClose }: { title: string, url: string,
 
 // --- HELPERS ---
 
-const SidebarLink = ({ icon: Icon, label, active, onClick }: any) => (
+const SidebarLink = ({ icon: Icon, label, active, onClick, isLive }: any) => (
     <button
         onClick={onClick}
-        className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${active ? 'bg-ministry-gold text-white shadow-xl translate-x-2' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+        className={`w-full flex items-center justify-between px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${active ? 'bg-ministry-gold text-white shadow-xl translate-x-2' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
     >
-        <Icon size={20} />
-        <span>{label}</span>
+        <div className="flex items-center space-x-4">
+            <Icon size={20} />
+            <span>{label}</span>
+        </div>
+        {isLive && (
+            <span className="flex items-center space-x-1 bg-red-500 text-[8px] px-2 py-0.5 rounded-full animate-pulse shadow-lg text-white font-black">
+                <span className="w-1 h-1 bg-white rounded-full"></span>
+                <span>AO VIVO</span>
+            </span>
+        )}
     </button>
 );
 
@@ -744,5 +760,22 @@ const ShieldCheck = ({ size, className }: { size?: number, className?: string })
         <path d="m9 12 2 2 4-4"></path>
     </svg>
 );
+
+// Custom Animations
+const globalStyles = `
+  @keyframes bounce-subtle {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  .animate-bounce-subtle {
+    animation: bounce-subtle 2s infinite ease-in-out;
+  }
+`;
+
+if (typeof document !== 'undefined') {
+    const style = document.createElement('style');
+    style.appendChild(document.createTextNode(globalStyles));
+    document.head.appendChild(style);
+}
 
 export default StudentPortal;

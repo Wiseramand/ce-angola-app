@@ -101,6 +101,17 @@ const initDb = async () => {
       try { await pool.query(`ALTER TABLE system_config ADD COLUMN IF NOT EXISTS ${col}`); } catch (e) { }
     }
 
+    // Ensure defaults for live fields
+    try {
+      await pool.query(`
+        UPDATE system_config SET 
+          is_teacher_live = COALESCE(is_teacher_live, FALSE),
+          live_teacher_name = COALESCE(live_teacher_name, ''),
+          school_live_url = COALESCE(school_live_url, '')
+        WHERE id = 1
+      `);
+    } catch (e) { }
+
     try { await pool.query("ALTER TABLE foundation_modules ADD COLUMN IF NOT EXISTS video_url TEXT"); } catch (e) { }
     try { await pool.query("ALTER TABLE foundation_modules ADD COLUMN IF NOT EXISTS module_order INTEGER"); } catch (e) { }
 
