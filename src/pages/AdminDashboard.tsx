@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Users, Video, Shield, RefreshCw, ArrowLeft, UserPlus, FileSpreadsheet, Printer, X, Save, Calendar, Clock, Filter, Edit2, Trash2, Share2, Copy, Mail, MessageCircle, ExternalLink,
-  LogOut, Radio, LayoutDashboard, Search, Settings, Check, ShieldAlert, Key, Loader2, Play
+  LogOut, Radio, LayoutDashboard, Search, Settings, Check, ShieldAlert, Key, Loader2, Play, GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
@@ -27,15 +27,35 @@ interface Visitor {
   created_at: string;
 }
 
+interface SchoolRequest {
+  id: number;
+  fullname: string;
+  email: string;
+  phone: string;
+  country: string;
+  state: string;
+  city: string;
+  neighborhood: string;
+  is_member: boolean;
+  church_name: string;
+  church_address: string;
+  church_phone: string;
+  status: string;
+}
+
 const AdminDashboard: React.FC = () => {
   const { t } = useTranslation();
   const { user, logout, updateStreamConfig } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'members' | 'visitors' | 'streams'>('members');
+  const [activeTab, setActiveTab] = useState<'members' | 'visitors' | 'streams' | 'school'>('members');
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [schoolRequests, setSchoolRequests] = useState<SchoolRequest[]>([]);
+  const [showSchoolModal, setShowSchoolModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<SchoolRequest | null>(null);
+  const [credentials, setCredentials] = useState<{ username: string, password: string, phone: string, email: string } | null>(null);
 
   // Filtros de Data e Hora
   const [filterStart, setFilterStart] = useState('');
@@ -79,6 +99,9 @@ const AdminDashboard: React.FC = () => {
           is_private_mode: !!sData.is_private_mode
         });
       }
+
+      const sRequests = await api.school.getRequests();
+      if (sRequests) setSchoolRequests(sRequests);
     } catch (e) { console.error(e); } finally { setIsRefreshing(false); }
   };
 
@@ -188,6 +211,47 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleApproveSchool = async (id: number) => {
+    setIsRefreshing(true);
+    try {
+      const res = await api.school.approveRequest(id, 'approve');
+      if (res.success) {
+        setCredentials(res.credentials);
+        setShowSchoolModal(true);
+        loadData();
+      }
+    } catch (e) {
+      alert("Erro ao aprovar solicitação.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleRejectSchool = async (id: number) => {
+    if (!confirm("Rejeitar esta solicitação?")) return;
+    setIsRefreshing(true);
+    try {
+      await api.school.approveRequest(id, 'reject');
+      loadData();
+    } catch (e) {
+      alert("Erro ao rejeitar solicitação.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const shareSchoolCredentials = (type: 'wa' | 'email') => {
+    if (!credentials) return;
+    const loginLink = `${window.location.origin}/school/login`;
+    const text = `Parabéns! Sua solicitação para a Escola de Fundação foi aprovada.\n\nLink: ${loginLink}\nUsuário: ${credentials.username}\nSenha: ${credentials.password}\n\nDeus o abençoe!`;
+
+    if (type === 'wa') {
+      window.open(`https://wa.me/${credentials.phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`, '_blank');
+    } else {
+      window.location.href = `mailto:${credentials.email}?subject=Credenciais Escola de Fundação&body=${encodeURIComponent(text)}`;
+    }
+  };
+
   useEffect(() => { loadData(); }, []);
 
   return (
@@ -210,6 +274,10 @@ const AdminDashboard: React.FC = () => {
           <button onClick={() => setActiveTab('streams')} className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${activeTab === 'streams' ? 'bg-ministry-gold text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>
             <Video size={20} />
             <span>Canais TV</span>
+          </button>
+          <button onClick={() => setActiveTab('school')} className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${activeTab === 'school' ? 'bg-ministry-gold text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>
+            <GraduationCap size={20} />
+            <span>Escola de Fundação</span>
           </button>
 
           <div className="pt-10 border-t border-white/5 mt-10">
@@ -457,6 +525,100 @@ const AdminDashboard: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+        {activeTab === 'school' && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">Solicitações de Alunos</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Aprovação de acesso para a Escola de Fundação</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
+                    <th className="px-8 py-5">Aluno</th>
+                    <th className="px-8 py-5">Localização</th>
+                    <th className="px-8 py-5">Membro?</th>
+                    <th className="px-8 py-5 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {schoolRequests.length === 0 ? (
+                    <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Sem solicitações pendentes.</td></tr>
+                  ) : schoolRequests.map(r => (
+                    <tr key={r.id} className="hover:bg-slate-50 transition">
+                      <td className="px-8 py-6">
+                        <div className="font-bold text-ministry-blue uppercase text-xs">{r.fullname}</div>
+                        <div className="text-[10px] text-slate-400 font-bold">{r.email} • {r.phone}</div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="text-[10px] font-black text-slate-600 uppercase">{r.city}, {r.state}</div>
+                        <div className="text-[9px] text-slate-400 font-bold uppercase">{r.neighborhood}, {r.country}</div>
+                      </td>
+                      <td className="px-8 py-6">
+                        {r.is_member ? (
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-green-600 uppercase">Sim</span>
+                            <span className="text-[9px] text-slate-400 font-bold truncate max-w-[150px]">{r.church_name}</span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] font-black text-slate-400 uppercase">Não</span>
+                        )}
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex justify-end space-x-2">
+                          <button onClick={() => handleApproveSchool(r.id)} className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition">Aprovar</button>
+                          <button onClick={() => handleRejectSchool(r.id)} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition">Rejeitar</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {showSchoolModal && credentials && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300 text-center">
+              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Check size={40} />
+              </div>
+              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-2">Acesso Gerado!</h2>
+              <p className="text-gray-500 text-sm font-medium mb-8">Envie as credenciais para o aluno iniciar o curso.</p>
+
+              <div className="bg-slate-50 rounded-2xl p-6 mb-8 text-left space-y-3 cursor-pointer hover:bg-slate-100 transition" onClick={() => {
+                navigator.clipboard.writeText(`Usuário: ${credentials.username}\nSenha: ${credentials.password}`);
+                alert("Copiado!");
+              }}>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-black text-slate-400 uppercase">Usuário</span>
+                  <span className="text-sm font-black text-ministry-blue">{credentials.username}</span>
+                </div>
+                <div className="flex justify-between items-center border-t border-gray-100 pt-3">
+                  <span className="text-[10px] font-black text-slate-400 uppercase">Senha</span>
+                  <span className="text-sm font-black text-ministry-blue">{credentials.password}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <button onClick={() => shareSchoolCredentials('wa')} className="flex items-center justify-center space-x-2 py-4 bg-green-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-green-700 transition">
+                  <MessageCircle size={18} />
+                  <span>WhatsApp</span>
+                </button>
+                <button onClick={() => shareSchoolCredentials('email')} className="flex items-center justify-center space-x-2 py-4 bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-black transition">
+                  <Mail size={18} />
+                  <span>E-mail</span>
+                </button>
+              </div>
+
+              <button onClick={() => setShowSchoolModal(false)} className="mt-8 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:text-ministry-gold transition">Fechar Janela</button>
             </div>
           </div>
         )}

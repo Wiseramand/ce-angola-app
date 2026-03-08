@@ -331,5 +331,33 @@ export const api = {
         method: 'DELETE'
       });
     }
+  },
+
+  school: {
+    register: async (formData: any): Promise<void> => {
+      if (!USE_BACKEND) return;
+      const res = await fetch(`${CURRENT_API_URL}/school/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      if (!res.ok) throw new Error("Falha ao enviar inscrição.");
+    },
+    getRequests: async (): Promise<any[]> => {
+      if (!USE_BACKEND) return [];
+      const res = await fetch(`${CURRENT_API_URL}/admin/school/requests`);
+      if (res.ok) return await res.json();
+      return [];
+    },
+    approveRequest: async (id: number, action: 'approve' | 'reject'): Promise<any> => {
+      if (!USE_BACKEND) return;
+      const res = await fetch(`${CURRENT_API_URL}/admin/school/requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ id, action })
+      });
+      if (res.ok) return await res.json();
+      throw new Error("Falha ao processar solicitação.");
+    }
   }
 };

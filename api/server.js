@@ -28,19 +28,53 @@ const initDb = async () => {
         user_id TEXT, username TEXT, text TEXT, channel TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      CREATE TABLE IF NOT EXISTS system_config (
-        id INTEGER PRIMARY KEY,
-        public_url TEXT, public_url2 TEXT, public_title TEXT, public_description TEXT,
-        private_url TEXT, private_url2 TEXT, private_title TEXT, private_description TEXT,
-        is_private_mode BOOLEAN DEFAULT false
+      CREATE TABLE IF NOT EXISTS school_requests (
+        id SERIAL PRIMARY KEY,
+        fullname TEXT, email TEXT, phone TEXT, country TEXT, 
+        state TEXT, city TEXT, neighborhood TEXT,
+        is_member BOOLEAN, church_name TEXT, church_address TEXT, church_phone TEXT,
+        status TEXT DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      CREATE TABLE IF NOT EXISTS sessions (
-        id TEXT PRIMARY KEY,
-        user_id TEXT,
-        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      CREATE TABLE IF NOT EXISTS school_users (
+        id SERIAL PRIMARY KEY,
+        fullname TEXT, username TEXT UNIQUE, password TEXT,
+        role TEXT DEFAULT 'student', status TEXT DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS foundation_modules (
+        id SERIAL PRIMARY KEY,
+        title TEXT, description TEXT, video_url TEXT,
+        module_order INTEGER UNIQUE
+      );
+      CREATE TABLE IF NOT EXISTS student_progress (
+        id SERIAL PRIMARY KEY,
+        student_id INTEGER REFERENCES school_users(id),
+        module_id INTEGER REFERENCES foundation_modules(id),
+        score INTEGER,
+        completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS live_sessions (
+        id SERIAL PRIMARY KEY,
+        teacher_id INTEGER,
+        title TEXT,
+        description TEXT,
+        scheduled_for TIMESTAMP,
+        status TEXT DEFAULT 'scheduled'
       );
       INSERT INTO system_config (id, public_title) VALUES (1, 'LoveWorld TV Angola') ON CONFLICT DO NOTHING;
     `);
+
+    // Initialize 8 Modules if not present
+    const modulesCount = await pool.query("SELECT COUNT(*) FROM foundation_modules");
+    if (parseInt(modulesCount.rows[0].count) === 0) {
+      for (let i = 1; i <= 8; i++) {
+        await pool.query(
+          "INSERT INTO foundation_modules (title, description, module_order) VALUES ($1, $2, $3)",
+          [`Módulo ${i}`, `Descrição do conteúdo do Módulo ${i}`, i]
+        );
+      }
+    }
   } catch (e) { console.error("DB Init Error:", e); }
 };
 
@@ -65,7 +99,7 @@ async function getRequestBody(req) {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE, PUT');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Content-Type', 'application/json');
 
@@ -77,6 +111,46 @@ export default async function handler(req, res) {
 
   try {
     await initDb();
+
+    // ESCOLA DE FUNDAÇÃO: REGISTO
+    if (path.endsWith('/school/register')) {
+      if (req.method === 'POST') {
+        const b = await getRequestBody(req);
+        await pool.query(
+          "INSERT INTO school_requests (fullname, email, phone, country, state, city, neighborhood, is_member, church_name, church_address, church_phone) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+          [b.fullName, b.email, b.phone, b.country, b.state, b.city, b.neighborhood, !!b.isMember, b.churchName, b.churchAddress, b.churchPhone]
+        );
+        return res.status(200).json({ success: true });
+      }
+    }
+
+    // ESCOLA DE FUNDAÇÃO: ADMIN GESTÃO
+    if (path.endsWith('/admin/school/requests')) {
+      if (req.method === 'GET') {
+        const r = await pool.query("SELECT * FROM school_requests WHERE status = 'pending' ORDER BY created_at DESC");
+        return res.status(200).json(r.rows);
+      }
+      if (req.method === 'POST') {
+        const { id, action } = await getRequestBody(req);
+        if (action === 'approve') {
+          const reqData = await pool.query("SELECT * FROM school_requests WHERE id = $1", [id]);
+          if (reqData.rows.length > 0) {
+            const r = reqData.rows[0];
+            const username = r.fullname.split(' ')[0].toLowerCase() + Math.floor(1000 + Math.random() * 9000);
+            const password = Math.random().toString(36).slice(-8);
+
+            await pool.query(
+              "INSERT INTO school_users (fullname, username, password, role) VALUES ($1, $2, $3, 'student')",
+              [r.fullname, username, password]
+            );
+            await pool.query("UPDATE school_requests SET status = 'approved' WHERE id = $1", [id]);
+            return res.status(200).json({ success: true, credentials: { username, password, phone: r.phone, email: r.email } });
+          }
+        }
+        await pool.query("UPDATE school_requests SET status = 'rejected' WHERE id = $1", [id]);
+        return res.status(200).json({ success: true });
+      }
+    }
 
     // HEARTBEAT (Sessões Ativas)
     if (path.endsWith('/heartbeat')) {

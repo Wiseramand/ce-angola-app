@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { useTranslation } from 'react-i18next';
-import { Menu, X, LogOut, LayoutDashboard, Radio, Lock, Tv, Globe } from 'lucide-react';
+import { Menu, X, LogOut, LayoutDashboard, Radio, Lock, Tv, Globe, Presentation } from 'lucide-react';
 import Logo from './Logo';
 
 const Header: React.FC = () => {
@@ -60,6 +60,13 @@ const Header: React.FC = () => {
               icon={Lock}
               className="bg-ministry-gold/10 text-ministry-gold rounded-xl mx-2 hover:bg-ministry-gold/20 !px-3"
               title={t('common.exclusive_access')}
+            />
+
+            <NavLink
+              to="/school/login"
+              icon={Presentation}
+              className="bg-ministry-blue/10 text-ministry-blue rounded-xl mx-1 hover:bg-ministry-blue/20 !px-3"
+              title={t('nav.foundation_school')}
             />
 
             {user?.role === 'admin' && (
@@ -121,6 +128,7 @@ const Header: React.FC = () => {
             <NavLink to="/founder">{t('nav.founder')}</NavLink>
             <NavLink to="/partnerships">{t('nav.partnerships')}</NavLink>
             <NavLink to="/live" icon={Lock} className="text-ministry-gold font-bold">{t('common.exclusive_access')}</NavLink>
+            <NavLink to="/school/login" icon={Presentation} className="text-ministry-blue font-bold">{t('nav.foundation_school')}</NavLink>
             {user?.role === 'admin' && <NavLink to="/admin">{t('common.admin')}</NavLink>}
             {user && <NavLink to="/profile">{t('common.profile')}</NavLink>}
           </div>

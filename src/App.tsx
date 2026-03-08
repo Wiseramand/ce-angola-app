@@ -22,6 +22,10 @@ import { ShieldAlert, Loader2 } from 'lucide-react';
 import { api } from './services/api';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import ContactUs from './pages/ContactUs';
+import SchoolLogin from './pages/SchoolLogin';
+import SchoolRegister from './pages/SchoolRegister';
+import StudentPortal from './pages/StudentPortal';
+import TeacherPortal from './pages/TeacherPortal';
 export interface StreamConfig {
   publicUrl: string;
   publicUrl2?: string;
@@ -269,6 +273,10 @@ const AppContent: React.FC = () => {
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/school/login" element={<SchoolLogin />} />
+          <Route path="/school/register" element={<SchoolRegister />} />
+          <Route path="/school/portal" element={<StudentPortal />} />
+          <Route path="/school/teacher" element={<TeacherPortal />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

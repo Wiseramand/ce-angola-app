@@ -1,0 +1,378 @@
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+    GraduationCap, BookOpen, Video, Calendar, User, Settings,
+    LogOut, ChevronRight, Lock, CheckCircle, PlayCircle,
+    Trophy, Clock, MessageSquare, ArrowLeft, Camera, Save, X
+} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import Logo from '../components/Logo';
+import { api } from '../services/api';
+
+interface Module {
+    id: number;
+    title: string;
+    description: string;
+    isCompleted: boolean;
+    isUnlocked: boolean;
+    score: number | null;
+}
+
+const StudentPortal: React.FC = () => {
+    const { t } = useTranslation();
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'modules' | 'live' | 'profile'>('dashboard');
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [student, setStudent] = useState({
+        fullName: 'Wilson Carlos',
+        email: 'wilson@example.com',
+        phone: '+244 923 000 000',
+        profilePicture: ''
+    });
+
+    const [modules, setModules] = useState<Module[]>([
+        { id: 1, title: 'O Novo Nascimento', description: 'Entenda o que significa nascer de novo em Cristo.', isCompleted: true, isUnlocked: true, score: 100 },
+        { id: 2, title: 'A Natureza de Deus', description: 'Conheça o caráter e os atributos do nosso Pai Celestial.', isCompleted: false, isUnlocked: true, score: null },
+        { id: 3, title: 'Obras de Retidão', description: 'Vivendo a vida que Deus planejou para você.', isCompleted: false, isUnlocked: false, score: null },
+        { id: 4, title: 'O Espírito Santo', description: 'O Consolador e Guia na vida do crente.', isCompleted: false, isUnlocked: false, score: null },
+        { id: 5, title: 'Doutrina de Baptismos', description: 'O significado e a importância dos baptismos.', isCompleted: false, isUnlocked: false, score: null },
+        { id: 6, title: 'A Evangelização', description: 'Nossa missão e o poder do testemunho.', isCompleted: false, isUnlocked: false, score: null },
+        { id: 7, title: 'A Igreja Local', description: 'O corpo de Cristo e nossa responsabilidade.', isCompleted: false, isUnlocked: false, score: null },
+        { id: 8, title: 'Doutrina do Senhor', description: 'Princípios fundamentais da fé cristã.', isCompleted: false, isUnlocked: false, score: null }
+    ]);
+
+    const handleLogout = () => {
+        // logout logic
+        navigate('/school/login');
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+            {/* Sidebar */}
+            <aside className="w-full md:w-80 bg-ministry-blue text-white flex flex-col h-screen sticky top-0 z-20 shadow-2xl">
+                <div className="p-8 border-b border-white/10">
+                    <Logo className="h-12 w-auto mb-6 brightness-0 invert" />
+                    <div className="flex items-center space-x-3 bg-white/5 p-4 rounded-2xl border border-white/10">
+                        <div className="w-10 h-10 rounded-full bg-ministry-gold flex items-center justify-center text-white font-black text-lg">
+                            {student.fullName.charAt(0)}
+                        </div>
+                        <div>
+                            <p className="text-xs font-black uppercase tracking-widest text-ministry-gold">Aluno</p>
+                            <h3 className="font-bold text-sm truncate max-w-[150px]">{student.fullName}</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <nav className="flex-grow p-6 space-y-2">
+                    <SidebarLink icon={LayoutDashboardIcon} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+                    <SidebarLink icon={BookOpen} label="Meus Módulos" active={activeTab === 'modules'} onClick={() => setActiveTab('modules')} />
+                    <SidebarLink icon={Video} label="Aulas ao Vivo" active={activeTab === 'live'} onClick={() => setActiveTab('live')} />
+                    <SidebarLink icon={User} label="Meu Perfil" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
+                </nav>
+
+                <div className="p-6 border-t border-white/10">
+                    <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center space-x-3 px-6 py-4 text-blue-200/50 hover:text-white hover:bg-white/5 rounded-xl transition font-bold text-xs uppercase tracking-widest"
+                    >
+                        <LogOut size={18} />
+                        <span>Sair do Portal</span>
+                    </button>
+                </div>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-grow p-6 md:p-12 overflow-y-auto">
+                {activeTab === 'dashboard' && <DashboardView student={student} modules={modules} onStartCourse={() => setActiveTab('modules')} />}
+                {activeTab === 'modules' && <ModulesView modules={modules} />}
+                {activeTab === 'live' && <LiveClassesView />}
+                {activeTab === 'profile' && (
+                    <ProfileView
+                        student={student}
+                        isEditing={isEditingProfile}
+                        onEdit={() => setIsEditingProfile(true)}
+                        onCancel={() => setIsEditingProfile(false)}
+                        onSave={(data) => { setStudent(data); setIsEditingProfile(false); }}
+                    />
+                )}
+            </main>
+        </div>
+    );
+};
+
+// --- SUB-VIEWS ---
+
+const DashboardView = ({ student, modules, onStartCourse }: any) => {
+    const completedCount = modules.filter((m: any) => m.isCompleted).length;
+    const progress = (completedCount / modules.length) * 100;
+
+    return (
+        <div className="space-y-12 animate-in fade-in duration-500">
+            <header>
+                <h1 className="text-4xl font-black text-ministry-blue uppercase tracking-tighter mb-2">Paz do Senhor, {student.fullName.split(' ')[0]}!</h1>
+                <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em]">Bem-vindo de volta à sua jornada de crescimento.</p>
+            </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <StatCard icon={Trophy} label="Módulos Concluídos" value={`${completedCount}/8`} color="text-ministry-gold" bg="bg-ministry-gold/10" />
+                <StatCard icon={Clock} label="Status do Curso" value={progress === 100 ? "Concluído" : "Em Progresso"} color="text-blue-600" bg="bg-blue-50" />
+                <StatCard icon={CheckCircle} label="Próxima Classe" value="Módulo 2" color="text-green-600" bg="bg-green-50" />
+            </div>
+
+            <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-gray-100 flex flex-col md:flex-row items-center gap-10">
+                <div className="w-48 h-48 relative flex-shrink-0">
+                    <svg className="w-full h-full" viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" r="16" fill="none" stroke="#f3f4f6" strokeWidth="4" />
+                        <circle cx="18" cy="18" r="16" fill="none" stroke="#C5A059" strokeWidth="4"
+                            strokeDasharray={`${progress}, 100`} strokeLinecap="round" transform="rotate(-90 18 18)"
+                        />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-4xl font-black text-ministry-blue">{Math.round(progress)}%</span>
+                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Progresso</span>
+                    </div>
+                </div>
+                <div className="flex-grow space-y-6">
+                    <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tight">Escola de Fundação Christ Embassy</h2>
+                    <p className="text-gray-500 leading-relaxed font-medium">Continue onde parou! O Módulo 2 está aguardando você para aprofundar seu conhecimento sobre a Natureza de Deus.</p>
+                    <button
+                        onClick={onStartCourse}
+                        className="px-10 py-5 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:scale-105 transition-all"
+                    >
+                        Continuar Curso
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ModulesView = ({ modules }: { modules: Module[] }) => {
+    return (
+        <div className="space-y-12 animate-in fade-in duration-500">
+            <header className="flex justify-between items-end">
+                <div>
+                    <h1 className="text-4xl font-black text-ministry-blue uppercase tracking-tighter mb-2">Conteúdo do Curso</h1>
+                    <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em]">8 Módulos de Preparação para a Vida em Cristo.</p>
+                </div>
+                <div className="bg-ministry-gold/10 px-4 py-2 rounded-full border border-ministry-gold/20 flex items-center space-x-2">
+                    <Trophy size={14} className="text-ministry-gold" />
+                    <span className="text-[10px] font-black text-ministry-gold uppercase tracking-widest">Graduação 100%</span>
+                </div>
+            </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {modules.map((m, idx) => (
+                    <div
+                        key={m.id}
+                        className={`group relative p-8 rounded-[2.5rem] border-2 transition-all duration-500 ${m.isUnlocked
+                                ? 'bg-white border-gray-100 hover:border-ministry-gold hover:shadow-2xl cursor-pointer'
+                                : 'bg-gray-50 border-transparent opacity-60 grayscale'
+                            }`}
+                    >
+                        <div className="flex justify-between items-start mb-6">
+                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${m.isCompleted ? 'bg-green-100 text-green-600' : 'bg-ministry-blue text-white'}`}>
+                                {m.isCompleted ? <CheckCircle size={24} /> : <span className="text-xl font-black">{m.id}</span>}
+                            </div>
+                            {!m.isUnlocked ? <Lock size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-300 group-hover:text-ministry-gold transition-colors" />}
+                        </div>
+
+                        <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-3">{m.title}</h3>
+                        <p className="text-gray-500 text-sm font-medium leading-relaxed mb-6">{m.description}</p>
+
+                        <div className="flex items-center justify-between pt-6 border-t border-gray-50">
+                            {m.isUnlocked ? (
+                                <div className="flex items-center space-x-2 text-ministry-gold font-black text-[10px] uppercase tracking-widest">
+                                    <PlayCircle size={16} />
+                                    <span>{m.isCompleted ? "Rever Aula" : "Começar Agora"}</span>
+                                </div>
+                            ) : (
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Trancado</span>
+                            )}
+                            {m.score !== null && (
+                                <div className="bg-green-50 px-3 py-1 rounded-full text-green-600 font-black text-[9px] uppercase tracking-widest border border-green-100">
+                                    Score: {m.score}%
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const LiveClassesView = () => {
+    return (
+        <div className="space-y-12 animate-in fade-in duration-500">
+            <header>
+                <h1 className="text-4xl font-black text-ministry-blue uppercase tracking-tighter mb-2">Aulas ao Vivo</h1>
+                <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em]">Sessões Interativas com Professores.</p>
+            </header>
+
+            <div className="bg-white rounded-[3rem] shadow-xl border border-gray-100 overflow-hidden">
+                <div className="p-12 border-b border-gray-50 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex items-center space-x-6">
+                        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center animate-pulse">
+                            <Video size={32} />
+                        </div>
+                        <div>
+                            <span className="text-[10px] font-black text-red-600 uppercase tracking-widest px-2 py-1 bg-red-100 rounded-full mb-2 inline-block">Flash Class</span>
+                            <h3 className="text-2xl font-black text-ministry-blue uppercase tracking-tight">Q&A: Dúvidas Módulos 1 a 4</h3>
+                        </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                            <p className="text-xs font-black text-ministry-blue uppercase">Hoje às 19:30</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase">Luanda, Angola</p>
+                        </div>
+                        <button className="px-8 py-4 bg-ministry-blue text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-ministry-gold transition-all shadow-lg">
+                            Agendar Lembrete
+                        </button>
+                    </div>
+                </div>
+                <div className="p-12 text-center py-24">
+                    <div className="max-w-md mx-auto space-y-6">
+                        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-300">
+                            <Calendar size={32} />
+                        </div>
+                        <h4 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Próximas Sessões</h4>
+                        <p className="text-gray-400 text-sm font-medium">As sessões ao vivo são agendadas pelos professores e notificadas através do portal e WhatsApp.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ProfileView = ({ student, isEditing, onEdit, onCancel, onSave }: any) => {
+    const [editData, setEditData] = useState(student);
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in duration-500">
+            <header className="flex justify-between items-end">
+                <div>
+                    <h1 className="text-4xl font-black text-ministry-blue uppercase tracking-tighter mb-2">Meu Perfil</h1>
+                    <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em]">Gerencie suas informações de estudante.</p>
+                </div>
+                {!isEditing && (
+                    <button
+                        onClick={onEdit}
+                        className="flex items-center space-x-2 px-6 py-3 border-2 border-ministry-blue text-ministry-blue rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-ministry-blue hover:text-white transition-all"
+                    >
+                        <Settings size={16} />
+                        <span>Editar Perfil</span>
+                    </button>
+                )}
+            </header>
+
+            <div className="bg-white rounded-[3rem] shadow-2xl border border-gray-100 overflow-hidden">
+                <div className="h-40 bg-ministry-blue relative">
+                    <div className="absolute -bottom-16 left-12 p-2 bg-white rounded-[2rem] shadow-xl">
+                        <div className="w-32 h-32 rounded-[1.5rem] bg-gray-100 overflow-hidden relative group">
+                            <div className="w-full h-full flex items-center justify-center text-ministry-blue text-4xl font-black">
+                                {student.fullName.charAt(0)}
+                            </div>
+                            {isEditing && (
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                    <Camera className="text-white" size={24} />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="pt-24 pb-12 px-12 grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <ProfileField label="Nome Completo" value={editData.fullName} isEditing={isEditing} onChange={(v: string) => setEditData({ ...editData, fullName: v })} />
+                    <ProfileField label="E-mail" value={editData.email} isEditing={isEditing} onChange={(v: string) => setEditData({ ...editData, email: v })} />
+                    <ProfileField label="Telefone" value={editData.phone} isEditing={isEditing} onChange={(v: string) => setEditData({ ...editData, phone: v })} />
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status da Conta</label>
+                        <div className="flex items-center space-x-2 text-green-600 font-black text-xs uppercase tracking-widest bg-green-50 px-4 py-3 rounded-xl border border-green-100">
+                            <ShieldCheck size={16} />
+                            <span>Ativo • Aluno Verificado</span>
+                        </div>
+                    </div>
+
+                    {isEditing && (
+                        <div className="md:col-span-2 flex space-x-4 pt-8">
+                            <button
+                                onClick={() => onSave(editData)}
+                                className="flex-grow py-5 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-gold transition-all flex items-center justify-center space-x-3"
+                            >
+                                <Save size={18} />
+                                <span>Salvar Alterações</span>
+                            </button>
+                            <button
+                                onClick={onCancel}
+                                className="px-10 py-5 border-2 border-gray-100 text-gray-400 rounded-2xl font-black uppercase text-xs tracking-[0.2em] hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all flex items-center justify-center space-x-3"
+                            >
+                                <X size={18} />
+                                <span>Cancelar</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- HELPERS ---
+
+const SidebarLink = ({ icon: Icon, label, active, onClick }: any) => (
+    <button
+        onClick={onClick}
+        className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${active ? 'bg-ministry-gold text-white shadow-xl translate-x-2' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+    >
+        <Icon size={20} />
+        <span>{label}</span>
+    </button>
+);
+
+const StatCard = ({ icon: Icon, label, value, color, bg }: any) => (
+    <div className={`p-8 rounded-[2rem] border border-gray-100 bg-white shadow-sm flex items-center space-x-6`}>
+        <div className={`w-14 h-14 ${bg} ${color} rounded-2xl flex items-center justify-center`}>
+            <Icon size={24} />
+        </div>
+        <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+            <p className={`text-2xl font-black text-ministry-blue uppercase`}>{value}</p>
+        </div>
+    </div>
+);
+
+const ProfileField = ({ label, value, isEditing, onChange }: any) => (
+    <div className="space-y-2">
+        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{label}</label>
+        {isEditing ? (
+            <input
+                type="text"
+                className="w-full bg-slate-50 border-2 border-transparent focus:border-ministry-gold rounded-xl px-6 py-4 text-sm font-bold outline-none transition"
+                value={value}
+                onChange={e => onChange(e.target.value)}
+            />
+        ) : (
+            <p className="text-sm font-black text-ministry-blue border-b border-gray-100 pb-2">{value}</p>
+        )}
+    </div>
+);
+
+const LayoutDashboardIcon = ({ size }: { size?: number }) => (
+    <svg width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="9"></rect>
+        <rect x="14" y="3" width="7" height="5"></rect>
+        <rect x="14" y="11" width="7" height="10"></rect>
+        <rect x="3" y="15" width="7" height="6"></rect>
+    </svg>
+);
+
+const ShieldCheck = ({ size, className }: { size?: number, className?: string }) => (
+    <svg width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        <path d="m9 12 2 2 4-4"></path>
+    </svg>
+);
+
+export default StudentPortal;
