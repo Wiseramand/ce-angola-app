@@ -228,14 +228,27 @@ const AdminDashboard: React.FC = () => {
   const handleApproveSchool = async (id: number) => {
     setIsRefreshing(true);
     try {
-      const res = await api.school.approveRequest(id, 'approve');
+      await api.school.approveRequest(id, 'approve');
+      alert("Solicitação aprovada. O aluno agora aparece na lista de Alunos para geração de credenciais.");
+      loadData();
+    } catch (e) {
+      alert("Erro ao aprovar solicitação.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleGenerateSchoolCredentials = async (studentId: number) => {
+    setIsRefreshing(true);
+    try {
+      const res = await api.school.generateCredentials(studentId);
       if (res.success) {
         setCredentials(res.credentials);
         setShowSchoolModal(true);
         loadData();
       }
     } catch (e) {
-      alert("Erro ao aprovar solicitação.");
+      alert("Erro ao gerar credenciais.");
     } finally {
       setIsRefreshing(false);
     }
@@ -646,8 +659,9 @@ const AdminDashboard: React.FC = () => {
                         </td>
                         <td className="px-8 py-6 text-right">
                           <div className="flex justify-end space-x-2">
+                            <button onClick={() => setSelectedRequest(r)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition" title="Ver Detalhes">Ver Detalhes</button>
                             <button onClick={() => handleApproveSchool(r.id)} className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition">Aprovar</button>
-                            <button onClick={() => { setSelectedRequest(r); handleRejectSchool(r.id); }} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition">Rejeitar</button>
+                            <button onClick={() => handleRejectSchool(r.id)} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition">Rejeitar</button>
                           </div>
                         </td>
                       </tr>
@@ -677,14 +691,28 @@ const AdminDashboard: React.FC = () => {
                           <div className="font-bold text-ministry-blue uppercase text-xs">{u.fullname}</div>
                           <div className="text-[10px] text-slate-400 font-bold">{u.email} • {u.phone}</div>
                         </td>
-                        <td className="px-8 py-6">
-                          <span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-mono text-slate-600">{u.username}</span>
+                        <td className="px-8 py-6 font-mono text-[10px] text-slate-500">
+                          {u.is_credentials_generated ? (
+                            <span className="text-green-600 font-black">● {u.username}</span>
+                          ) : (
+                            <span className="text-orange-500 italic">Pendente</span>
+                          )}
                         </td>
                         <td className="px-8 py-6 text-[10px] text-slate-400 font-bold">
                           {new Date(u.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-8 py-6 text-right">
-                          <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={16} /></button>
+                          <div className="flex justify-end space-x-2">
+                            {!u.is_credentials_generated && (
+                              <button
+                                onClick={() => handleGenerateSchoolCredentials(u.id)}
+                                className="px-4 py-2 bg-ministry-gold text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:translate-y-[-1px] transition-all"
+                              >
+                                Gerar Credenciais
+                              </button>
+                            )}
+                            <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={16} /></button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -785,6 +813,92 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Modal de Detalhes da Solicitação */}
+        {selectedRequest && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-6">
+            <div className="bg-gray-900 border border-white/10 rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl">
+              <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
+                <div>
+                  <h3 className="text-xl font-black text-white uppercase tracking-tight">Detalhes da Inscrição</h3>
+                  <p className="text-xs text-blue-400 font-bold uppercase tracking-widest mt-1">Verificação de Candidato</p>
+                </div>
+                <button onClick={() => setSelectedRequest(null)} className="p-3 hover:bg-white/5 rounded-2xl transition-colors">
+                  <X className="text-gray-500" />
+                </button>
+              </div>
+
+              <div className="p-8 max-h-[70vh] overflow-y-auto space-y-8">
+                <div className="grid grid-cols-2 gap-8">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Nome Completo</label>
+                    <p className="text-white font-bold">{selectedRequest.fullname}</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Email</label>
+                    <p className="text-white font-bold">{selectedRequest.email || 'Não informado'}</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Telefone</label>
+                    <p className="text-white font-bold">{selectedRequest.phone}</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Localização</label>
+                    <p className="text-white font-bold">{selectedRequest.neighborhood}, {selectedRequest.city}</p>
+                    <p className="text-xs text-gray-400">{selectedRequest.state}, {selectedRequest.country}</p>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-400">Dados Eclesiásticos</h4>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${selectedRequest.is_member ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500'}`}>
+                      {selectedRequest.is_member ? 'Membro' : 'Não Membro'}
+                    </span>
+                  </div>
+
+                  {selectedRequest.is_member && (
+                    <div className="grid grid-cols-2 gap-6 pt-4 border-t border-white/5">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">Igreja</label>
+                        <p className="text-white font-bold">{selectedRequest.church_name}</p>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">Endereço da Igreja</label>
+                        <p className="text-white font-bold">{selectedRequest.church_address}</p>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">Telefone da Igreja</label>
+                        <p className="text-white font-bold">{selectedRequest.church_phone}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-8 border-t border-white/5 flex gap-4">
+                <button
+                  onClick={() => {
+                    handleApproveSchool(selectedRequest.id);
+                    setSelectedRequest(null);
+                  }}
+                  className="flex-grow py-4 bg-green-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-green-500/20 active:scale-95 transition-all"
+                >
+                  Aprovar Agora
+                </button>
+                <button
+                  onClick={() => {
+                    handleRejectSchool(selectedRequest.id);
+                    setSelectedRequest(null);
+                  }}
+                  className="flex-grow py-4 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all"
+                >
+                  Rejeitar
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

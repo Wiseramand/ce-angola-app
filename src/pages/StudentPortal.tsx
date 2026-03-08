@@ -33,6 +33,26 @@ const StudentPortal: React.FC = () => {
     });
 
     const [modules, setModules] = useState<Module[]>([]);
+    const [isTeacherLive, setIsTeacherLive] = useState(false);
+    const [liveTeacherName, setLiveTeacherName] = useState('');
+
+    const checkLiveStatus = async () => {
+        try {
+            const config = await api.system.getConfig();
+            if (config.is_teacher_live) {
+                setIsTeacherLive(true);
+                setLiveTeacherName(config.live_teacher_name || 'Professor');
+            } else {
+                setIsTeacherLive(false);
+            }
+        } catch (e) { }
+    };
+
+    useEffect(() => {
+        checkLiveStatus();
+        const interval = setInterval(checkLiveStatus, 10000); // 10s
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         const loadPortalData = async () => {
@@ -108,9 +128,28 @@ const StudentPortal: React.FC = () => {
 
             {/* Main Content */}
             <main className="flex-grow p-6 md:p-12 overflow-y-auto">
+                {isTeacherLive && (
+                    <div className="mb-10 bg-red-600 rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl shadow-red-500/20 animate-bounce-subtle">
+                        <div className="flex items-center space-x-6">
+                            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center animate-pulse">
+                                <Video size={32} className="text-white" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black uppercase tracking-tight">O {liveTeacherName} está AO VIVO!</h3>
+                                <p className="text-[10px] font-bold uppercase text-white/60 tracking-widest mt-1">Sessão Interativa em Tempo Real</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setActiveTab('live')}
+                            className="px-10 py-4 bg-white text-red-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all shadow-lg"
+                        >
+                            Assistir Agora
+                        </button>
+                    </div>
+                )}
                 {activeTab === 'dashboard' && <DashboardView student={student} modules={modules} onStartCourse={() => setActiveTab('modules')} />}
                 {activeTab === 'modules' && <ModulesView modules={modules} />}
-                {activeTab === 'live' && <LiveClassesView />}
+                {activeTab === 'live' && <LiveClassesView isLive={isTeacherLive} teacherName={liveTeacherName} />}
                 {activeTab === 'profile' && (
                     <ProfileView
                         student={student}
@@ -227,7 +266,7 @@ const ModulesView = ({ modules }: { modules: Module[] }) => {
     );
 };
 
-const LiveClassesView = () => {
+const LiveClassesView = ({ isLive, teacherName }: { isLive: boolean, teacherName: string }) => {
     return (
         <div className="space-y-12 animate-in fade-in duration-500">
             <header>
@@ -238,33 +277,57 @@ const LiveClassesView = () => {
             <div className="bg-white rounded-[3rem] shadow-xl border border-gray-100 overflow-hidden">
                 <div className="p-12 border-b border-gray-50 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center space-x-6">
-                        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center animate-pulse">
+                        <div className={`w-16 h-16 ${isLive ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-slate-100 text-slate-400'} rounded-2xl flex items-center justify-center`}>
                             <Video size={32} />
                         </div>
                         <div>
-                            <span className="text-[10px] font-black text-red-600 uppercase tracking-widest px-2 py-1 bg-red-100 rounded-full mb-2 inline-block">Flash Class</span>
-                            <h3 className="text-2xl font-black text-ministry-blue uppercase tracking-tight">Q&A: Dúvidas Módulos 1 a 4</h3>
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 ${isLive ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-400'} rounded-full mb-2 inline-block`}>
+                                {isLive ? 'Aula em Directo' : 'Próxima Aula'}
+                            </span>
+                            <h3 className="text-2xl font-black text-ministry-blue uppercase tracking-tight">
+                                {isLive ? `Aula com ${teacherName}` : 'Q&A: Dúvidas Foundation'}
+                            </h3>
                         </div>
                     </div>
-                    <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                            <p className="text-xs font-black text-ministry-blue uppercase">Hoje às 19:30</p>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase">Luanda, Angola</p>
-                        </div>
-                        <button className="px-8 py-4 bg-ministry-blue text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-ministry-gold transition-all shadow-lg">
-                            Agendar Lembrete
+                    {isLive ? (
+                        <button className="px-10 py-5 bg-red-600 text-white rounded-xl font-black uppercase text-xs tracking-widest hover:bg-red-700 transition-all shadow-lg animate-bounce-subtle">
+                            Entrar na Sala agora
                         </button>
-                    </div>
-                </div>
-                <div className="p-12 text-center py-24">
-                    <div className="max-w-md mx-auto space-y-6">
-                        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-300">
-                            <Calendar size={32} />
+                    ) : (
+                        <div className="flex items-center space-x-4">
+                            <div className="text-right">
+                                <p className="text-xs font-black text-ministry-blue uppercase">Agendado</p>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase">Luanda, Angola</p>
+                            </div>
+                            <button className="px-8 py-4 bg-ministry-blue text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-ministry-gold transition-all shadow-lg">
+                                Agendar Lembrete
+                            </button>
                         </div>
-                        <h4 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Próximas Sessões</h4>
-                        <p className="text-gray-400 text-sm font-medium">As sessões ao vivo são agendadas pelos professores e notificadas através do portal e WhatsApp.</p>
-                    </div>
+                    )}
                 </div>
+
+                {isLive ? (
+                    <div className="p-12 aspect-video bg-black flex items-center justify-center relative group">
+                        <div className="absolute inset-0 bg-ministry-blue/20 backdrop-blur-sm flex flex-col items-center justify-center space-y-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <PlayCircle size={64} className="text-white fill-white/20" />
+                            <p className="text-white font-black uppercase tracking-widest text-[10px]">Clique para Iniciar o Player</p>
+                        </div>
+                        <div className="text-center space-y-4">
+                            <Video size={48} className="text-white/20 mx-auto" />
+                            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Sinal de Vídeo pronto para recepção</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="p-12 text-center py-24">
+                        <div className="max-w-md mx-auto space-y-6">
+                            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-300">
+                                <Calendar size={32} />
+                            </div>
+                            <h4 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Sem aulas agora</h4>
+                            <p className="text-gray-400 text-sm font-medium">As sessões ao vivo são agendadas pelos professores e notificadas através do portal e WhatsApp.</p>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

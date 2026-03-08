@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     Users, Video, Calendar, BookOpen, Settings,
     LogOut, ChevronRight, Plus, Clock, Search,
-    UserCheck, AlertCircle, Save, X, Calendar as CalendarIcon
+    UserCheck, AlertCircle, Save, X, Calendar as CalendarIcon, Play
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Logo from '../components/Logo';
@@ -27,6 +27,61 @@ const TeacherPortal: React.FC = () => {
     const [teacher, setTeacher] = useState({ fullName: 'Professor', profilePicture: '' });
 
     const [students, setStudents] = useState<Student[]>([]);
+    const [isLive, setIsLive] = useState(false);
+    const [devices, setDevices] = useState<{ video: MediaDeviceInfo[], audio: MediaDeviceInfo[] }>({ video: [], audio: [] });
+    const [selectedVideo, setSelectedVideo] = useState('');
+    const [selectedAudio, setSelectedAudio] = useState('');
+    const videoRef = React.useRef<HTMLVideoElement>(null);
+    const [stream, setStream] = useState<MediaStream | null>(null);
+
+    const loadDevices = async () => {
+        try {
+            const allDevices = await navigator.mediaDevices.enumerateDevices();
+            setDevices({
+                video: allDevices.filter(d => d.kind === 'videoinput'),
+                audio: allDevices.filter(d => d.kind === 'audioinput')
+            });
+        } catch (e) { console.error(e); }
+    };
+
+    const startPreview = async () => {
+        if (stream) {
+            stream.getTracks().forEach(t => t.stop());
+        }
+        try {
+            const newStream = await navigator.mediaDevices.getUserMedia({
+                video: selectedVideo ? { deviceId: { exact: selectedVideo } } : true,
+                audio: selectedAudio ? { deviceId: { exact: selectedAudio } } : true
+            });
+            setStream(newStream);
+            if (videoRef.current) videoRef.current.srcObject = newStream;
+        } catch (e) { alert("Erro ao acessar câmera/microfone"); }
+    };
+
+    const handleGoLive = async () => {
+        try {
+            await api.system.updateConfig({
+                is_teacher_live: true,
+                live_teacher_name: teacher.fullName
+            });
+            setIsLive(true);
+            alert("VOCÊ ESTÁ AO VIVO! Os alunos foram notificados.");
+        } catch (e) { alert("Erro ao iniciar transmissão"); }
+    };
+
+    const handleEndLive = async () => {
+        try {
+            await api.system.updateConfig({ is_teacher_live: false, live_teacher_name: '' });
+            setIsLive(false);
+            if (stream) stream.getTracks().forEach(t => t.stop());
+            setStream(null);
+            alert("Transmissão encerrada.");
+        } catch (e) { }
+    };
+
+    useEffect(() => {
+        loadDevices();
+    }, []);
 
     useEffect(() => {
         const loadPortalData = async () => {
@@ -177,54 +232,120 @@ const TeacherPortal: React.FC = () => {
                                 <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-2">Aulas ao Vivo</h1>
                                 <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em]">Agende sessões interativas com seus alunos.</p>
                             </div>
-                            <button className="flex items-center space-x-3 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-slate-900 transition-all">
-                                <Plus size={18} />
-                                <span>Agendar Aula</span>
-                            </button>
+                            {!isLive ? (
+                                <button onClick={() => { setActiveTab('classes'); startPreview(); }} className="flex items-center space-x-3 px-8 py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-red-700 transition-all">
+                                    <Video size={18} />
+                                    <span>Iniciar Transmissão</span>
+                                </button>
+                            ) : (
+                                <button onClick={handleEndLive} className="flex items-center space-x-3 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all">
+                                    <X size={18} />
+                                    <span>Encerrar Aula</span>
+                                </button>
+                            )}
                         </header>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-gray-100 space-y-8">
-                                <div className="flex items-center space-x-4">
-                                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
-                                        <CalendarIcon size={24} />
-                                    </div>
-                                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Nova Aula</h3>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            {/* Área da Câmera / Transmissão */}
+                            <div className="lg:col-span-2 space-y-6">
+                                <div className="relative aspect-video bg-black rounded-[3rem] overflow-hidden shadow-2xl border border-slate-200 group">
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        muted
+                                        playsInline
+                                        className="w-full h-full object-cover"
+                                    />
+                                    {isLive && (
+                                        <div className="absolute top-8 left-8 flex items-center space-x-3">
+                                            <div className="flex items-center space-x-2 bg-red-600 px-4 py-2 rounded-full shadow-lg animate-pulse">
+                                                <div className="w-2 h-2 bg-white rounded-full" />
+                                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Ao Vivo</span>
+                                            </div>
+                                            <div className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-full text-[10px] font-black text-white uppercase tracking-widest border border-white/10">
+                                                {new Date().toLocaleTimeString()}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {!stream && !isLive && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+                                            <button onClick={startPreview} className="p-8 bg-white/10 hover:bg-white/20 rounded-full transition-all group-hover:scale-110">
+                                                <Play className="text-white fill-white" size={48} />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="space-y-6">
-                                    <InputField label="Título da Sessão" placeholder="Ex: Revisão Módulo 1" />
-                                    <InputField label="Data e Hora" type="datetime-local" />
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Descrição / Notas</label>
-                                        <textarea className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition min-h-[120px]" placeholder="Instruções para os alunos..."></textarea>
+
+                                <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-8">
+                                    <div className="flex flex-col md:flex-row gap-6 flex-grow w-full">
+                                        <div className="flex-grow space-y-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Câmera / Fonte</label>
+                                            <select
+                                                value={selectedVideo}
+                                                onChange={e => { setSelectedVideo(e.target.value); setTimeout(startPreview, 100); }}
+                                                className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition"
+                                            >
+                                                {devices.video.map(d => (
+                                                    <option key={d.deviceId} value={d.deviceId}>{d.label || `Câmera ${d.deviceId.slice(0, 5)}`}</option>
+                                                ))}
+                                                <option value="">OBS Virtual Camera / Default</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex-grow space-y-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Microfone</label>
+                                            <select
+                                                value={selectedAudio}
+                                                onChange={e => { setSelectedAudio(e.target.value); setTimeout(startPreview, 100); }}
+                                                className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition"
+                                            >
+                                                {devices.audio.map(d => (
+                                                    <option key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${d.deviceId.slice(0, 5)}`}</option>
+                                                ))}
+                                            </select>
+                                        </div>
                                     </div>
-                                    <button className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-slate-900 transition-all">
-                                        Confirmar Agendamento
-                                    </button>
+                                    {!isLive ? (
+                                        <button
+                                            onClick={handleGoLive}
+                                            disabled={!stream}
+                                            className="w-full md:w-auto px-12 py-5 bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-red-700 transition-all disabled:opacity-50"
+                                        >
+                                            Ir ao Vivo Now
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handleEndLive}
+                                            className="w-full md:w-auto px-12 py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-slate-800 transition-all"
+                                        >
+                                            Sair do Ar
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
-                            <div className="space-y-6">
-                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Aulas Agendadas</h4>
-                                <div className="bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden">
-                                    <div className="relative z-10 flex flex-col justify-between h-full space-y-12">
-                                        <div className="flex justify-between items-start">
-                                            <div className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-blue-400/20">Hoje</div>
-                                            <button className="text-white/40 hover:text-white transition"><X size={20} /></button>
-                                        </div>
-                                        <div>
-                                            <h3 className="text-2xl font-black uppercase tracking-tight mb-2">Q&A: Dúvidas Módulos 1 a 4</h3>
-                                            <div className="flex items-center space-x-4 text-slate-400 text-xs font-bold uppercase tracking-wider">
-                                                <Clock size={14} />
-                                                <span>19:30 BRT</span>
-                                            </div>
-                                        </div>
-                                        <button className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 hover:text-white transition-all">
-                                            Iniciar Aula Agora
-                                        </button>
+                            {/* Chat (Simulado ou Real) */}
+                            <div className="h-full min-h-[500px] flex flex-col bg-white rounded-[3rem] shadow-xl border border-gray-100 overflow-hidden">
+                                <div className="p-8 border-b border-gray-50 flex items-center justify-between">
+                                    <div>
+                                        <h3 className="font-black text-slate-900 uppercase text-xs tracking-tight">Chat da Aula</h3>
+                                        <p className="text-[9px] text-green-500 font-bold uppercase mt-0.5">Sessão Ativa</p>
                                     </div>
-                                    {/* Decorative */}
-                                    <Video className="absolute -right-8 -bottom-8 w-48 h-48 text-white/5 rotate-12" />
+                                    <Users size={18} className="text-slate-300" />
+                                </div>
+                                <div className="flex-grow p-8 space-y-6 overflow-y-auto">
+                                    <div className="flex gap-4">
+                                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex-shrink-0" />
+                                        <div className="space-y-1">
+                                            <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Wilson Carlos</p>
+                                            <p className="text-xs text-slate-700 font-medium bg-slate-50 p-3 rounded-2xl rounded-tl-none">Professor, tenho uma dúvida sobre o Módulo 2!</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-6 border-t border-gray-50 bg-slate-50/50">
+                                    <div className="flex gap-3">
+                                        <input type="text" placeholder="Responder aos alunos..." className="flex-grow bg-white border border-gray-100 rounded-xl px-4 py-3 text-xs font-bold outline-none" />
+                                        <button className="p-3 bg-blue-600 text-white rounded-xl"><Plus size={16} /></button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

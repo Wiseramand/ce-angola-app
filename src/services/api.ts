@@ -372,11 +372,15 @@ export const api = {
       return [];
     },
     saveUser: async (userData: any): Promise<void> => {
-      await fetch(`${CURRENT_API_URL}/school/users`, {
+      const res = await fetch(`${CURRENT_API_URL}/school/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
       });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Falha ao salvar usuário da escola.");
+      }
     },
     deleteUser: async (id: number): Promise<void> => {
       await fetch(`${CURRENT_API_URL}/school/users?id=${id}`, { method: 'DELETE' });
@@ -395,6 +399,15 @@ export const api = {
     },
     deleteModule: async (id: number): Promise<void> => {
       await fetch(`${CURRENT_API_URL}/school/modules?id=${id}`, { method: 'DELETE' });
+    },
+    generateCredentials: async (studentId: number): Promise<any> => {
+      const res = await fetch(`${CURRENT_API_URL}/admin/school/generate-credentials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId })
+      });
+      if (res.ok) return await res.json();
+      throw new Error("Falha ao gerar credenciais.");
     }
   }
-};
+}
