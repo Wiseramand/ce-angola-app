@@ -584,6 +584,7 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Endpoint não encontrado' });
   } catch (err) {
     console.error("Handler Error:", err);
-    return res.status(500).json({ error: 'Erro interno no servidor de chat' });
+    return res.status(500).json({ error: err.message || 'Erro interno no servidor' });
   }
 }
+
