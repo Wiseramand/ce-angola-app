@@ -88,6 +88,17 @@ const initDb = async () => {
       try { await pool.query(`ALTER TABLE school_users ADD COLUMN IF NOT EXISTS ${col}`); } catch (e) { }
     }
 
+    const systemColumns = [
+      "public_url TEXT", "public_url2 TEXT", "public_title TEXT", "public_description TEXT",
+      "private_url TEXT", "private_url2 TEXT", "private_title TEXT", "private_description TEXT",
+      "is_private_mode BOOLEAN DEFAULT FALSE",
+      "is_teacher_live BOOLEAN DEFAULT FALSE",
+      "live_teacher_name TEXT"
+    ];
+    for (const col of systemColumns) {
+      try { await pool.query(`ALTER TABLE system_config ADD COLUMN IF NOT EXISTS ${col}`); } catch (e) { }
+    }
+
     try { await pool.query("ALTER TABLE foundation_modules ADD COLUMN IF NOT EXISTS video_url TEXT"); } catch (e) { }
     try { await pool.query("ALTER TABLE foundation_modules ADD COLUMN IF NOT EXISTS module_order INTEGER"); } catch (e) { }
 

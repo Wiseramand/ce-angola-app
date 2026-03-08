@@ -52,8 +52,8 @@ const StudentPortal: React.FC = () => {
     const checkLiveStatus = async () => {
         try {
             const config = await api.system.getConfig();
-            if (config.is_teacher_live) {
-                setIsTeacherLive(true);
+            if (config && config.is_teacher_live) {
+                setIsTeacherLive(!!config.is_teacher_live);
                 setLiveTeacherName(config.live_teacher_name || 'Professor');
                 setLiveUrl(config.private_url || '');
             } else {
@@ -121,7 +121,7 @@ const StudentPortal: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row relative">
             {/* Mobile Header */}
-            <header className="md:hidden bg-ministry-blue text-white p-6 flex justify-between items-center sticky top-0 z-30 shadow-lg">
+            <header className="md:hidden bg-ministry-blue text-white p-6 flex justify-between items-center sticky top-0 z-[70] shadow-lg">
                 <Logo className="h-8 w-auto brightness-0 invert" />
                 <button
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -134,7 +134,7 @@ const StudentPortal: React.FC = () => {
             {/* Backdrop for Mobile Menu */}
             {isMenuOpen && (
                 <div
-                    className="fixed inset-0 bg-ministry-blue/60 backdrop-blur-sm z-40 md:hidden animate-in fade-in duration-300"
+                    className="fixed inset-0 bg-ministry-blue/60 backdrop-blur-sm z-[60] md:hidden animate-in fade-in duration-300"
                     onClick={() => setIsMenuOpen(false)}
                 />
             )}
