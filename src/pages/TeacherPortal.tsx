@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Users, Video, Calendar, BookOpen, Settings,
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Logo from '../components/Logo';
+import { api } from '../services/api';
 
 interface Student {
     id: number;
@@ -22,15 +23,49 @@ const TeacherPortal: React.FC = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'students' | 'classes' | 'settings'>('students');
     const [searchTerm, setSearchTerm] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [teacher, setTeacher] = useState({ fullName: 'Professor', profilePicture: '' });
 
-    const [students] = useState<Student[]>([
-        { id: 1, name: 'Wilson Carlos', progress: 12, lastActive: '2h atrás', status: 'active' },
-        { id: 2, name: 'Ana Paula', progress: 45, lastActive: '1d atrás', status: 'active' },
-        { id: 3, name: 'João Miguel', progress: 80, lastActive: '30m atrás', status: 'active' },
-        { id: 4, name: 'Maria Silva', progress: 100, lastActive: '5d atrás', status: 'active' }
-    ]);
+    const [students, setStudents] = useState<Student[]>([]);
+
+    useEffect(() => {
+        const loadPortalData = async () => {
+            setIsLoading(true);
+            try {
+                const savedUser = localStorage.getItem('school_user');
+                if (savedUser) {
+                    const parsed = JSON.parse(savedUser);
+                    setTeacher({
+                        fullName: parsed.fullname || parsed.fullName || 'Professor',
+                        profilePicture: ''
+                    });
+                }
+
+                const allUsers = await api.school.getUsers();
+                if (allUsers) {
+                    // Filter for students and map to required format
+                    const studentList = allUsers
+                        .filter((u: any) => u.role === 'student')
+                        .map((s: any) => ({
+                            id: s.id,
+                            name: s.fullname,
+                            progress: Math.floor(Math.random() * 100), // Mocked progress
+                            lastActive: 'Ativo agora',
+                            status: 'active' as 'active' | 'inactive'
+                        }));
+                    setStudents(studentList);
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadPortalData();
+    }, []);
 
     const handleLogout = () => {
+        localStorage.removeItem('school_user');
         navigate('/school/login');
     };
 
@@ -41,11 +76,11 @@ const TeacherPortal: React.FC = () => {
                     <Logo className="h-12 w-auto mb-6 brightness-0 invert" />
                     <div className="flex items-center space-x-3 bg-white/5 p-4 rounded-2xl border border-white/10">
                         <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-black text-lg">
-                            P
+                            {teacher.fullName.charAt(0)}
                         </div>
                         <div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-blue-400">Professor</p>
-                            <h3 className="font-bold text-sm">Pr. Antunes</h3>
+                            <h3 className="font-bold text-sm">{teacher.fullName}</h3>
                         </div>
                     </div>
                 </div>

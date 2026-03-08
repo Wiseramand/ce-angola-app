@@ -53,7 +53,15 @@ const AdminDashboard: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [schoolRequests, setSchoolRequests] = useState<SchoolRequest[]>([]);
+  const [schoolUsers, setSchoolUsers] = useState<any[]>([]);
+  const [schoolModules, setSchoolModules] = useState<any[]>([]);
+  const [schoolSubTab, setSchoolSubTab] = useState<'requests' | 'students' | 'teachers' | 'media'>('requests');
   const [showSchoolModal, setShowSchoolModal] = useState(false);
+  const [showTeacherModal, setShowTeacherModal] = useState(false);
+  const [showModuleModal, setShowModuleModal] = useState(false);
+  const [editingModule, setEditingModule] = useState<any>(null);
+  const [newTeacher, setNewTeacher] = useState({ fullname: '', username: '', password: '', email: '', phone: '' });
+  const [moduleForm, setModuleForm] = useState({ title: '', description: '', video_url: '', module_order: 1 });
   const [selectedRequest, setSelectedRequest] = useState<SchoolRequest | null>(null);
   const [credentials, setCredentials] = useState<{ username: string, password: string, phone: string, email: string } | null>(null);
 
@@ -100,8 +108,14 @@ const AdminDashboard: React.FC = () => {
         });
       }
 
-      const sRequests = await api.school.getRequests();
+      const [sRequests, sUsers, sModules] = await Promise.all([
+        api.school.getRequests(),
+        api.school.getUsers(),
+        api.school.getModules()
+      ]);
       if (sRequests) setSchoolRequests(sRequests);
+      if (sUsers) setSchoolUsers(sUsers);
+      if (sModules) setSchoolModules(sModules);
     } catch (e) { console.error(e); } finally { setIsRefreshing(false); }
   };
 
@@ -250,6 +264,59 @@ const AdminDashboard: React.FC = () => {
     } else {
       window.location.href = `mailto:${credentials.email}?subject=Credenciais Escola de Fundação&body=${encodeURIComponent(text)}`;
     }
+  };
+
+  const handleSaveTeacher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsRefreshing(true);
+    try {
+      await api.school.saveUser({ ...newTeacher, role: 'teacher' });
+      setShowTeacherModal(false);
+      setNewTeacher({ fullname: '', username: '', password: '', email: '', phone: '' });
+      loadData();
+    } catch (e) {
+      alert("Erro ao salvar professor.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleSaveModule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsRefreshing(true);
+    try {
+      if (editingModule) {
+        await api.school.saveModule({ ...moduleForm, id: editingModule.id });
+      } else {
+        await api.school.saveModule(moduleForm);
+      }
+      setShowModuleModal(false);
+      setEditingModule(null);
+      setModuleForm({ title: '', description: '', video_url: '', module_order: schoolModules.length + 1 });
+      loadData();
+    } catch (e) {
+      alert("Erro ao salvar módulo.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleDeleteSchoolUser = async (id: number) => {
+    if (!confirm("Eliminar este utilizador da escola?")) return;
+    setIsRefreshing(true);
+    try {
+      await api.school.deleteUser(id);
+      loadData();
+    } catch (e) { console.error(e); } finally { setIsRefreshing(false); }
+  };
+
+  const handleDeleteModule = async (id: number) => {
+    if (!confirm("Eliminar este módulo?")) return;
+    setIsRefreshing(true);
+    try {
+      await api.school.deleteModule(id);
+      loadData();
+    } catch (e) { console.error(e); } finally { setIsRefreshing(false); }
   };
 
   useEffect(() => { loadData(); }, []);
@@ -529,58 +596,195 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
         {activeTab === 'school' && (
-          <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex justify-between items-center mb-4">
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
               <div>
-                <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">Solicitações de Alunos</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Aprovação de acesso para a Escola de Fundação</p>
+                <h3 className="font-black text-ministry-blue uppercase text-lg tracking-tight">Escola de Fundação</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Gestão de Alunos, Professores e Conteúdo</p>
               </div>
-            </div>
+              <nav className="flex bg-slate-100 p-1.5 rounded-2xl">
+                <button onClick={() => setSchoolSubTab('requests')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'requests' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Solicitações</button>
+                <button onClick={() => setSchoolSubTab('students')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'students' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Alunos</button>
+                <button onClick={() => setSchoolSubTab('teachers')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'teachers' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Professores</button>
+                <button onClick={() => setSchoolSubTab('media')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'media' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Área Média</button>
+              </nav>
+            </header>
 
-            <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
-                    <th className="px-8 py-5">Aluno</th>
-                    <th className="px-8 py-5">Localização</th>
-                    <th className="px-8 py-5">Membro?</th>
-                    <th className="px-8 py-5 text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {schoolRequests.length === 0 ? (
-                    <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Sem solicitações pendentes.</td></tr>
-                  ) : schoolRequests.map(r => (
-                    <tr key={r.id} className="hover:bg-slate-50 transition">
-                      <td className="px-8 py-6">
-                        <div className="font-bold text-ministry-blue uppercase text-xs">{r.fullname}</div>
-                        <div className="text-[10px] text-slate-400 font-bold">{r.email} • {r.phone}</div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="text-[10px] font-black text-slate-600 uppercase">{r.city}, {r.state}</div>
-                        <div className="text-[9px] text-slate-400 font-bold uppercase">{r.neighborhood}, {r.country}</div>
-                      </td>
-                      <td className="px-8 py-6">
-                        {r.is_member ? (
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-green-600 uppercase">Sim</span>
-                            <span className="text-[9px] text-slate-400 font-bold truncate max-w-[150px]">{r.church_name}</span>
-                          </div>
-                        ) : (
-                          <span className="text-[10px] font-black text-slate-400 uppercase">Não</span>
-                        )}
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <div className="flex justify-end space-x-2">
-                          <button onClick={() => handleApproveSchool(r.id)} className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition">Aprovar</button>
-                          <button onClick={() => handleRejectSchool(r.id)} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition">Rejeitar</button>
-                        </div>
-                      </td>
+            {schoolSubTab === 'requests' && (
+              <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
+                      <th className="px-8 py-5">Aluno</th>
+                      <th className="px-8 py-5">Localização</th>
+                      <th className="px-8 py-5">Membro?</th>
+                      <th className="px-8 py-5 text-right">Ações</th>
                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {schoolRequests.length === 0 ? (
+                      <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Sem solicitações pendentes.</td></tr>
+                    ) : schoolRequests.map(r => (
+                      <tr key={r.id} className="hover:bg-slate-50 transition">
+                        <td className="px-8 py-6">
+                          <div className="font-bold text-ministry-blue uppercase text-xs">{r.fullname}</div>
+                          <div className="text-[10px] text-slate-400 font-bold">{r.email} • {r.phone}</div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="text-[10px] font-black text-slate-600 uppercase">{r.city}, {r.state}</div>
+                          <div className="text-[9px] text-slate-400 font-bold uppercase">{r.neighborhood}, {r.country}</div>
+                        </td>
+                        <td className="px-8 py-6">
+                          {r.is_member ? (
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-black text-green-600 uppercase">Sim</span>
+                              <span className="text-[9px] text-slate-400 font-bold truncate max-w-[150px]">{r.church_name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] font-black text-slate-400 uppercase">Não</span>
+                          )}
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex justify-end space-x-2">
+                            <button onClick={() => handleApproveSchool(r.id)} className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition">Aprovar</button>
+                            <button onClick={() => { setSelectedRequest(r); handleRejectSchool(r.id); }} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition">Rejeitar</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {schoolSubTab === 'students' && (
+              <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
+                      <th className="px-8 py-5">Aluno</th>
+                      <th className="px-8 py-5">Credenciais</th>
+                      <th className="px-8 py-5">Data Registo</th>
+                      <th className="px-8 py-5 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {schoolUsers.filter(u => u.role === 'student').length === 0 ? (
+                      <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum aluno registado.</td></tr>
+                    ) : schoolUsers.filter(u => u.role === 'student').map(u => (
+                      <tr key={u.id} className="hover:bg-slate-50 transition">
+                        <td className="px-8 py-6">
+                          <div className="font-bold text-ministry-blue uppercase text-xs">{u.fullname}</div>
+                          <div className="text-[10px] text-slate-400 font-bold">{u.email} • {u.phone}</div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-mono text-slate-600">{u.username}</span>
+                        </td>
+                        <td className="px-8 py-6 text-[10px] text-slate-400 font-bold">
+                          {new Date(u.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={16} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {schoolSubTab === 'teachers' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center px-4">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Docentes Ativos</h4>
+                  <button onClick={() => setShowTeacherModal(true)} className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md">
+                    <UserPlus size={14} />
+                    <span>Novo Professor</span>
+                  </button>
+                </div>
+                <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
+                        <th className="px-8 py-5">Professor</th>
+                        <th className="px-8 py-5">Login</th>
+                        <th className="px-8 py-5">Status</th>
+                        <th className="px-8 py-5 text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {schoolUsers.filter(u => u.role === 'teacher').length === 0 ? (
+                        <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum professor registado.</td></tr>
+                      ) : schoolUsers.filter(u => u.role === 'teacher').map(u => (
+                        <tr key={u.id} className="hover:bg-slate-50 transition">
+                          <td className="px-8 py-6">
+                            <div className="font-bold text-ministry-blue uppercase text-xs">{u.fullname}</div>
+                            <div className="text-[10px] text-slate-400 font-bold">{u.email}</div>
+                          </td>
+                          <td className="px-8 py-6 font-mono text-xs text-slate-500">{u.username}</td>
+                          <td className="px-8 py-6">
+                            <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">Ativo</span>
+                          </td>
+                          <td className="px-8 py-6 text-right">
+                            <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={16} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {schoolSubTab === 'media' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center px-4">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Currículo da Escola</h4>
+                  <button onClick={() => {
+                    setEditingModule(null);
+                    setModuleForm({ title: '', description: '', video_url: '', module_order: schoolModules.length + 1 });
+                    setShowModuleModal(true);
+                  }}
+                    className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md"
+                  >
+                    <Video size={14} />
+                    <span>Adicionar Módulo</span>
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {schoolModules.map(m => (
+                    <div key={m.id} className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 flex flex-col justify-between group hover:border-ministry-gold transition-all">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-start">
+                          <span className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xs">{m.module_order}</span>
+                          <div className="flex space-x-1">
+                            <button onClick={() => {
+                              setEditingModule(m);
+                              setModuleForm({ title: m.title, description: m.description, video_url: m.video_url || '', module_order: m.module_order });
+                              setShowModuleModal(true);
+                            }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
+                            <button onClick={() => handleDeleteModule(m.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
+                          </div>
+                        </div>
+                        <div>
+                          <h5 className="text-sm font-black text-ministry-blue uppercase tracking-tight">{m.title}</h5>
+                          <p className="text-[10px] text-gray-500 font-medium line-clamp-2 mt-2">{m.description}</p>
+                        </div>
+                      </div>
+                      <div className="mt-8 pt-6 border-t border-slate-50">
+                        <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest">
+                          <div className={`flex items-center space-x-2 ${m.video_url ? 'text-green-500' : 'text-slate-300'}`}>
+                            <Play size={14} />
+                            <span>{m.video_url ? 'Vídeo OK' : 'Sem Vídeo'}</span>
+                          </div>
+                          <span className="text-slate-400 font-bold">Módulo {m.module_order}</span>
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -619,6 +823,64 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               <button onClick={() => setShowSchoolModal(false)} className="mt-8 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:text-ministry-gold transition">Fechar Janela</button>
+            </div>
+          </div>
+        )}
+
+        {showTeacherModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300">
+              <button onClick={() => setShowTeacherModal(false)} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
+                <X size={28} />
+              </button>
+              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">Criar Acesso Professor</h2>
+              <form onSubmit={handleSaveTeacher} className="space-y-6">
+                <InputField label="Nome Completo" value={newTeacher.fullname} onChange={v => setNewTeacher({ ...newTeacher, fullname: v })} placeholder="Ex: Pr. Antunes" />
+                <InputField label="Email" value={newTeacher.email} onChange={v => setNewTeacher({ ...newTeacher, email: v })} />
+                <InputField label="ID de Utilizador" value={newTeacher.username} onChange={v => setNewTeacher({ ...newTeacher, username: v.toLowerCase() })} placeholder="ex: pr_antunes" />
+                <InputField label="Senha Secreta" value={newTeacher.password} onChange={v => setNewTeacher({ ...newTeacher, password: v })} placeholder="Mínimo 6 caracteres" />
+                <div className="pt-6">
+                  <button type="submit" className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-blue transition-all">
+                    Ativar Conta Professor
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showModuleModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300">
+              <button onClick={() => { setShowModuleModal(false); setEditingModule(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
+                <X size={28} />
+              </button>
+              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingModule ? 'Editar' : 'Novo'} Módulo</h2>
+              <form onSubmit={handleSaveModule} className="space-y-6">
+                <div className="grid grid-cols-4 gap-4 items-end">
+                  <div className="col-span-3">
+                    <InputField label="Título do Módulo" value={moduleForm.title} onChange={v => setModuleForm({ ...moduleForm, title: v })} placeholder="Ex: Módulo 1" />
+                  </div>
+                  <div className="col-span-1">
+                    <InputField label="Ordem" value={String(moduleForm.module_order)} onChange={v => setModuleForm({ ...moduleForm, module_order: parseInt(v) || 1 })} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase block ml-2 tracking-widest">Descrição do Conteúdo</label>
+                  <textarea
+                    value={moduleForm.description}
+                    onChange={e => setModuleForm({ ...moduleForm, description: e.target.value })}
+                    className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm min-h-[100px]"
+                    placeholder="O que os alunos vão aprender?"
+                  />
+                </div>
+                <InputField label="ID do Vídeo / URL" value={moduleForm.video_url} onChange={v => setModuleForm({ ...moduleForm, video_url: v })} placeholder="Link Drive ou Embed" />
+                <div className="pt-6">
+                  <button type="submit" className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-gold transition-all">
+                    {editingModule ? 'Atualizar Módulo' : 'Publicar Módulo'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

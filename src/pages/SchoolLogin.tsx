@@ -4,25 +4,36 @@ import { Link, useNavigate } from 'react-router-dom';
 import { GraduationCap, ArrowLeft, Lock, User, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Logo from '../components/Logo';
+import { api } from '../services/api';
 
 const SchoolLogin: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
-        userId: '',
+        username: '',
         password: ''
     });
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        // Logic to handle login (Student, Teacher, or Admin)
-        // api.school.login(formData)
-        setTimeout(() => {
+        setError('');
+        try {
+            const res = await api.school.login(formData.username, formData.password);
+            if (res.success) {
+                localStorage.setItem('school_user', JSON.stringify(res.user));
+                if (res.user.role === 'teacher') {
+                    navigate('/school/teacher');
+                } else {
+                    navigate('/school/portal');
+                }
+            }
+        } catch (err: any) {
+            setError(err.message || 'Erro ao entrar no portal');
             setIsLoading(false);
-            // navigate('/school/portal');
-        }, 1000);
+        }
     };
 
     return (
@@ -46,6 +57,11 @@ const SchoolLogin: React.FC = () => {
 
                 <div className="bg-gray-900/50 backdrop-blur-xl p-10 rounded-[2.5rem] border border-white/5 shadow-2xl">
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {error && (
+                            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500 text-xs font-bold text-center">
+                                {error}
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">ID de Estudante</label>
                             <div className="relative">
@@ -55,8 +71,8 @@ const SchoolLogin: React.FC = () => {
                                     required
                                     placeholder="Seu ID de acesso"
                                     className="w-full bg-black/40 border border-white/5 rounded-2xl pl-12 pr-4 py-4 text-white text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold transition"
-                                    value={formData.userId}
-                                    onChange={e => setFormData({ ...formData, userId: e.target.value })}
+                                    value={formData.username}
+                                    onChange={e => setFormData({ ...formData, username: e.target.value })}
                                 />
                             </div>
                         </div>

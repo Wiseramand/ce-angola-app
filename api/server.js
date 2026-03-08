@@ -65,13 +65,29 @@ const initDb = async () => {
       INSERT INTO system_config (id, public_title) VALUES (1, 'LoveWorld TV Angola') ON CONFLICT DO NOTHING;
     `);
 
+    // GArantir que a tabela foundation_modules tem as colunas corretas se já existir
+    try {
+      await pool.query("ALTER TABLE foundation_modules ADD COLUMN IF NOT EXISTS video_url TEXT");
+      await pool.query("ALTER TABLE foundation_modules ADD COLUMN IF NOT EXISTS module_order INTEGER");
+    } catch (e) { }
+
     // Initialize 8 Modules if not present
     const modulesCount = await pool.query("SELECT COUNT(*) FROM foundation_modules");
     if (parseInt(modulesCount.rows[0].count) === 0) {
-      for (let i = 1; i <= 8; i++) {
+      const defaultModules = [
+        ["Módulo 1", "Introdução à Escola de Fundação"],
+        ["Módulo 2", "A Nova Criatura"],
+        ["Módulo 3", "Integridade da Palavra"],
+        ["Módulo 4", "Doutrinas Fundamentais 1"],
+        ["Módulo 5", "Doutrinas Fundamentais 2"],
+        ["Módulo 6", "O Espírito Santo"],
+        ["Módulo 7", "Evangelismo e Missões"],
+        ["Módulo 8", "Crescimento Espiritual"]
+      ];
+      for (let i = 0; i < defaultModules.length; i++) {
         await pool.query(
           "INSERT INTO foundation_modules (title, description, module_order) VALUES ($1, $2, $3)",
-          [`Módulo ${i}`, `Descrição do conteúdo do Módulo ${i}`, i]
+          [defaultModules[i][0], defaultModules[i][1], i + 1]
         );
       }
     }
@@ -148,6 +164,84 @@ export default async function handler(req, res) {
           }
         }
         await pool.query("UPDATE school_requests SET status = 'rejected' WHERE id = $1", [id]);
+        return res.status(200).json({ success: true });
+      }
+    }
+
+    // ESCOLA DE FUNDAÇÃO: LOGIN (Aluno e Professor)
+    if (path.endsWith('/school/login')) {
+      if (req.method === 'POST') {
+        const { username, password } = await getRequestBody(req);
+        const r = await pool.query("SELECT * FROM school_users WHERE username = $1 AND password = $2", [username, password]);
+        if (r.rows.length > 0) {
+          const user = r.rows[0];
+          return res.status(200).json({
+            success: true,
+            user: { ...user, password: undefined }
+          });
+        }
+        return res.status(401).json({ error: 'ID de Utilizador ou Senha incorreta.' });
+      }
+    }
+
+    // ESCOLA DE FUNDAÇÃO: GESTÃO DE USUÁRIOS
+    if (path.endsWith('/school/users')) {
+      if (req.method === 'GET') {
+        const role = queryParams.get('role');
+        let r;
+        if (role) {
+          r = await pool.query("SELECT id, fullname, username, role, email, phone, status, created_at FROM school_users WHERE role = $1 ORDER BY created_at DESC", [role]);
+        } else {
+          r = await pool.query("SELECT id, fullname, username, role, email, phone, status, created_at FROM school_users ORDER BY role, created_at DESC");
+        }
+        return res.status(200).json(r.rows);
+      }
+      if (req.method === 'POST') {
+        const { id, fullname, username, password, role, email, phone } = await getRequestBody(req);
+        if (id) {
+          await pool.query(
+            "UPDATE school_users SET fullname=$1, username=$2, password=$3, role=$4, email=$5, phone=$6 WHERE id=$7",
+            [fullname, username, password, role || 'student', email, phone, id]
+          );
+        } else {
+          await pool.query(
+            "INSERT INTO school_users (fullname, username, password, role, email, phone) VALUES ($1,$2,$3,$4,$5,$6)",
+            [fullname, username, password, role || 'teacher', email, phone]
+          );
+        }
+        return res.status(200).json({ success: true });
+      }
+      if (req.method === 'DELETE') {
+        const id = queryParams.get('id');
+        await pool.query("DELETE FROM school_users WHERE id = $1", [id]);
+        return res.status(200).json({ success: true });
+      }
+    }
+
+    // ESCOLA DE FUNDAÇÃO: GESTÃO DE MÓDULOS (Área Média)
+    if (path.endsWith('/school/modules')) {
+      if (req.method === 'GET') {
+        const r = await pool.query("SELECT * FROM foundation_modules ORDER BY module_order ASC");
+        return res.status(200).json(r.rows);
+      }
+      if (req.method === 'POST') {
+        const { id, title, description, video_url, module_order } = await getRequestBody(req);
+        if (id) {
+          await pool.query(
+            "UPDATE foundation_modules SET title=$1, description=$2, video_url=$3, module_order=$4 WHERE id=$5",
+            [title, description, video_url, module_order, id]
+          );
+        } else {
+          await pool.query(
+            "INSERT INTO foundation_modules (title, description, video_url, module_order) VALUES ($1,$2,$3,$4)",
+            [title, description, video_url, module_order]
+          );
+        }
+        return res.status(200).json({ success: true });
+      }
+      if (req.method === 'DELETE') {
+        const id = queryParams.get('id');
+        await pool.query("DELETE FROM foundation_modules WHERE id = $1", [id]);
         return res.status(200).json({ success: true });
       }
     }

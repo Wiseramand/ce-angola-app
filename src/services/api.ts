@@ -334,30 +334,67 @@ export const api = {
   },
 
   school: {
+    login: async (username: string, pass: string): Promise<any> => {
+      const res = await fetch(`${CURRENT_API_URL}/school/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password: pass })
+      });
+      if (!res.ok) throw new Error("ID de Utilizador ou Senha incorreta.");
+      return await res.json();
+    },
     register: async (formData: any): Promise<void> => {
-      if (!USE_BACKEND) return;
       const res = await fetch(`${CURRENT_API_URL}/school/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
       if (!res.ok) throw new Error("Falha ao enviar inscrição.");
     },
     getRequests: async (): Promise<any[]> => {
-      if (!USE_BACKEND) return [];
       const res = await fetch(`${CURRENT_API_URL}/admin/school/requests`);
       if (res.ok) return await res.json();
       return [];
     },
     approveRequest: async (id: number, action: 'approve' | 'reject'): Promise<any> => {
-      if (!USE_BACKEND) return;
       const res = await fetch(`${CURRENT_API_URL}/admin/school/requests`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, action })
       });
       if (res.ok) return await res.json();
       throw new Error("Falha ao processar solicitação.");
+    },
+    getUsers: async (role?: string): Promise<any[]> => {
+      const url = role ? `${CURRENT_API_URL}/school/users?role=${role}` : `${CURRENT_API_URL}/school/users`;
+      const res = await fetch(url);
+      if (res.ok) return await res.json();
+      return [];
+    },
+    saveUser: async (userData: any): Promise<void> => {
+      await fetch(`${CURRENT_API_URL}/school/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+    },
+    deleteUser: async (id: number): Promise<void> => {
+      await fetch(`${CURRENT_API_URL}/school/users?id=${id}`, { method: 'DELETE' });
+    },
+    getModules: async (): Promise<any[]> => {
+      const res = await fetch(`${CURRENT_API_URL}/school/modules`);
+      if (res.ok) return await res.json();
+      return [];
+    },
+    saveModule: async (moduleData: any): Promise<void> => {
+      await fetch(`${CURRENT_API_URL}/school/modules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(moduleData)
+      });
+    },
+    deleteModule: async (id: number): Promise<void> => {
+      await fetch(`${CURRENT_API_URL}/school/modules?id=${id}`, { method: 'DELETE' });
     }
   }
 };

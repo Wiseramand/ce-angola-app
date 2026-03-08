@@ -24,26 +24,50 @@ const StudentPortal: React.FC = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'dashboard' | 'modules' | 'live' | 'profile'>('dashboard');
     const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [student, setStudent] = useState({
-        fullName: 'Wilson Carlos',
-        email: 'wilson@example.com',
-        phone: '+244 923 000 000',
+        fullName: 'Estudante',
+        email: '',
+        phone: '',
         profilePicture: ''
     });
 
-    const [modules, setModules] = useState<Module[]>([
-        { id: 1, title: 'O Novo Nascimento', description: 'Entenda o que significa nascer de novo em Cristo.', isCompleted: true, isUnlocked: true, score: 100 },
-        { id: 2, title: 'A Natureza de Deus', description: 'Conheça o caráter e os atributos do nosso Pai Celestial.', isCompleted: false, isUnlocked: true, score: null },
-        { id: 3, title: 'Obras de Retidão', description: 'Vivendo a vida que Deus planejou para você.', isCompleted: false, isUnlocked: false, score: null },
-        { id: 4, title: 'O Espírito Santo', description: 'O Consolador e Guia na vida do crente.', isCompleted: false, isUnlocked: false, score: null },
-        { id: 5, title: 'Doutrina de Baptismos', description: 'O significado e a importância dos baptismos.', isCompleted: false, isUnlocked: false, score: null },
-        { id: 6, title: 'A Evangelização', description: 'Nossa missão e o poder do testemunho.', isCompleted: false, isUnlocked: false, score: null },
-        { id: 7, title: 'A Igreja Local', description: 'O corpo de Cristo e nossa responsabilidade.', isCompleted: false, isUnlocked: false, score: null },
-        { id: 8, title: 'Doutrina do Senhor', description: 'Princípios fundamentais da fé cristã.', isCompleted: false, isUnlocked: false, score: null }
-    ]);
+    const [modules, setModules] = useState<Module[]>([]);
+
+    useEffect(() => {
+        const loadPortalData = async () => {
+            setIsLoading(true);
+            try {
+                const savedUser = localStorage.getItem('school_user');
+                if (savedUser) {
+                    const parsed = JSON.parse(savedUser);
+                    setStudent({
+                        fullName: parsed.fullname || parsed.fullName || 'Estudante',
+                        email: parsed.email || '',
+                        phone: parsed.phone || '',
+                        profilePicture: ''
+                    });
+                }
+
+                const mods = await api.school.getModules();
+                if (mods) {
+                    setModules(mods.map((m: any) => ({
+                        ...m,
+                        isCompleted: false, // Mocked for now, backend could track this
+                        isUnlocked: true    // All unlocked for now
+                    })));
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadPortalData();
+    }, []);
 
     const handleLogout = () => {
-        // logout logic
+        localStorage.removeItem('school_user');
         navigate('/school/login');
     };
 
@@ -167,8 +191,8 @@ const ModulesView = ({ modules }: { modules: Module[] }) => {
                     <div
                         key={m.id}
                         className={`group relative p-8 rounded-[2.5rem] border-2 transition-all duration-500 ${m.isUnlocked
-                                ? 'bg-white border-gray-100 hover:border-ministry-gold hover:shadow-2xl cursor-pointer'
-                                : 'bg-gray-50 border-transparent opacity-60 grayscale'
+                            ? 'bg-white border-gray-100 hover:border-ministry-gold hover:shadow-2xl cursor-pointer'
+                            : 'bg-gray-50 border-transparent opacity-60 grayscale'
                             }`}
                     >
                         <div className="flex justify-between items-start mb-6">
