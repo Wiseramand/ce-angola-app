@@ -77,19 +77,18 @@ const initDb = async () => {
     `);
 
     // GArantir que a tabela school_users e foundation_modules têm as colunas corretas
-    try {
-      await pool.query("ALTER TABLE school_users ADD COLUMN IF NOT EXISTS is_credentials_generated BOOLEAN DEFAULT FALSE");
-      await pool.query("ALTER TABLE school_users ADD COLUMN IF NOT EXISTS state TEXT");
-      await pool.query("ALTER TABLE school_users ADD COLUMN IF NOT EXISTS city TEXT");
-      await pool.query("ALTER TABLE school_users ADD COLUMN IF NOT EXISTS neighborhood TEXT");
-      await pool.query("ALTER TABLE school_users ADD COLUMN IF NOT EXISTS is_member BOOLEAN");
-      await pool.query("ALTER TABLE school_users ADD COLUMN IF NOT EXISTS church_name TEXT");
-      await pool.query("ALTER TABLE school_users ADD COLUMN IF NOT EXISTS church_address TEXT");
-      await pool.query("ALTER TABLE school_users ADD COLUMN IF NOT EXISTS church_phone TEXT");
+    const userColumns = [
+      "is_credentials_generated BOOLEAN DEFAULT FALSE",
+      "email TEXT", "phone TEXT", "country TEXT", "state TEXT",
+      "city TEXT", "neighborhood TEXT", "is_member BOOLEAN",
+      "church_name TEXT", "church_address TEXT", "church_phone TEXT"
+    ];
+    for (const col of userColumns) {
+      try { await pool.query(`ALTER TABLE school_users ADD COLUMN IF NOT EXISTS ${col}`); } catch (e) { }
+    }
 
-      await pool.query("ALTER TABLE foundation_modules ADD COLUMN IF NOT EXISTS video_url TEXT");
-      await pool.query("ALTER TABLE foundation_modules ADD COLUMN IF NOT EXISTS module_order INTEGER");
-    } catch (e) { }
+    try { await pool.query("ALTER TABLE foundation_modules ADD COLUMN IF NOT EXISTS video_url TEXT"); } catch (e) { }
+    try { await pool.query("ALTER TABLE foundation_modules ADD COLUMN IF NOT EXISTS module_order INTEGER"); } catch (e) { }
 
     // Initialize Foundation Classes
     const modulesCount = await pool.query("SELECT COUNT(*) FROM foundation_modules");
