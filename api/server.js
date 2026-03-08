@@ -80,9 +80,10 @@ const initDb = async () => {
         is_private_mode BOOLEAN DEFAULT FALSE,
         is_teacher_live BOOLEAN DEFAULT FALSE,
         live_teacher_name TEXT,
+        live_teacher_id TEXT,
         school_live_url TEXT
       );
-      INSERT INTO system_config (id, public_title, public_url, public_url2, public_description, private_url, private_url2, private_title, private_description, is_private_mode, is_teacher_live, live_teacher_name, school_live_url) VALUES (1, 'LoveWorld TV Angola', '', '', '', '', '', '', '', FALSE, FALSE, '', '') ON CONFLICT (id) DO NOTHING;
+      INSERT INTO system_config (id, public_title, public_url, public_url2, public_description, private_url, private_url2, private_title, private_description, is_private_mode, is_teacher_live, live_teacher_name, live_teacher_id, school_live_url) VALUES (1, 'LoveWorld TV Angola', '', '', '', '', '', '', '', FALSE, FALSE, '', '', '') ON CONFLICT (id) DO NOTHING;
     `);
 
     // GArantir que a tabela school_users e foundation_modules têm as colunas corretas
@@ -97,17 +98,19 @@ const initDb = async () => {
       try { await pool.query(`ALTER TABLE school_users ADD COLUMN IF NOT EXISTS ${col}`); } catch (e) { }
     }
 
-    const systemColumns = [
-      "public_url TEXT", "public_url2 TEXT", "public_title TEXT", "public_description TEXT",
-      "private_url TEXT", "private_url2 TEXT", "private_title TEXT", "private_description TEXT",
-      "is_private_mode BOOLEAN DEFAULT FALSE",
-      "is_teacher_live BOOLEAN DEFAULT FALSE",
-      "live_teacher_name TEXT",
-      "live_teacher_id TEXT",
-      "school_live_url TEXT"
+    // Ensure all live streaming columns exist - critical runtime migrations
+    const criticalMigrations = [
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS is_teacher_live BOOLEAN DEFAULT FALSE",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS live_teacher_name TEXT",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS live_teacher_id TEXT",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS school_live_url TEXT",
     ];
-    for (const col of systemColumns) {
-      try { await pool.query(`ALTER TABLE system_config ADD COLUMN IF NOT EXISTS ${col}`); } catch (e) { }
+    for (const migration of criticalMigrations) {
+      try {
+        await pool.query(migration);
+      } catch (e) {
+        console.error(`Migration failed: ${migration}`, e.message);
+      }
     }
 
     // Ensure defaults for live fields
