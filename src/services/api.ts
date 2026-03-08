@@ -340,8 +340,19 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password: pass })
       });
-      if (!res.ok) throw new Error("ID de Utilizador ou Senha incorreta.");
-      return await res.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "ID de Utilizador ou Senha incorreta.");
+      return data;
+    },
+    teacherLogin: async (username: string, pass: string): Promise<any> => {
+      const res = await fetch(`${CURRENT_API_URL}/school/teacher/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password: pass })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Acesso negado.");
+      return data;
     },
     register: async (formData: any): Promise<void> => {
       const res = await fetch(`${CURRENT_API_URL}/school/register`, {

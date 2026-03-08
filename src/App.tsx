@@ -23,6 +23,7 @@ import { api } from './services/api';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import ContactUs from './pages/ContactUs';
 import SchoolLogin from './pages/SchoolLogin';
+import TeacherLogin from './pages/TeacherLogin';
 import SchoolRegister from './pages/SchoolRegister';
 import StudentPortal from './pages/StudentPortal';
 import TeacherPortal from './pages/TeacherPortal';
@@ -274,6 +275,7 @@ const AppContent: React.FC = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/school/login" element={<SchoolLogin />} />
+          <Route path="/school/teacher/login" element={<TeacherLogin />} />
           <Route path="/school/register" element={<SchoolRegister />} />
           <Route path="/school/portal" element={<StudentPortal />} />
           <Route path="/school/teacher" element={<TeacherPortal />} />

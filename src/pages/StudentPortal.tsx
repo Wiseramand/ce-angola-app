@@ -67,7 +67,11 @@ const StudentPortal: React.FC = () => {
         const loadPortalData = async () => {
             setIsLoading(true);
             try {
-                const savedUser = localStorage.getItem('school_user');
+                const savedUser = localStorage.getItem('school_student');
+                if (!savedUser) {
+                    navigate('/school/login');
+                    return;
+                }
                 if (savedUser) {
                     const parsed = JSON.parse(savedUser);
                     setStudent({
@@ -105,7 +109,7 @@ const StudentPortal: React.FC = () => {
     }, []);
 
     const handleLogout = () => {
-        localStorage.removeItem('school_user');
+        localStorage.removeItem('school_student');
         navigate('/school/login');
     };
 

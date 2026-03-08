@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GraduationCap, ArrowLeft, Lock, User, ShieldCheck } from 'lucide-react';
@@ -6,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import Logo from '../components/Logo';
 import { api } from '../services/api';
 
-const SchoolLogin: React.FC = () => {
+const TeacherLogin: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
@@ -21,10 +20,10 @@ const SchoolLogin: React.FC = () => {
         setIsLoading(true);
         setError('');
         try {
-            const res = await api.school.login(formData.username, formData.password);
+            const res = await api.school.teacherLogin(formData.username, formData.password);
             if (res.success) {
-                localStorage.setItem('school_student', JSON.stringify(res.user));
-                navigate('/school/portal');
+                localStorage.setItem('school_teacher', JSON.stringify(res.user));
+                navigate('/school/teacher');
             }
         } catch (err: any) {
             setError(err.message || 'Erro ao entrar no portal');
@@ -47,8 +46,8 @@ const SchoolLogin: React.FC = () => {
                         <GraduationCap size={16} />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em]">Escola de Fundação</span>
                     </div>
-                    <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Portal do Aluno</h1>
-                    <p className="text-gray-500 font-medium">Acesse sua área de estudo e acompanhe seu progresso espiritual.</p>
+                    <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Portal do Professor</h1>
+                    <p className="text-gray-500 font-medium">Liderar, instruir e acompanhar os alunos na Palavra.</p>
                 </div>
 
                 <div className="bg-gray-900/50 backdrop-blur-xl p-10 rounded-[2.5rem] border border-white/5 shadow-2xl">
@@ -103,21 +102,9 @@ const SchoolLogin: React.FC = () => {
                             )}
                         </button>
                     </form>
-
-                    <div className="mt-10 pt-8 border-t border-white/5">
-                        <p className="text-center text-gray-500 text-xs font-bold uppercase tracking-widest">
-                            Ainda não tem conta?
-                        </p>
-                        <Link
-                            to="/school/register"
-                            className="mt-4 w-full py-4 border border-white/10 text-white rounded-2xl font-bold text-sm hover:bg-white/5 transition-all flex items-center justify-center"
-                        >
-                            Inscrever-se na Escola
-                        </Link>
-                    </div>
                 </div>
 
-                <div className="text-center">
+                <div className="text-center mt-6">
                     <Link to="/" className="inline-flex items-center space-x-2 text-gray-600 hover:text-ministry-gold transition font-bold uppercase text-[10px] tracking-widest">
                         <ArrowLeft size={14} />
                         <span>Voltar ao Site Principal</span>
@@ -128,4 +115,4 @@ const SchoolLogin: React.FC = () => {
     );
 };
 
-export default SchoolLogin;
+export default TeacherLogin;

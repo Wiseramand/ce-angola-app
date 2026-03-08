@@ -61,8 +61,12 @@ const AdminDashboard: React.FC = () => {
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [editingModule, setEditingModule] = useState<any>(null);
-  const [newTeacher, setNewTeacher] = useState({ fullname: '', username: '', password: '', email: '', phone: '' });
-  const [newStudent, setNewStudent] = useState({ fullname: '', username: '', password: '', email: '', phone: '' });
+
+  const [editingTeacher, setEditingTeacher] = useState<any>(null);
+  const [newTeacher, setNewTeacher] = useState({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '' });
+
+  const [editingStudent, setEditingStudent] = useState<any>(null);
+  const [newStudent, setNewStudent] = useState({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '' });
   const [moduleForm, setModuleForm] = useState({ title: '', description: '', video_url: '', module_order: 1 });
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<SchoolRequest | null>(null);
@@ -282,14 +286,63 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const shareSchoolUserViaWhatsApp = (u: any) => {
+    const loginLink = u.role === 'teacher' ? `${window.location.origin}/school/teacher/login` : `${window.location.origin}/school/login`;
+    const text = `Olá ${u.fullname}, aqui estão as suas credenciais para a Escola de Fundação:\n\nLink: ${loginLink}\nUsuário: ${u.username}\nSenha: [Sua senha atual]\n\nSeja bem-vindo!`;
+    window.open(`https://wa.me/${u.phone.replace(/\D/g, '') || ''}?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const shareSchoolUserViaEmail = (u: any) => {
+    const loginLink = u.role === 'teacher' ? `${window.location.origin}/school/teacher/login` : `${window.location.origin}/school/login`;
+    const subject = "Suas Credenciais - Escola de Fundação";
+    const body = `Olá ${u.fullname},\n\nAqui estão as suas credenciais para a Escola de Fundação:\n\nLink: ${loginLink}\nUsuário: ${u.username}\nSenha: [Sua senha atual]\n\nDeus o abençoe!`;
+    window.location.href = `mailto:${u.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const copySchoolUserCredentials = (u: any) => {
+    const loginLink = u.role === 'teacher' ? `${window.location.origin}/school/teacher/login` : `${window.location.origin}/school/login`;
+    const text = `Acesso Escola de Fundação:\nLink: ${loginLink}\nUsuário: ${u.username}\nSenha: [Sua senha atual]`;
+    navigator.clipboard.writeText(text);
+    alert("Credenciais copiadas!");
+  };
+
+  const handleEditStudent = (u: any) => {
+    setEditingStudent(u);
+    setNewStudent({
+      fullname: u.fullname,
+      username: u.username,
+      password: '',
+      email: u.email || '',
+      phone: u.phone || '',
+      access_expiry: u.access_expiry ? new Date(u.access_expiry).toISOString().split('T')[0] : ''
+    });
+    setShowStudentModal(true);
+  };
+
+  const handleEditTeacher = (u: any) => {
+    setEditingTeacher(u);
+    setNewTeacher({
+      fullname: u.fullname,
+      username: u.username,
+      password: '',
+      email: u.email || '',
+      phone: u.phone || '',
+      access_expiry: u.access_expiry ? new Date(u.access_expiry).toISOString().split('T')[0] : ''
+    });
+    setShowTeacherModal(true);
+  };
+
   const handleSaveTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsRefreshing(true);
     try {
-      if (!newTeacher.fullname || !newTeacher.username || !newTeacher.password) throw new Error("Preencha os campos obrigatórios.");
-      await api.school.saveUser({ ...newTeacher, role: 'teacher' });
+      if (!newTeacher.fullname || !newTeacher.username || (!editingTeacher && !newTeacher.password)) throw new Error("Preencha os campos obrigatórios.");
+      const userData = { ...newTeacher, role: 'teacher', id: editingTeacher?.id };
+      if (!userData.password && editingTeacher) delete userData.password;
+      await api.school.saveUser(userData);
       setShowTeacherModal(false);
-      setNewTeacher({ fullname: '', username: '', password: '', email: '', phone: '' });
+      setEditingTeacher(null);
+      setNewTeacher({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '' });
       loadData();
     } catch (e: any) {
       alert("Erro ao salvar professor: " + e.message);
@@ -302,10 +355,13 @@ const AdminDashboard: React.FC = () => {
     e.preventDefault();
     setIsRefreshing(true);
     try {
-      if (!newStudent.fullname || !newStudent.username || !newStudent.password) throw new Error("Preencha os campos obrigatórios.");
-      await api.school.saveUser({ ...newStudent, role: 'student' });
+      if (!newStudent.fullname || !newStudent.username || (!editingStudent && !newStudent.password)) throw new Error("Preencha os campos obrigatórios.");
+      const userData = { ...newStudent, role: 'student', id: editingStudent?.id };
+      if (!userData.password && editingStudent) delete userData.password;
+      await api.school.saveUser(userData);
       setShowStudentModal(false);
-      setNewStudent({ fullname: '', username: '', password: '', email: '', phone: '' });
+      setEditingStudent(null);
+      setNewStudent({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '' });
       loadData();
     } catch (e: any) {
       alert("Erro ao salvar aluno: " + e.message);
@@ -744,7 +800,8 @@ const AdminDashboard: React.FC = () => {
                             )}
                           </td>
                           <td className="px-8 py-6 text-[10px] text-slate-400 font-bold">
-                            {new Date(u.created_at).toLocaleDateString()}
+                            <div>{new Date(u.created_at).toLocaleDateString()}</div>
+                            {u.access_expiry && <div className="text-red-400 mt-1">Val.: {new Date(u.access_expiry).toLocaleDateString()}</div>}
                           </td>
                           <td className="px-8 py-6 text-right">
                             <div className="flex justify-end space-x-2">
@@ -753,10 +810,14 @@ const AdminDashboard: React.FC = () => {
                                   onClick={() => handleGenerateSchoolCredentials(u.id)}
                                   className="px-4 py-2 bg-ministry-gold text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:translate-y-[-1px] transition-all"
                                 >
-                                  Gerar Credenciais
+                                  Gerar
                                 </button>
                               )}
-                              <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={16} /></button>
+                              <button onClick={() => shareSchoolUserViaWhatsApp(u)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition" title="Partilhar no WhatsApp"><MessageCircle size={14} /></button>
+                              <button onClick={() => shareSchoolUserViaEmail(u)} className="p-2 text-ministry-gold hover:bg-ministry-gold/10 rounded-lg transition" title="Enviar Email"><Mail size={14} /></button>
+                              <button onClick={() => copySchoolUserCredentials(u)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition" title="Copiar"><Copy size={14} /></button>
+                              <button onClick={() => handleEditStudent(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
+                              <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
                             </div>
                           </td>
                         </tr>
@@ -797,10 +858,21 @@ const AdminDashboard: React.FC = () => {
                           </td>
                           <td className="px-8 py-6 font-mono text-xs text-slate-500">{u.username}</td>
                           <td className="px-8 py-6">
-                            <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">Ativo</span>
+                            {u.access_expiry && new Date(u.access_expiry) < new Date() ? (
+                              <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-[9px] font-black uppercase tracking-widest">Expirado</span>
+                            ) : (
+                              <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">Ativo</span>
+                            )}
+                            {u.access_expiry && <div className="text-[9px] text-slate-400 font-bold mt-2">Val.: {new Date(u.access_expiry).toLocaleDateString()}</div>}
                           </td>
                           <td className="px-8 py-6 text-right">
-                            <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={16} /></button>
+                            <div className="flex justify-end space-x-2">
+                              <button onClick={() => shareSchoolUserViaWhatsApp(u)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition" title="Partilhar no WhatsApp"><MessageCircle size={14} /></button>
+                              <button onClick={() => shareSchoolUserViaEmail(u)} className="p-2 text-ministry-gold hover:bg-ministry-gold/10 rounded-lg transition" title="Enviar Email"><Mail size={14} /></button>
+                              <button onClick={() => copySchoolUserCredentials(u)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition" title="Copiar"><Copy size={14} /></button>
+                              <button onClick={() => handleEditTeacher(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
+                              <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -990,18 +1062,23 @@ const AdminDashboard: React.FC = () => {
         {showTeacherModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300">
-              <button onClick={() => setShowTeacherModal(false)} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
+              <button onClick={() => { setShowTeacherModal(false); setEditingTeacher(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
                 <X size={28} />
               </button>
-              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">Criar Acesso Professor</h2>
+              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingTeacher ? 'Editar' : 'Criar'} Acesso Professor</h2>
               <form onSubmit={handleSaveTeacher} className="space-y-6">
-                <InputField label="Nome Completo" value={newTeacher.fullname} onChange={v => setNewTeacher({ ...newTeacher, fullname: v })} placeholder="Ex: Pr. Antunes" />
-                <InputField label="Email" value={newTeacher.email} onChange={v => setNewTeacher({ ...newTeacher, email: v })} />
-                <InputField label="ID de Utilizador" value={newTeacher.username} onChange={v => setNewTeacher({ ...newTeacher, username: v.toLowerCase() })} placeholder="ex: pr_antunes" />
-                <InputField label="Senha Secreta" value={newTeacher.password} onChange={v => setNewTeacher({ ...newTeacher, password: v })} placeholder="Mínimo 6 caracteres" />
+                <InputField label="Nome Completo" value={newTeacher.fullname} onChange={(v: string) => setNewTeacher({ ...newTeacher, fullname: v })} placeholder="Ex: Pr. Antunes" />
+                <div className="grid grid-cols-2 gap-4">
+                  <InputField label="Email" value={newTeacher.email} onChange={(v: string) => setNewTeacher({ ...newTeacher, email: v })} />
+                  <InputField label="ID de Utilizador" value={newTeacher.username} onChange={(v: string) => setNewTeacher({ ...newTeacher, username: v.toLowerCase() })} placeholder="ex: pr_antunes" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <InputField label="Senha Secreta" value={newTeacher.password} onChange={(v: string) => setNewTeacher({ ...newTeacher, password: v })} placeholder={editingTeacher ? "Deixe vazio para manter" : "Mínimo 6 caracteres"} type={editingTeacher ? "text" : "password"} />
+                  <InputField label="Validade do Acesso" value={newTeacher.access_expiry || ''} onChange={(v: string) => setNewTeacher({ ...newTeacher, access_expiry: v })} placeholder="" type="date" />
+                </div>
                 <div className="pt-6">
                   <button type="submit" className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-blue transition-all">
-                    Ativar Conta Professor
+                    {editingTeacher ? 'Atualizar Conta Professor' : 'Ativar Conta Professor'}
                   </button>
                 </div>
               </form>
@@ -1066,38 +1143,31 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         )}
-
         {/* Modal Novo Aluno */}
         {showStudentModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[110] p-6 text-left">
-            <form onSubmit={handleSaveStudent} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in duration-300">
-              <div className="p-8 border-b border-slate-50 flex justify-between items-center">
-                <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Registar Aluno Manualmente</h3>
-                <button type="button" onClick={() => setShowStudentModal(false)}><X className="text-slate-400" /></button>
-              </div>
-              <div className="p-10 space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
-                  <input type="text" required className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold" value={newStudent.fullname} onChange={e => setNewStudent({ ...newStudent, fullname: e.target.value })} />
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300">
+              <button onClick={() => { setShowStudentModal(false); setEditingStudent(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
+                <X size={28} />
+              </button>
+              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingStudent ? 'Editar' : 'Registar'} Aluno (Manual)</h2>
+              <form onSubmit={handleSaveStudent} className="space-y-6">
+                <InputField label="Nome Completo" value={newStudent.fullname} onChange={(v: string) => setNewStudent({ ...newStudent, fullname: v })} placeholder="Nome Completo" />
+                <div className="grid grid-cols-2 gap-4">
+                  <InputField label="Email" value={newStudent.email} onChange={(v: string) => setNewStudent({ ...newStudent, email: v })} required={false} />
+                  <InputField label="ID de Utilizador" value={newStudent.username} onChange={(v: string) => setNewStudent({ ...newStudent, username: v.toLowerCase() })} placeholder="Ex: joao123" />
                 </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ID de Utilizador</label>
-                    <input type="text" required className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold" value={newStudent.username} onChange={e => setNewStudent({ ...newStudent, username: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
-                    <input type="text" required className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold" value={newStudent.password} onChange={e => setNewStudent({ ...newStudent, password: e.target.value })} />
-                  </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <InputField label="Senha Secreta" value={newStudent.password} onChange={(v: string) => setNewStudent({ ...newStudent, password: v })} placeholder={editingStudent ? "Deixe vazio para manter" : "Mínimo 6 caracteres"} type={editingStudent ? "text" : "password"} required={!editingStudent} />
+                  <InputField label="Validade do Acesso" value={newStudent.access_expiry || ''} onChange={(v: string) => setNewStudent({ ...newStudent, access_expiry: v })} placeholder="" type="date" required={false} />
                 </div>
-              </div>
-              <div className="p-8 bg-slate-50 flex space-x-4">
-                <button type="button" onClick={() => setShowStudentModal(false)} className="flex-1 py-4 bg-white text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-slate-200">Cancelar</button>
-                <button type="submit" disabled={isRefreshing} className="flex-1 py-4 bg-ministry-blue text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-ministry-gold transition">
-                  {isRefreshing ? 'A Processar...' : 'Criar Conta de Aluno'}
-                </button>
-              </div>
-            </form>
+                <div className="pt-6">
+                  <button type="submit" disabled={isRefreshing} className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-gold transition-all disabled:opacity-50">
+                    {isRefreshing ? 'A Processar...' : (editingStudent ? 'Atualizar Conta de Aluno' : 'Criar Conta de Aluno')}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </main>
@@ -1105,16 +1175,16 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-const InputField = ({ label, value, onChange, placeholder }: any) => (
+const InputField = ({ label, value, onChange, placeholder, type = "text", required = true }: any) => (
   <div className="mb-6">
     <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">{label}</label>
     <input
-      type="text"
+      type={type}
       value={value}
       onChange={e => onChange(e.target.value)}
       className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm"
       placeholder={placeholder}
-      required
+      required={required}
     />
   </div>
 );
