@@ -22,8 +22,8 @@ const storage = {
   setString: (key: string, value: string) => localStorage.setItem(key, value)
 };
 
-// Current Active URL - Defaults to ARTISAN because it's easier to run
-export let CURRENT_API_URL = storage.getString('api_base_url') || API_URL_ARTISAN;
+// Current Active URL - Defaults to /api for relative proxying in dev/prod
+export let CURRENT_API_URL = storage.getString('api_base_url') || '/api';
 
 export const api = {
   // --- SYSTEM CHECKS ---
@@ -300,6 +300,29 @@ export const api = {
         throw new Error(data.message || "Payment processing failed");
       }
       return await res.json();
+    }
+  },
+
+  admin: {
+    getVisitors: async (): Promise<any[]> => {
+      if (!USE_BACKEND) return [];
+      const res = await fetch(`${CURRENT_API_URL}/admin/visitors`);
+      if (res.ok) return await res.json();
+      return [];
+    },
+    getUsers: async (): Promise<any[]> => {
+      if (!USE_BACKEND) return [];
+      const res = await fetch(`${CURRENT_API_URL}/admin/users`);
+      if (res.ok) return await res.json();
+      return [];
+    },
+    createUser: async (userData: any): Promise<void> => {
+      if (!USE_BACKEND) return;
+      await fetch(`${CURRENT_API_URL}/admin/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(userData)
+      });
     }
   }
 };

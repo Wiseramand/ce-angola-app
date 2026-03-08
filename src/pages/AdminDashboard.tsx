@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   Users, Video, Shield, RefreshCw, ArrowLeft, UserPlus, FileSpreadsheet, Printer, X, Save, Calendar, Clock, Filter
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
+import { api } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 interface ManagedUser {
@@ -33,11 +34,11 @@ const AdminDashboard: React.FC = () => {
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
-  
+
   // Filtros de Data e Hora
   const [filterStart, setFilterStart] = useState('');
   const [filterEnd, setFilterEnd] = useState('');
-  
+
   const [newUser, setNewUser] = useState({ fullname: '', username: '', password: '' });
   const [streamForm, setStreamForm] = useState({
     public_url: '',
@@ -52,15 +53,15 @@ const AdminDashboard: React.FC = () => {
   const loadData = async () => {
     setIsRefreshing(true);
     try {
-      const [uRes, vRes, sRes] = await Promise.all([
-        fetch('/api/admin/users'),
-        fetch('/api/admin/visitors'),
-        fetch('/api/system')
+      const [usersData, visitorsData, sData] = await Promise.all([
+        api.admin.getUsers(),
+        api.admin.getVisitors(),
+        api.system.getConfig()
       ]);
-      if (uRes.ok) setUsers(await uRes.json());
-      if (vRes.ok) setVisitors(await vRes.json());
-      if (sRes.ok) {
-        const sData = await sRes.json();
+
+      if (usersData) setUsers(usersData);
+      if (visitorsData) setVisitors(visitorsData);
+      if (sData) {
         setStreamForm({
           public_url: sData.public_url || '',
           public_title: sData.public_title || '',
@@ -86,18 +87,16 @@ const AdminDashboard: React.FC = () => {
     e.preventDefault();
     setIsRefreshing(true);
     try {
-      const res = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser)
-      });
-      if (res.ok) {
-        alert("Membro criado com sucesso!");
-        setShowUserModal(false);
-        setNewUser({ fullname: '', username: '', password: '' });
-        loadData();
-      }
-    } finally { setIsRefreshing(false); }
+      await api.admin.createUser(newUser);
+      alert("Membro criado com sucesso!");
+      setShowUserModal(false);
+      setNewUser({ fullname: '', username: '', password: '' });
+      loadData();
+    } catch (e) {
+      alert("Erro ao criar membro.");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const exportVisitors = () => {
@@ -107,7 +106,7 @@ const AdminDashboard: React.FC = () => {
       const d = new Date(v.created_at);
       return `"${v.fullname}","${v.email}","${v.phone}","${v.country}","${v.city}","${v.neighborhood}","${d.toLocaleDateString()}","${d.toLocaleTimeString()}"`;
     }).join("\n");
-    
+
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -120,16 +119,14 @@ const AdminDashboard: React.FC = () => {
   const handleSaveStreams = async () => {
     setIsRefreshing(true);
     try {
-      const res = await fetch('/api/system', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(streamForm)
-      });
-      if (res.ok) {
-        alert('Canais atualizados!');
-        await updateStreamConfig(streamForm);
-      }
-    } finally { setIsRefreshing(false); }
+      await api.system.updateConfig(streamForm);
+      alert('Canais atualizados!');
+      await updateStreamConfig(streamForm);
+    } catch (e) {
+      alert("Erro ao atualizar canais.");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   useEffect(() => { loadData(); }, []);
@@ -141,7 +138,7 @@ const AdminDashboard: React.FC = () => {
           <Logo className="h-12 w-auto mb-6 brightness-110" />
           <h2 className="text-xl font-display font-black uppercase tracking-tight text-ministry-gold">Master Admin</h2>
         </div>
-        
+
         <nav className="flex-grow p-6 space-y-3">
           <button onClick={() => setActiveTab('users')} className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${activeTab === 'users' ? 'bg-ministry-gold text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>
             <Shield size={20} />
@@ -199,23 +196,23 @@ const AdminDashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
               <div>
                 <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">Início do Período</label>
-                <input 
-                  type="datetime-local" 
-                  value={filterStart} 
+                <input
+                  type="datetime-local"
+                  value={filterStart}
                   onChange={(e) => setFilterStart(e.target.value)}
-                  className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-ministry-gold transition shadow-inner" 
+                  className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-ministry-gold transition shadow-inner"
                 />
               </div>
               <div>
                 <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">Fim do Período</label>
-                <input 
-                  type="datetime-local" 
-                  value={filterEnd} 
+                <input
+                  type="datetime-local"
+                  value={filterEnd}
                   onChange={(e) => setFilterEnd(e.target.value)}
-                  className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-ministry-gold transition shadow-inner" 
+                  className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-ministry-gold transition shadow-inner"
                 />
               </div>
-              <button 
+              <button
                 onClick={() => { setFilterStart(''); setFilterEnd(''); }}
                 className="px-6 py-3.5 text-[9px] font-black uppercase text-slate-400 hover:text-red-500 transition tracking-widest"
               >
@@ -228,13 +225,13 @@ const AdminDashboard: React.FC = () => {
         {activeTab === 'users' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center print:hidden">
-               <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">Membros com Acesso Privado</h3>
-               <button onClick={() => setShowUserModal(true)} className="flex items-center space-x-3 px-8 py-4 bg-ministry-blue text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-ministry-gold transition-all">
-                  <UserPlus size={18} />
-                  <span>Novo Membro</span>
-               </button>
+              <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">Membros com Acesso Privado</h3>
+              <button onClick={() => setShowUserModal(true)} className="flex items-center space-x-3 px-8 py-4 bg-ministry-blue text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-ministry-gold transition-all">
+                <UserPlus size={18} />
+                <span>Novo Membro</span>
+              </button>
             </div>
-            
+
             <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
               <table className="w-full">
                 <thead>
@@ -266,88 +263,88 @@ const AdminDashboard: React.FC = () => {
 
         {activeTab === 'visitors' && (
           <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
-             <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 print:hidden">
-               <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">
-                 Visitantes Listados: {filteredVisitors.length}
-               </h3>
-             </div>
-             <div className="overflow-x-auto">
-               <table className="w-full">
-                 <thead>
-                   <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase text-left border-b">
-                     <th className="px-8 py-5">Visitante</th>
-                     <th className="px-8 py-5">Contacto</th>
-                     <th className="px-8 py-5">Localização</th>
-                     <th className="px-8 py-5 text-right">Data e Hora</th>
-                   </tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-100">
-                   {filteredVisitors.length === 0 ? (
-                     <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Sem registos para o período selecionado.</td></tr>
-                   ) : filteredVisitors.map(v => (
-                     <tr key={v.id} className="hover:bg-slate-50/30 transition">
-                       <td className="px-8 py-6">
-                          <div className="font-bold text-ministry-blue uppercase text-xs">{v.fullname}</div>
-                          <div className="text-[10px] text-slate-400 font-bold">{v.email || 'SEM EMAIL'}</div>
-                       </td>
-                       <td className="px-8 py-6 text-slate-500 text-xs font-bold">{v.phone}</td>
-                       <td className="px-8 py-6">
-                          <div className="text-xs font-black text-slate-600 uppercase">{v.city || 'Angola'}</div>
-                          <div className="text-[10px] text-slate-400 font-bold uppercase">{v.neighborhood || v.country}</div>
-                       </td>
-                       <td className="px-8 py-6 text-right">
-                         <div className="text-[10px] text-slate-600 font-black">{new Date(v.created_at).toLocaleDateString()}</div>
-                         <div className="text-[9px] text-slate-400 font-bold">{new Date(v.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                       </td>
-                     </tr>
-                   ))}
-                 </tbody>
-               </table>
-             </div>
+            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 print:hidden">
+              <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">
+                Visitantes Listados: {filteredVisitors.length}
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase text-left border-b">
+                    <th className="px-8 py-5">Visitante</th>
+                    <th className="px-8 py-5">Contacto</th>
+                    <th className="px-8 py-5">Localização</th>
+                    <th className="px-8 py-5 text-right">Data e Hora</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredVisitors.length === 0 ? (
+                    <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Sem registos para o período selecionado.</td></tr>
+                  ) : filteredVisitors.map(v => (
+                    <tr key={v.id} className="hover:bg-slate-50/30 transition">
+                      <td className="px-8 py-6">
+                        <div className="font-bold text-ministry-blue uppercase text-xs">{v.fullname}</div>
+                        <div className="text-[10px] text-slate-400 font-bold">{v.email || 'SEM EMAIL'}</div>
+                      </td>
+                      <td className="px-8 py-6 text-slate-500 text-xs font-bold">{v.phone}</td>
+                      <td className="px-8 py-6">
+                        <div className="text-xs font-black text-slate-600 uppercase">{v.city || 'Angola'}</div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase">{v.neighborhood || v.country}</div>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="text-[10px] text-slate-600 font-black">{new Date(v.created_at).toLocaleDateString()}</div>
+                        <div className="text-[9px] text-slate-400 font-bold">{new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {activeTab === 'streams' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-500">
-             <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
-                <div className="flex items-center space-x-4 mb-8">
-                  <div className="w-12 h-12 bg-blue-50 text-ministry-blue rounded-2xl flex items-center justify-center">
-                    <Video size={24} />
-                  </div>
-                  <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Canal TV Público</h3>
+            <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
+              <div className="flex items-center space-x-4 mb-8">
+                <div className="w-12 h-12 bg-blue-50 text-ministry-blue rounded-2xl flex items-center justify-center">
+                  <Video size={24} />
                 </div>
-                <InputField label="URL Transmissão" value={streamForm.public_url} onChange={v => setStreamForm({...streamForm, public_url: v})} />
-                <InputField label="Título da Emissão" value={streamForm.public_title} onChange={v => setStreamForm({...streamForm, public_title: v})} />
-                <InputField label="Descrição" value={streamForm.public_description} onChange={v => setStreamForm({...streamForm, public_description: v})} />
-             </div>
+                <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Canal TV Público</h3>
+              </div>
+              <InputField label="URL Transmissão" value={streamForm.public_url} onChange={v => setStreamForm({ ...streamForm, public_url: v })} />
+              <InputField label="Título da Emissão" value={streamForm.public_title} onChange={v => setStreamForm({ ...streamForm, public_title: v })} />
+              <InputField label="Descrição" value={streamForm.public_description} onChange={v => setStreamForm({ ...streamForm, public_description: v })} />
+            </div>
 
-             <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
-                <div className="flex items-center space-x-4 mb-8">
-                  <div className="w-12 h-12 bg-ministry-gold/10 text-ministry-gold rounded-2xl flex items-center justify-center">
-                    <Shield size={24} />
-                  </div>
-                  <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Canal de Parceiros</h3>
+            <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
+              <div className="flex items-center space-x-4 mb-8">
+                <div className="w-12 h-12 bg-ministry-gold/10 text-ministry-gold rounded-2xl flex items-center justify-center">
+                  <Shield size={24} />
                 </div>
-                <InputField label="URL Privada (HLS/YT)" value={streamForm.private_url} onChange={v => setStreamForm({...streamForm, private_url: v})} />
-                <InputField label="Título Privado" value={streamForm.private_title} onChange={v => setStreamForm({...streamForm, private_title: v})} />
-                
-                <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border border-slate-100 mt-6">
-                  <div>
-                    <span className="text-[11px] font-black text-ministry-blue uppercase tracking-widest block">Restringir Área Exclusiva</span>
-                    <span className="text-[9px] text-slate-400 font-bold uppercase mt-1">Visitantes normais não poderão ver este sinal.</span>
-                  </div>
-                  <button onClick={() => setStreamForm({...streamForm, is_private_mode: !streamForm.is_private_mode})} className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_private_mode ? 'bg-ministry-gold shadow-[0_0_15px_rgba(197,160,89,0.5)]' : 'bg-slate-300'}`}>
-                    <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${streamForm.is_private_mode ? 'left-7' : 'left-1'}`} />
-                  </button>
+                <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Canal de Parceiros</h3>
+              </div>
+              <InputField label="URL Privada (HLS/YT)" value={streamForm.private_url} onChange={v => setStreamForm({ ...streamForm, private_url: v })} />
+              <InputField label="Título Privado" value={streamForm.private_title} onChange={v => setStreamForm({ ...streamForm, private_title: v })} />
+
+              <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border border-slate-100 mt-6">
+                <div>
+                  <span className="text-[11px] font-black text-ministry-blue uppercase tracking-widest block">Restringir Área Exclusiva</span>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase mt-1">Visitantes normais não poderão ver este sinal.</span>
                 </div>
-             </div>
-             
-             <div className="lg:col-span-2 pt-4">
-                <button onClick={handleSaveStreams} className="w-full py-6 bg-ministry-blue text-white rounded-[2rem] font-black uppercase text-xs tracking-[0.3em] shadow-2xl hover:bg-ministry-gold transition-all flex items-center justify-center space-x-4">
-                  <Save size={20} />
-                  <span>Publicar Todas as Alterações</span>
+                <button onClick={() => setStreamForm({ ...streamForm, is_private_mode: !streamForm.is_private_mode })} className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_private_mode ? 'bg-ministry-gold shadow-[0_0_15px_rgba(197,160,89,0.5)]' : 'bg-slate-300'}`}>
+                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${streamForm.is_private_mode ? 'left-7' : 'left-1'}`} />
                 </button>
-             </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-2 pt-4">
+              <button onClick={handleSaveStreams} className="w-full py-6 bg-ministry-blue text-white rounded-[2rem] font-black uppercase text-xs tracking-[0.3em] shadow-2xl hover:bg-ministry-gold transition-all flex items-center justify-center space-x-4">
+                <Save size={20} />
+                <span>Publicar Todas as Alterações</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -359,11 +356,11 @@ const AdminDashboard: React.FC = () => {
               </button>
               <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">Criar Acesso de Membro</h2>
               <form onSubmit={handleAddUser} className="space-y-6">
-                <InputField label="Nome do Membro" value={newUser.fullname} onChange={v => setNewUser({...newUser, fullname: v})} placeholder="Ex: Diácono Silva" />
-                <InputField label="ID de Utilizador" value={newUser.username} onChange={v => setNewUser({...newUser, username: v})} placeholder="ex: silva_2025" />
-                <InputField label="Senha Secreta" value={newUser.password} onChange={v => setNewUser({...newUser, password: v})} placeholder="Mínimo 6 caracteres" />
+                <InputField label="Nome do Membro" value={newUser.fullname} onChange={v => setNewUser({ ...newUser, fullname: v })} placeholder="Ex: Diácono Silva" />
+                <InputField label="ID de Utilizador" value={newUser.username} onChange={v => setNewUser({ ...newUser, username: v })} placeholder="ex: silva_2025" />
+                <InputField label="Senha Secreta" value={newUser.password} onChange={v => setNewUser({ ...newUser, password: v })} placeholder="Mínimo 6 caracteres" />
                 <div className="pt-6">
-                   <button type="submit" className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-blue transition-all">Ativar Credenciais</button>
+                  <button type="submit" className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-blue transition-all">Ativar Credenciais</button>
                 </div>
               </form>
             </div>
@@ -377,13 +374,13 @@ const AdminDashboard: React.FC = () => {
 const InputField = ({ label, value, onChange, placeholder }: any) => (
   <div className="mb-6">
     <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">{label}</label>
-    <input 
-      type="text" 
-      value={value} 
-      onChange={e => onChange(e.target.value)} 
-      className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm" 
+    <input
+      type="text"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm"
       placeholder={placeholder}
-      required 
+      required
     />
   </div>
 );

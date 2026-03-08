@@ -2,10 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../App';
+import { api } from '../services/api';
 import { User as UserIcon, Camera, ChevronRight, Check, Phone, Info, Loader2 } from 'lucide-react';
 
 const COUNTRY_DATA = [
-  { name: "Angola", code: "+244" }, { name: "Portugal", code: "+351" }, { name: "Brazil", code: "+55" }, 
+  { name: "Angola", code: "+244" }, { name: "Portugal", code: "+351" }, { name: "Brazil", code: "+55" },
   { name: "Mozambique", code: "+258" }, { name: "Cape Verde", code: "+238" }, { name: "Guinea-Bissau", code: "+245" },
   { name: "São Tomé and Príncipe", code: "+239" }, { name: "South Africa", code: "+27" }, { name: "United Kingdom", code: "+44" },
   { name: "United States", code: "+1" }
@@ -63,20 +64,12 @@ const Register: React.FC = () => {
   const handleComplete = async () => {
     setIsSubmitting(true);
     try {
-      // Chamada para o backend (server.js)
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, profilePicture: profilePic })
-      });
+      // Chamada para o backend via serviço api
+      await api.auth.register(formData.fullName, formData.email, formData.phone);
 
-      if (res.ok) {
-        // Se o servidor confirmou, atualizamos o estado da aplicação
-        await register({ ...formData, profilePicture: profilePic });
-        navigate('/live-tv');
-      } else {
-        alert("Erro ao registrar no servidor. Verifique a configuração do banco de dados.");
-      }
+      // Se o servidor confirmou (via api service), atualizamos o estado da aplicação
+      await register({ ...formData, profilePicture: profilePic });
+      navigate('/live-tv');
     } catch (e) {
       console.error(e);
       alert("Falha na comunicação com o servidor.");
@@ -113,34 +106,34 @@ const Register: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Nome Completo</label>
-                    <input 
-                      type="text" 
-                      name="fullName" 
-                      value={formData.fullName} 
-                      onChange={handleInputChange} 
-                      className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-ministry-gold shadow-inner" 
-                      placeholder="Ex: Irmão João Silva" 
-                      required 
+                    <input
+                      type="text"
+                      name="fullName"
+                      value={formData.fullName}
+                      onChange={handleInputChange}
+                      className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-ministry-gold shadow-inner"
+                      placeholder="Ex: Irmão João Silva"
+                      required
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Email (Para Receber Mensagem)</label>
-                    <input 
-                      type="email" 
-                      name="email" 
-                      value={formData.email} 
-                      onChange={handleInputChange} 
-                      className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-ministry-gold shadow-inner" 
-                      placeholder="seu@email.com" 
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-ministry-gold shadow-inner"
+                      placeholder="seu@email.com"
                       required
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">País</label>
-                    <select 
-                      name="country" 
-                      value={formData.country} 
-                      onChange={handleInputChange} 
+                    <select
+                      name="country"
+                      value={formData.country}
+                      onChange={handleInputChange}
                       className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-ministry-gold shadow-inner"
                     >
                       {COUNTRY_DATA.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
@@ -149,23 +142,23 @@ const Register: React.FC = () => {
                   <div className="md:col-span-1">
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Telemóvel</label>
                     <div className="relative">
-                       <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                       <input 
-                        type="tel" 
-                        name="phone" 
-                        value={formData.phone} 
-                        onChange={handleInputChange} 
-                        className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 pl-12 focus:ring-2 focus:ring-ministry-gold shadow-inner" 
-                        required 
+                      <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 pl-12 focus:ring-2 focus:ring-ministry-gold shadow-inner"
+                        required
                       />
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Género</label>
-                    <select 
-                      name="gender" 
-                      value={formData.gender} 
-                      onChange={handleInputChange} 
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleInputChange}
                       className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-ministry-gold shadow-inner"
                     >
                       <option value="Male">Masculino</option>
@@ -175,8 +168,8 @@ const Register: React.FC = () => {
                 </div>
 
                 <div className="pt-6">
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="w-full py-5 bg-ministry-blue text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center space-x-2 hover:bg-opacity-90 transition shadow-xl"
                   >
                     <span>Próximo Passo: Foto</span>
@@ -206,15 +199,15 @@ const Register: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                  <button 
-                    onClick={() => setStep(1)} 
+                  <button
+                    onClick={() => setStep(1)}
                     disabled={isSubmitting}
                     className="flex-1 py-5 text-gray-500 font-bold hover:bg-gray-50 rounded-2xl transition"
                   >
                     Voltar
                   </button>
-                  <button 
-                    onClick={handleComplete} 
+                  <button
+                    onClick={handleComplete}
                     disabled={isSubmitting}
                     className="flex-[2] py-5 bg-ministry-blue text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center space-x-3 hover:bg-opacity-90 transition shadow-xl"
                   >

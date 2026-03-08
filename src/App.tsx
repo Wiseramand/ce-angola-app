@@ -71,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const sendHeartbeat = async (userId: string, sessionId: string) => {
     if (userId.startsWith('v-')) return;
     try {
-      const res = await fetch('/api/heartbeat', {
+      const res = await fetch(`/api/heartbeat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: userId.replace('m-', ''), sessionId })

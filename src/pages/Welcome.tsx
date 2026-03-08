@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
+import { api } from '../services/api';
 import { User as UserIcon, Phone, Globe, ChevronRight, Loader2, MapPin, Building2 } from 'lucide-react';
 
 const Welcome: React.FC = () => {
@@ -24,7 +25,7 @@ const Welcome: React.FC = () => {
   const handleIdentify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
-    
+
     setIsSubmitting(true);
     const userPayload = { ...formData, gender: 'Male', address: `${formData.city}, ${formData.neighborhood}` };
 
@@ -34,16 +35,12 @@ const Welcome: React.FC = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 1500);
 
-      fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userPayload),
-        signal: controller.signal
-      }).catch(err => console.warn("Registo em background falhou, mas utilizador prossegue."));
+      api.auth.register(userPayload.fullName, userPayload.email, userPayload.phone)
+        .catch(err => console.warn("Registo em background falhou, mas utilizador prossegue."));
 
       // Aguardamos apenas um momento curto para dar sensação de processamento
       await new Promise(resolve => setTimeout(resolve, 800));
-      
+
       clearTimeout(timeoutId);
       await register(userPayload);
     } catch (err) {
