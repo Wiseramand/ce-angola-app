@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     GraduationCap, BookOpen, Video, Calendar, User, Settings,
     LogOut, ChevronRight, Lock, CheckCircle, PlayCircle,
-    Trophy, Clock, MessageSquare, ArrowLeft, Camera, Save, X
+    Trophy, Clock, MessageSquare, ArrowLeft, Camera, Save, X, Menu
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Logo from '../components/Logo';
@@ -23,6 +23,7 @@ const StudentPortal: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'dashboard' | 'modules' | 'live' | 'profile'>('dashboard');
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [student, setStudent] = useState({
@@ -118,27 +119,69 @@ const StudentPortal: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+        <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row relative">
+            {/* Mobile Header */}
+            <header className="md:hidden bg-ministry-blue text-white p-6 flex justify-between items-center sticky top-0 z-30 shadow-lg">
+                <Logo className="h-8 w-auto brightness-0 invert" />
+                <button
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                >
+                    {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                </button>
+            </header>
+
+            {/* Backdrop for Mobile Menu */}
+            {isMenuOpen && (
+                <div
+                    className="fixed inset-0 bg-ministry-blue/60 backdrop-blur-sm z-40 md:hidden animate-in fade-in duration-300"
+                    onClick={() => setIsMenuOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
-            <aside className="w-full md:w-80 bg-ministry-blue text-white flex flex-col h-screen sticky top-0 z-20 shadow-2xl">
+            <aside className={`
+                fixed md:sticky top-0 left-0 h-screen w-80 bg-ministry-blue text-white flex flex-col z-50 shadow-2xl transition-transform duration-300
+                ${isMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+            `}>
                 <div className="p-8 border-b border-white/10">
-                    <Logo className="h-12 w-auto mb-6 brightness-0 invert" />
+                    <Logo className="h-12 w-auto mb-6 brightness-0 invert hidden md:block" />
                     <div className="flex items-center space-x-3 bg-white/5 p-4 rounded-2xl border border-white/10">
-                        <div className="w-10 h-10 rounded-full bg-ministry-gold flex items-center justify-center text-white font-black text-lg">
+                        <div className="w-10 h-10 rounded-full bg-ministry-gold flex items-center justify-center text-white font-black text-lg flex-shrink-0">
                             {student.fullName.charAt(0)}
                         </div>
-                        <div>
-                            <p className="text-xs font-black uppercase tracking-widest text-ministry-gold">Aluno</p>
-                            <h3 className="font-bold text-sm truncate max-w-[150px]">{student.fullName}</h3>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-ministry-gold">Aluno</p>
+                            <h3 className="font-bold text-sm truncate">{student.fullName}</h3>
                         </div>
                     </div>
                 </div>
 
-                <nav className="flex-grow p-6 space-y-2">
-                    <SidebarLink icon={LayoutDashboardIcon} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-                    <SidebarLink icon={BookOpen} label="Meus Classes" active={activeTab === 'modules'} onClick={() => setActiveTab('modules')} />
-                    <SidebarLink icon={Video} label="Aulas ao Vivo" active={activeTab === 'live'} onClick={() => setActiveTab('live')} />
-                    <SidebarLink icon={User} label="Meu Perfil" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
+                <nav className="flex-grow p-6 space-y-2 overflow-y-auto">
+                    <SidebarLink
+                        icon={LayoutDashboardIcon}
+                        label="Dashboard"
+                        active={activeTab === 'dashboard'}
+                        onClick={() => { setActiveTab('dashboard'); setIsMenuOpen(false); }}
+                    />
+                    <SidebarLink
+                        icon={BookOpen}
+                        label="Meus Classes"
+                        active={activeTab === 'modules'}
+                        onClick={() => { setActiveTab('modules'); setIsMenuOpen(false); }}
+                    />
+                    <SidebarLink
+                        icon={Video}
+                        label="Aulas ao Vivo"
+                        active={activeTab === 'live'}
+                        onClick={() => { setActiveTab('live'); setIsMenuOpen(false); }}
+                    />
+                    <SidebarLink
+                        icon={User}
+                        label="Meu Perfil"
+                        active={activeTab === 'profile'}
+                        onClick={() => { setActiveTab('profile'); setIsMenuOpen(false); }}
+                    />
                 </nav>
 
                 <div className="p-6 border-t border-white/10">

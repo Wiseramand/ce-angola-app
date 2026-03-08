@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     Users, Video, Calendar, BookOpen, Settings,
     LogOut, ChevronRight, Plus, Clock, Search,
-    UserCheck, AlertCircle, Save, X, Calendar as CalendarIcon, Play
+    UserCheck, AlertCircle, Save, X, Calendar as CalendarIcon, Play, Menu
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Logo from '../components/Logo';
@@ -22,6 +22,7 @@ const TeacherPortal: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'students' | 'classes' | 'settings'>('students');
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [teacher, setTeacher] = useState({ fullName: 'Professor', profilePicture: '' });
@@ -121,25 +122,62 @@ const TeacherPortal: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
-            <aside className="w-full md:w-80 bg-slate-900 text-white flex flex-col h-screen sticky top-0 z-20 shadow-2xl">
+        <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row relative">
+            {/* Mobile Header */}
+            <header className="md:hidden bg-slate-900 text-white p-6 flex justify-between items-center sticky top-0 z-30 shadow-lg">
+                <Logo className="h-8 w-auto brightness-0 invert" />
+                <button
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                >
+                    {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                </button>
+            </header>
+
+            {/* Backdrop for Mobile Menu */}
+            {isMenuOpen && (
+                <div
+                    className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 md:hidden animate-in fade-in duration-300"
+                    onClick={() => setIsMenuOpen(false)}
+                />
+            )}
+
+            <aside className={`
+                fixed md:sticky top-0 left-0 h-screen w-80 bg-slate-900 text-white flex flex-col z-50 shadow-2xl transition-transform duration-300
+                ${isMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+            `}>
                 <div className="p-8 border-b border-white/10">
-                    <Logo className="h-12 w-auto mb-6 brightness-0 invert" />
+                    <Logo className="h-12 w-auto mb-6 brightness-0 invert hidden md:block" />
                     <div className="flex items-center space-x-3 bg-white/5 p-4 rounded-2xl border border-white/10">
-                        <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-black text-lg">
+                        <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-black text-lg flex-shrink-0">
                             {teacher.fullName.charAt(0)}
                         </div>
-                        <div>
+                        <div className="min-w-0">
                             <p className="text-[10px] font-black uppercase tracking-widest text-blue-400">Professor</p>
-                            <h3 className="font-bold text-sm">{teacher.fullName}</h3>
+                            <h3 className="font-bold text-sm truncate">{teacher.fullName}</h3>
                         </div>
                     </div>
                 </div>
 
-                <nav className="flex-grow p-6 space-y-2">
-                    <SidebarLink icon={UserCheck} label="Meus Alunos" active={activeTab === 'students'} onClick={() => setActiveTab('students')} />
-                    <SidebarLink icon={Video} label="Aulas ao Vivo" active={activeTab === 'classes'} onClick={() => setActiveTab('classes')} />
-                    <SidebarLink icon={Settings} label="Configurações" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+                <nav className="flex-grow p-6 space-y-2 overflow-y-auto">
+                    <SidebarLink
+                        icon={UserCheck}
+                        label="Meus Alunos"
+                        active={activeTab === 'students'}
+                        onClick={() => { setActiveTab('students'); setIsMenuOpen(false); }}
+                    />
+                    <SidebarLink
+                        icon={Video}
+                        label="Aulas ao Vivo"
+                        active={activeTab === 'classes'}
+                        onClick={() => { setActiveTab('classes'); setIsMenuOpen(false); }}
+                    />
+                    <SidebarLink
+                        icon={Settings}
+                        label="Configurações"
+                        active={activeTab === 'settings'}
+                        onClick={() => { setActiveTab('settings'); setIsMenuOpen(false); }}
+                    />
                 </nav>
 
                 <div className="p-6 border-t border-white/10">
