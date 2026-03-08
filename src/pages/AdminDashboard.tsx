@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Users, Video, Shield, RefreshCw, ArrowLeft, UserPlus, FileSpreadsheet, Printer, X, Save, Calendar, Clock, Filter
+  Users, Video, Shield, RefreshCw, ArrowLeft, UserPlus, FileSpreadsheet, Printer, X, Save, Calendar, Clock, Filter, Edit2, Trash2, Share2, Copy, Mail, MessageCircle, ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
@@ -39,6 +39,7 @@ const AdminDashboard: React.FC = () => {
   const [filterStart, setFilterStart] = useState('');
   const [filterEnd, setFilterEnd] = useState('');
 
+  const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [newUser, setNewUser] = useState({ fullname: '', username: '', password: '' });
   const [streamForm, setStreamForm] = useState({
     public_url: '',
@@ -87,16 +88,68 @@ const AdminDashboard: React.FC = () => {
     e.preventDefault();
     setIsRefreshing(true);
     try {
-      await api.admin.createUser(newUser);
-      alert("Membro criado com sucesso!");
+      if (editingUser) {
+        await api.admin.createUser({ ...newUser, id: editingUser.id });
+        alert("Membro atualizado com sucesso!");
+      } else {
+        await api.admin.createUser(newUser);
+        alert("Membro criado com sucesso!");
+      }
       setShowUserModal(false);
+      setEditingUser(null);
       setNewUser({ fullname: '', username: '', password: '' });
       loadData();
     } catch (e) {
-      alert("Erro ao criar membro.");
+      alert("Erro ao salvar membro.");
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    if (!confirm("Tem certeza que deseja eliminar este membro?")) return;
+    setIsRefreshing(true);
+    try {
+      await api.admin.deleteUser(id);
+      loadData();
+    } catch (e) {
+      alert("Erro ao eliminar membro.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleEditUser = (u: ManagedUser) => {
+    setEditingUser(u);
+    setNewUser({ fullname: u.name, username: u.username, password: u.password || '' });
+    setShowUserModal(true);
+  };
+
+  const generateCredentials = () => {
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const firstName = newUser.fullname.split(' ')[0].toLowerCase() || 'membro';
+    const generatedUsername = `${firstName}_${randomNum}`;
+    const generatedPassword = Math.random().toString(36).slice(-8);
+    setNewUser({ ...newUser, username: generatedUsername, password: generatedPassword });
+  };
+
+  const getLoginLink = () => `${window.location.origin}/login`;
+
+  const shareViaWhatsApp = (u: ManagedUser) => {
+    const text = `Olá ${u.name}, aqui estão as suas credenciais de acesso exclusivo:\n\nLink: ${getLoginLink()}\nUsuário: ${u.username}\nSenha: ${u.password}\n\nSeja bem-vindo!`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const shareViaEmail = (u: ManagedUser) => {
+    const subject = "Suas Credenciais de Acesso - Christ Embassy Angola";
+    const body = `Olá ${u.name},\n\nAqui estão as suas credenciais para a área exclusiva da Christ Embassy Angola:\n\nLink de Acesso: ${getLoginLink()}\nUsuário: ${u.username}\nSenha: ${u.password}\n\nDeus o abençoe!`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const copyCredentials = (u: ManagedUser) => {
+    const text = `Acesso Exclusivo:\nLink: ${getLoginLink()}\nUsuário: ${u.username}\nSenha: ${u.password}`;
+    navigator.clipboard.writeText(text);
+    alert("Credenciais copiadas!");
   };
 
   const exportVisitors = () => {
@@ -239,19 +292,40 @@ const AdminDashboard: React.FC = () => {
                     <th className="px-8 py-5">Nome</th>
                     <th className="px-8 py-5">Usuário (ID)</th>
                     <th className="px-8 py-5">Senha</th>
-                    <th className="px-8 py-5 text-right">Status</th>
+                    <th className="px-8 py-5">Ações</th>
+                    <th className="px-8 py-5 text-right">Partilhar</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {users.length === 0 ? (
-                    <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum membro registado.</td></tr>
+                    <tr><td colSpan={5} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum membro registado.</td></tr>
                   ) : users.map(u => (
                     <tr key={u.id} className="hover:bg-slate-50 transition">
                       <td className="px-8 py-6 font-bold text-ministry-blue uppercase text-xs">{u.name}</td>
                       <td className="px-8 py-6 font-mono text-sm text-slate-500">{u.username}</td>
                       <td className="px-8 py-6 font-mono text-sm text-slate-500">{u.password}</td>
+                      <td className="px-8 py-6">
+                        <div className="flex space-x-2">
+                          <button onClick={() => handleEditUser(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar">
+                            <Edit2 size={16} />
+                          </button>
+                          <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
                       <td className="px-8 py-6 text-right">
-                        <span className="px-4 py-1.5 bg-green-100 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">Ativo</span>
+                        <div className="flex justify-end space-x-2">
+                          <button onClick={() => shareViaWhatsApp(u)} className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition" title="WhatsApp">
+                            <MessageCircle size={16} />
+                          </button>
+                          <button onClick={() => shareViaEmail(u)} className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition" title="Email">
+                            <Mail size={16} />
+                          </button>
+                          <button onClick={() => copyCredentials(u)} className="p-2 text-ministry-gold hover:bg-gold-50 rounded-lg transition" title="Copiar">
+                            <Copy size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -351,16 +425,28 @@ const AdminDashboard: React.FC = () => {
         {showUserModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300">
-              <button onClick={() => setShowUserModal(false)} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
+              <button onClick={() => { setShowUserModal(false); setEditingUser(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
                 <X size={28} />
               </button>
-              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">Criar Acesso de Membro</h2>
+              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingUser ? 'Editar' : 'Criar'} Acesso de Membro</h2>
               <form onSubmit={handleAddUser} className="space-y-6">
                 <InputField label="Nome do Membro" value={newUser.fullname} onChange={v => setNewUser({ ...newUser, fullname: v })} placeholder="Ex: Diácono Silva" />
-                <InputField label="ID de Utilizador" value={newUser.username} onChange={v => setNewUser({ ...newUser, username: v })} placeholder="ex: silva_2025" />
+
+                <div className="relative">
+                  <InputField label="ID de Utilizador" value={newUser.username} onChange={v => setNewUser({ ...newUser, username: v })} placeholder="ex: silva_2025" />
+                  {!editingUser && (
+                    <button type="button" onClick={generateCredentials} className="absolute right-4 top-[38px] text-[9px] font-black uppercase text-ministry-gold hover:text-ministry-blue transition tracking-widest bg-white px-2">
+                      Gerar Automático
+                    </button>
+                  )}
+                </div>
+
                 <InputField label="Senha Secreta" value={newUser.password} onChange={v => setNewUser({ ...newUser, password: v })} placeholder="Mínimo 6 caracteres" />
+
                 <div className="pt-6">
-                  <button type="submit" className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-blue transition-all">Ativar Credenciais</button>
+                  <button type="submit" className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-blue transition-all">
+                    {editingUser ? 'Guardar Alterações' : 'Ativar Credenciais'}
+                  </button>
                 </div>
               </form>
             </div>

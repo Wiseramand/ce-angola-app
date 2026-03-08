@@ -42,7 +42,7 @@ const initDb = async () => {
 async function getRequestBody(req) {
   // Se o body já foi parseado pelo Vercel
   if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) return req.body;
-  
+
   // Caso contrário, lê o stream manualmente
   return new Promise((resolve, reject) => {
     let body = '';
@@ -83,15 +83,15 @@ export default async function handler(req, res) {
         );
         return res.status(200).json(r.rows);
       }
-      
+
       if (req.method === 'POST') {
         const body = await getRequestBody(req);
         const { userId, username, text, channel } = body;
-        
+
         if (!text || !userId) {
           return res.status(400).json({ error: 'Dados insuficientes para enviar mensagem' });
         }
-        
+
         await pool.query(
           "INSERT INTO chat_messages (user_id, username, text, channel) VALUES ($1, $2, $3, $4)",
           [String(userId), String(username), String(text), String(channel || 'public')]
@@ -114,19 +114,19 @@ export default async function handler(req, res) {
     if (req.method === 'POST' && path.endsWith('/login')) {
       const { username, pass } = await getRequestBody(req);
       const normalized = username?.toLowerCase().trim();
-      
+
       if (normalized === 'master_admin' && pass === 'angola_faith_2025') {
         return res.status(200).json({ id: 'admin-1', role: 'admin', fullName: 'Administrador Master', hasLiveAccess: true });
       }
 
       const r = await pool.query("SELECT * FROM managed_users WHERE username = $1 AND password = $2", [normalized, pass]);
       if (r.rows.length > 0) {
-        return res.status(200).json({ 
-          id: 'm-' + r.rows[0].id, 
-          fullName: r.rows[0].fullname, 
-          role: 'user', 
+        return res.status(200).json({
+          id: 'm-' + r.rows[0].id,
+          fullName: r.rows[0].fullname,
+          role: 'user',
           hasLiveAccess: true,
-          country: 'Angola' 
+          country: 'Angola'
         });
       }
       return res.status(401).json({ error: 'ID ou Senha incorretos' });
@@ -144,11 +144,28 @@ export default async function handler(req, res) {
         return res.status(200).json(r.rows);
       }
       if (req.method === 'POST') {
-        const { fullname, username, password } = await getRequestBody(req);
-        await pool.query(
-          "INSERT INTO managed_users (fullname, username, password) VALUES ($1, $2, $3) ON CONFLICT (username) DO UPDATE SET password = $3, fullname = $1",
-          [fullname, username.toLowerCase().trim(), password]
-        );
+        const { id, fullname, username, password } = await getRequestBody(req);
+        if (id) {
+          // Update existing
+          const numericId = id.startsWith('m-') ? id.substring(2) : id;
+          await pool.query(
+            "UPDATE managed_users SET fullname = $1, username = $2, password = $3 WHERE id = $4",
+            [fullname, username.toLowerCase().trim(), password, numericId]
+          );
+        } else {
+          // Insert new
+          await pool.query(
+            "INSERT INTO managed_users (fullname, username, password) VALUES ($1, $2, $3) ON CONFLICT (username) DO UPDATE SET password = $3, fullname = $1",
+            [fullname, username.toLowerCase().trim(), password]
+          );
+        }
+        return res.status(200).json({ success: true });
+      }
+      if (req.method === 'DELETE') {
+        const id = queryParams.get('id');
+        if (!id) return res.status(400).json({ error: 'ID necessário' });
+        const numericId = id.startsWith('m-') ? id.substring(2) : id;
+        await pool.query("DELETE FROM managed_users WHERE id = $1", [numericId]);
         return res.status(200).json({ success: true });
       }
     }

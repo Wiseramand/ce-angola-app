@@ -323,6 +323,12 @@ export const api = {
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(userData)
       });
+    },
+    deleteUser: async (id: string): Promise<void> => {
+      if (!USE_BACKEND) return;
+      await fetch(`${CURRENT_API_URL}/admin/users?id=${id}`, {
+        method: 'DELETE'
+      });
     }
   }
 };
