@@ -1,30 +1,24 @@
+
+export type Gender = 'Male' | 'Female';
+
 export enum UserRole {
-  GUEST = 'GUEST',
-  USER = 'USER',
-  ADMIN = 'ADMIN'
+  ADMIN = 'admin',
+  USER = 'user'
 }
 
 export interface User {
   id: string;
-  name: string;
+  fullName: string;
   email: string;
-  role: UserRole;
-  avatarUrl?: string;
-  phone?: string;
-  address?: string;
+  phone: string;
+  country: string;
   city?: string;
-  country?: string;
-}
-
-export interface ProgramCredential {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  username: string;
-  password: string;
-  expiresAt: string; // ISO Date string
-  createdAt: string;
+  neighborhood?: string;
+  address: string;
+  gender: Gender;
+  profilePicture?: string;
+  hasLiveAccess: boolean;
+  role: UserRole | string;
 }
 
 export interface StreamEvent {
@@ -36,19 +30,53 @@ export interface StreamEvent {
   isLive: boolean;
   viewers: number;
   type: 'public' | 'private';
-  streamSource: 'youtube' | 'custom';
+  streamSource: 'youtube' | 'facebook' | 'custom' | string;
   streamUrl: string;
 }
 
-export interface Devotional {
-  title: string;
-  scripture: string;
-  content: string;
+export interface ProgramCredential {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  expiresAt?: string;
+  createdAt?: string;
 }
 
-export interface PartnershipArm {
+export interface ChatMessage {
+  id: string;
+  user_id: string;
+  username: string;
+  text: string;
+  channel: string;
+  timestamp: string;
+}
+
+export interface StreamConfig {
+  publicUrl: string;
+  publicTitle: string;
+  publicDescription: string;
+  privateUrl: string;
+  privateTitle: string;
+  privateDescription: string;
+  isPrivateMode: boolean;
+}
+
+export interface PartnershipBranch {
   id: string;
   name: string;
   description: string;
+  impact: string;
   imageUrl: string;
+}
+
+export interface DonationRecord {
+  id: string;
+  userId: string;
+  amount: number;
+  currency: string;
+  description: string;
+  method: string;
+  date: Date;
+  type: 'Donation' | 'Sponsorship';
 }

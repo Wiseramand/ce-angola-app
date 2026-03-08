@@ -12,6 +12,7 @@ interface VideoPlayerProps {
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({ streamSource, streamUrl, thumbnailUrl, title }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   
+  // Helper to extract YouTube ID if a full URL is pasted
   const getYoutubeEmbedUrl = (url: string) => {
     if (!url) return '';
     if (url.includes('embed/')) return url;
@@ -26,33 +27,79 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ streamSource, streamUr
     return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0` : url;
   };
 
+  // Initialize HLS logic
   useEffect(() => {
     let hls: Hls | null = null;
     const video = videoRef.current;
 
+    // Only run if it's a custom source and looks like an HLS stream (m3u8)
     if (streamSource === 'custom' && streamUrl && streamUrl.includes('.m3u8') && video) {
       if (Hls.isSupported()) {
-        hls = new Hls();
+        hls = new Hls({
+          debug: false,
+          enableWorker: true, // Improves performance by using web workers
+          lowLatencyMode: true, // Prioritize lower latency
+          backBufferLength: 90, // Keep 90s of back buffer
+          // Tweak these for "Low Latency" vs "Stability" tradeoff
+          // Trying to keep it close to live edge (~3 segments)
+          liveSyncDurationCount: 3, 
+          liveMaxLatencyDurationCount: 10,
+          maxMaxBufferLength: 30,
+        });
+        
         hls.loadSource(streamUrl);
         hls.attachMedia(video);
+        
         hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-          video.play().catch(() => {
-            video.muted = true;
-            video.play();
-          });
+          video.muted = false; // Try unmuted
+          const playPromise = video.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((error) => {
+              console.log('Autoplay prevented. User interaction required.');
+              video.muted = true; // Fallback to muted autoplay
+              video.play();
+            });
+          }
         });
+        
+        // Robust Error handling to fix "stuttering/freezing"
+        hls.on(Hls.Events.ERROR, function (event, data) {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                console.log('Network error, trying to recover...');
+                hls?.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                console.log('Media error, trying to recover...');
+                hls?.recoverMediaError();
+                break;
+              default:
+                console.log('Fatal error, destroying player.');
+                hls?.destroy();
+                break;
+            }
+          }
+        });
+
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native support (Safari)
         video.src = streamUrl;
         video.addEventListener('loadedmetadata', () => {
-          video.play().catch(() => {
+          video.play().catch(e => {
+            console.log('Autoplay blocked', e);
             video.muted = true;
             video.play();
           });
         });
       }
     }
+
+    // Cleanup
     return () => {
-      if (hls) hls.destroy();
+      if (hls) {
+        hls.destroy();
+      }
     };
   }, [streamUrl, streamSource]);
 
@@ -72,6 +119,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ streamSource, streamUr
             <p className="text-white font-bold tracking-widest text-sm uppercase">
               {title || "Waiting for Broadcast"}
             </p>
+            <p className="text-white/60 text-xs mt-2">Signal Offline</p>
          </div>
       </div>
     );
@@ -89,7 +137,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ streamSource, streamUr
     );
   }
 
-  if (streamUrl.includes('.m3u8') || streamUrl.endsWith('.mp4')) {
+  // Handle HLS or Direct Video
+  if (streamUrl.includes('.m3u8') || streamUrl.endsWith('.mp4') || streamUrl.endsWith('.webm') || streamUrl.endsWith('.ogg')) {
       return (
         <video 
             ref={videoRef}
@@ -104,6 +153,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ streamSource, streamUr
       );
   }
 
+  // Fallback for other embeds (Generic IFrames)
   return (
       <iframe 
         className="w-full h-full bg-black"

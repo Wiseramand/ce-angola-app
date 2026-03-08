@@ -34,6 +34,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      {/* Navbar */}
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
@@ -45,12 +46,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
               </div>
             </div>
 
+            {/* Desktop Nav */}
             <div className="hidden md:flex items-center gap-6">
               <NavLink page="home" label="Home" />
               <NavLink page="live" label="Live Stream" icon={Video} />
               <NavLink page="private-live" label="Live Programs" icon={Lock} />
               <NavLink page="partnership" label="Partnership" icon={Heart} />
               
+              {/* Admin Quick Link (Icon only) */}
               {!user && (
                  <button 
                     onClick={() => onNavigate('admin-login')} 
@@ -67,9 +70,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
                     onClick={() => onNavigate('profile')}
                     className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-blue-900 transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900">
-                      <UserIcon size={16} />
-                    </div>
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900">
+                        <UserIcon size={16} />
+                      </div>
+                    )}
                     <span className="max-w-[100px] truncate">{user.name}</span>
                   </button>
 
@@ -90,6 +97,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
               )}
             </div>
 
+            {/* Mobile Menu Button */}
             <div className="flex items-center md:hidden">
               <button 
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -101,6 +109,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
           </div>
         </div>
 
+        {/* Mobile Nav */}
         {isMobileMenuOpen && (
           <div className="md:hidden bg-white border-t border-gray-100 p-4 space-y-3 shadow-xl">
             <NavLink page="home" label="Home" />
@@ -132,10 +141,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
         )}
       </nav>
 
+      {/* Content */}
       <main className="flex-grow">
         {children}
       </main>
 
+      {/* Footer */}
       <footer className="bg-blue-950 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
@@ -144,7 +155,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
               <h3 className="text-xl font-bold">Christ Embassy</h3>
             </div>
             <p className="text-blue-200 text-sm leading-relaxed">
-              Taking the divine presence of God to the nations of the world.
+              Taking the divine presence of God to the nations of the world and demonstrating the character of the Holy Spirit.
             </p>
           </div>
           <div>
@@ -159,6 +170,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
             <h4 className="font-semibold mb-4">Contact</h4>
             <p className="text-sm text-blue-200">Luanda, Angola</p>
             <p className="text-sm text-blue-200 mt-2">info@christembassyangola.org</p>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 mt-12 pt-8 border-t border-blue-900 flex flex-col md:flex-row justify-between items-center text-xs text-blue-400">
+          <p>© 2024 Christ Embassy Angola. All rights reserved.</p>
+          <div className="mt-4 md:mt-0">
+            <button onClick={() => onNavigate('admin-login')} className="hover:text-white flex items-center gap-1 transition-colors">
+               <Shield size={12} /> Admin Access
+            </button>
           </div>
         </div>
       </footer>

@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Send, Heart, Shield, MessageSquare } from 'lucide-react';
 import { useAuth } from '../App';
 import { ChatMessage } from '../types';
 import UniversalPlayer from '../components/UniversalPlayer';
+import { api } from '../services/api';
 
 const LivePrograms: React.FC = () => {
   const { user, system } = useAuth();
@@ -15,9 +15,8 @@ const LivePrograms: React.FC = () => {
 
   const fetchMessages = async () => {
     try {
-      const res = await fetch(`/api/chat?channel=private&t=${Date.now()}`);
-      if (res.ok && isMounted.current) {
-        const data = await res.json();
+      const data = await api.chat.getMessages('private');
+      if (isMounted.current) {
         setMessages(data);
       }
     } catch (e) {
@@ -45,25 +44,19 @@ const LivePrograms: React.FC = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !user) return;
-    
+
     const textToSend = newMessage;
-    setNewMessage(''); 
+    setNewMessage('');
 
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          username: user.fullName,
-          text: textToSend,
-          channel: 'private'
-        })
+      await api.chat.sendMessage({
+        userId: user.id,
+        username: user.fullName,
+        text: textToSend,
+        channel: 'private'
       });
-      
-      if (res.ok) {
-        await fetchMessages();
-      }
+
+      await fetchMessages();
     } catch (err) {
       console.error("Erro ao enviar mensagem:", err);
     }
@@ -77,8 +70,8 @@ const LivePrograms: React.FC = () => {
             <UniversalPlayer url={system.privateUrl} title={system.privateTitle} />
             <div className="absolute top-8 left-8 flex items-center space-x-3">
               <div className="bg-ministry-gold px-6 py-2.5 rounded-xl text-white text-[10px] font-black uppercase flex items-center shadow-2xl border border-white/10">
-                 <Shield size={14} className="mr-3" />
-                 Sessão Consagrada • Restrita
+                <Shield size={14} className="mr-3" />
+                Sessão Consagrada • Restrita
               </div>
             </div>
           </div>
@@ -86,7 +79,7 @@ const LivePrograms: React.FC = () => {
           <div className="mt-8 bg-gray-900 p-12 rounded-[3.5rem] border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-8 shadow-xl">
             <div className="flex-grow">
               <div className="flex items-center space-x-3 mb-4">
-                 <span className="px-4 py-1.5 bg-ministry-gold/20 text-ministry-gold text-[10px] font-black rounded-full uppercase tracking-[0.2em] border border-ministry-gold/10">Exclusividade Parceiro</span>
+                <span className="px-4 py-1.5 bg-ministry-gold/20 text-ministry-gold text-[10px] font-black rounded-full uppercase tracking-[0.2em] border border-ministry-gold/10">Exclusividade Parceiro</span>
               </div>
               <h1 className="text-4xl font-black text-white font-display mb-4 uppercase tracking-tight">{system.privateTitle}</h1>
               <p className="text-gray-400 text-xl font-light leading-relaxed max-w-4xl">{system.privateDescription}</p>
@@ -105,8 +98,8 @@ const LivePrograms: React.FC = () => {
               <h2 className="font-black font-display uppercase tracking-widest text-[11px]">Painel de Comunhão</h2>
             </div>
             <div className="flex items-center space-x-2">
-               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_green]"></span>
-               <span className="text-[9px] text-green-400 font-black uppercase tracking-widest">Global</span>
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_green]"></span>
+              <span className="text-[9px] text-green-400 font-black uppercase tracking-widest">Global</span>
             </div>
           </div>
           <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 bg-black/30 scrollbar-hide">
@@ -136,15 +129,15 @@ const LivePrograms: React.FC = () => {
           </div>
           <div className="p-8 bg-black/70 border-t border-white/10">
             <form onSubmit={handleSendMessage} className="relative">
-              <input 
-                type="text" 
-                placeholder="Declare sua vitória..." 
-                value={newMessage} 
-                onChange={(e) => setNewMessage(e.target.value)} 
-                className="w-full bg-slate-800 text-white text-sm rounded-2xl pl-6 pr-16 py-5 border-0 outline-none focus:ring-2 focus:ring-ministry-gold shadow-inner" 
+              <input
+                type="text"
+                placeholder="Declare sua vitória..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                className="w-full bg-slate-800 text-white text-sm rounded-2xl pl-6 pr-16 py-5 border-0 outline-none focus:ring-2 focus:ring-ministry-gold shadow-inner"
               />
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="absolute right-3 top-3 bottom-3 px-5 bg-ministry-gold text-white rounded-xl hover:scale-105 transition-all shadow-lg active:scale-90"
               >
                 <Send size={18} />

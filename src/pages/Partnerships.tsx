@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { PARTNERSHIP_BRANCHES, PAYMENT_METHODS } from '../constants';
 import { ShieldCheck, Info, ChevronRight, Check, Loader2 } from 'lucide-react';
 import { useAuth } from '../App';
+import { api } from '../services/api';
 
 const Partnerships: React.FC = () => {
   const { user } = useAuth();
@@ -14,7 +15,7 @@ const Partnerships: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const toggleBranch = (id: string) => {
-    setSelectedBranches(prev => 
+    setSelectedBranches(prev =>
       prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]
     );
   };
@@ -30,28 +31,20 @@ const Partnerships: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
-    
+
     try {
-      const res = await fetch('/api/payments/process', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user?.id || 'anon',
-          userName: user?.fullName || 'Anônimo',
-          amount: parseFloat(amount),
-          method: method,
-          type: 'partnership',
-          description: `Semente para: ${selectedBranches.join(', ')}`
-        })
+      await api.payments.process({
+        userId: user?.id || 'anon',
+        userName: user?.fullName || 'Anônimo',
+        amount: parseFloat(amount),
+        method: method,
+        type: 'partnership',
+        description: `Semente para: ${selectedBranches.join(', ')}`
       });
 
-      if (res.ok) {
-        setStep(3);
-      } else {
-        alert("Erro ao processar pagamento no servidor.");
-      }
-    } catch (e) {
-      alert("Falha na conexão de pagamento.");
+      setStep(3);
+    } catch (e: any) {
+      alert(e.message || "Falha na conexão de pagamento.");
     } finally {
       setIsProcessing(false);
     }
@@ -81,19 +74,18 @@ const Partnerships: React.FC = () => {
               <h2 className="text-4xl font-display font-black text-ministry-blue mb-12 uppercase tracking-tighter">Nossos Braços de Parceria</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 {PARTNERSHIP_BRANCHES.map(branch => (
-                  <div 
-                    key={branch.id} 
-                    className={`group bg-white border-2 rounded-[2.5rem] overflow-hidden cursor-pointer transition-all duration-500 hover:shadow-2xl ${
-                      selectedBranches.includes(branch.id) 
-                        ? 'border-ministry-gold ring-[12px] ring-ministry-gold/5 scale-[1.02]' 
+                  <div
+                    key={branch.id}
+                    className={`group bg-white border-2 rounded-[2.5rem] overflow-hidden cursor-pointer transition-all duration-500 hover:shadow-2xl ${selectedBranches.includes(branch.id)
+                        ? 'border-ministry-gold ring-[12px] ring-ministry-gold/5 scale-[1.02]'
                         : 'border-gray-100 hover:border-ministry-gold/30'
-                    }`}
+                      }`}
                     onClick={() => toggleBranch(branch.id)}
                   >
                     <div className="h-56 overflow-hidden bg-gray-100 relative">
-                      <img 
-                        src={branch.imageUrl} 
-                        alt={branch.name} 
+                      <img
+                        src={branch.imageUrl}
+                        alt={branch.name}
                         className="w-full h-full object-cover transition duration-700 group-hover:scale-110"
                         onError={(e) => {
                           const img = e.target as HTMLImageElement;
@@ -149,14 +141,13 @@ const Partnerships: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <button 
+                  <button
                     onClick={handleSponsorClick}
                     disabled={selectedBranches.length === 0}
-                    className={`w-full py-6 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-3 transition-all duration-300 shadow-2xl active:scale-95 ${
-                      selectedBranches.length > 0 
-                        ? 'bg-ministry-blue text-white hover:bg-ministry-gold' 
+                    className={`w-full py-6 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-3 transition-all duration-300 shadow-2xl active:scale-95 ${selectedBranches.length > 0
+                        ? 'bg-ministry-blue text-white hover:bg-ministry-gold'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
+                      }`}
                   >
                     <span>PROSSEGUIR PARA PATROCÍNIO</span>
                     <ChevronRight size={18} />
@@ -170,29 +161,29 @@ const Partnerships: React.FC = () => {
                       <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); setStep(2); }}>
                         <div>
                           <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-2">Nome Completo</label>
-                          <input 
-                            type="text" 
-                            className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-4 focus:ring-ministry-gold/20 font-bold" 
-                            defaultValue={user?.fullName} 
-                            required 
+                          <input
+                            type="text"
+                            className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-4 focus:ring-ministry-gold/20 font-bold"
+                            defaultValue={user?.fullName}
+                            required
                           />
                         </div>
                         <div>
                           <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-2">Valor da Semente (AOA/USD)</label>
-                          <input 
-                            type="number" 
-                            className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-4 focus:ring-ministry-gold/20 font-black text-xl text-ministry-blue" 
+                          <input
+                            type="number"
+                            className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-4 focus:ring-ministry-gold/20 font-black text-xl text-ministry-blue"
                             placeholder="0.00"
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
-                            required 
+                            required
                           />
                         </div>
                         <div>
                           <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-2">Pedido de Oração / Nota</label>
-                          <textarea 
-                            className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-4 focus:ring-ministry-gold/20 font-medium" 
-                            rows={3} 
+                          <textarea
+                            className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 focus:ring-4 focus:ring-ministry-gold/20 font-medium"
+                            rows={3}
                             placeholder="Sua mensagem para o pastor..."
                           ></textarea>
                         </div>
@@ -211,7 +202,7 @@ const Partnerships: React.FC = () => {
                           <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-2">Métodos Locais (Angola)</p>
                           <div className="grid grid-cols-1 gap-3">
                             {PAYMENT_METHODS.angolan.map(pm => (
-                              <button 
+                              <button
                                 key={pm.id}
                                 onClick={() => setMethod(pm.id)}
                                 className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all duration-300 ${method === pm.id ? 'border-ministry-gold bg-ministry-gold/5 shadow-inner' : 'border-gray-50 hover:border-gray-200'}`}
@@ -229,7 +220,7 @@ const Partnerships: React.FC = () => {
                           <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-2">Métodos Internacionais</p>
                           <div className="grid grid-cols-1 gap-3">
                             {PAYMENT_METHODS.international.map(pm => (
-                              <button 
+                              <button
                                 key={pm.id}
                                 onClick={() => setMethod(pm.id)}
                                 className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all duration-300 ${method === pm.id ? 'border-ministry-gold bg-ministry-gold/5 shadow-inner' : 'border-gray-50 hover:border-gray-200'}`}
@@ -245,8 +236,8 @@ const Partnerships: React.FC = () => {
                         </div>
                         <div className="flex space-x-4 pt-4">
                           <button onClick={() => setStep(1)} disabled={isProcessing} className="flex-1 py-6 text-gray-400 font-black uppercase tracking-widest text-xs hover:text-gray-600 transition">VOLTAR</button>
-                          <button 
-                            onClick={handleSubmit} 
+                          <button
+                            onClick={handleSubmit}
                             disabled={!method || isProcessing}
                             className={`flex-[2] py-6 rounded-2xl font-black uppercase tracking-widest text-xs text-white transition-all duration-300 shadow-2xl ${method && !isProcessing ? 'bg-ministry-gold hover:opacity-90' : 'bg-gray-200 cursor-not-allowed'}`}
                           >
@@ -264,7 +255,7 @@ const Partnerships: React.FC = () => {
                       </div>
                       <h3 className="text-3xl font-display font-black text-ministry-blue mb-4 uppercase tracking-tighter">Semente Recebida!</h3>
                       <p className="text-gray-500 mb-10 font-medium leading-relaxed">Deus abençoe sua parceria no Evangelho. Registramos sua transação no sistema master.</p>
-                      <button 
+                      <button
                         onClick={() => { setStep(1); setShowForm(false); setSelectedBranches([]); }}
                         className="px-12 py-5 bg-ministry-blue text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-ministry-gold transition-all duration-300 shadow-xl"
                       >

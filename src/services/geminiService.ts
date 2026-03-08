@@ -2,11 +2,12 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Devotional } from '../types';
 
 // Initialize Gemini Client
+// The API key must be obtained exclusively from the environment variable process.env.API_KEY.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateDailyDevotional = async (): Promise<Devotional> => {
   try {
-    const model = 'gemini-3-flash-preview';
+    const model = 'gemini-3-flash-preview'; // Using a stable fast model for basic text tasks
     const prompt = "Generate a short, uplifting Christian daily devotional for members of Christ Embassy. Include a title, a bible scripture reference, and a 100-word inspiring message.";
 
     const response = await ai.models.generateContent({

@@ -1,8 +1,4 @@
-import { StreamEvent, PartnershipArm } from './types';
-
-export const APP_NAME = "Christ Embassy Angola";
-export const PRIMARY_COLOR = "blue-900"; // Deep Royal Blue
-export const LOGO_URL = "https://loveworldsat.org/wp-content/uploads/2022/05/LoveWorldSAT-Logo-2022.png"; 
+import { PartnershipBranch, StreamEvent } from './types';
 
 export const MOCK_STREAMS: StreamEvent[] = [
   {
@@ -10,62 +6,59 @@ export const MOCK_STREAMS: StreamEvent[] = [
     title: 'Sunday Service Live',
     description: 'Join us for a time of worship and the word with Pastor Chris.',
     date: 'Live Now',
-    thumbnailUrl: 'https://picsum.photos/800/450?grayscale',
+    thumbnailUrl: 'assets/pastor-chris.jpg',
     isLive: true,
     viewers: 0,
     type: 'public',
-    streamSource: 'custom', 
-    streamUrl: '' 
-  },
-  {
-    id: '2',
-    title: 'Mid-Week Bible Study',
-    description: 'Deep dive into the scriptures.',
-    date: 'Wednesday, 6:00 PM',
-    thumbnailUrl: 'https://picsum.photos/800/450?blur=2',
-    isLive: false,
-    viewers: 0,
-    type: 'public',
-    streamSource: 'youtube',
-    streamUrl: ''
-  },
-  {
-    id: '3',
-    title: 'Leaders Conference (Private)',
-    description: 'Exclusive session for church leaders and pastors.',
-    date: 'Saturday, 2:00 PM',
-    thumbnailUrl: 'https://picsum.photos/800/450',
-    isLive: false,
-    viewers: 0,
-    type: 'private',
     streamSource: 'custom',
     streamUrl: ''
   }
 ];
 
-export const PARTNERSHIP_ARMS: PartnershipArm[] = [
+// Altere os valores de 'imageUrl' abaixo para os nomes dos arquivos 
+// que você colocou dentro da pasta public/assets/
+export const PARTNERSHIP_BRANCHES: PartnershipBranch[] = [
   {
     id: 'rhapsody',
     name: 'Rhapsody of Realities',
-    description: 'Join us in distributing the Messenger Angel to every nook and cranny of the world in every known language.',
-    imageUrl: 'https://picsum.photos/id/20/600/400'
+    description: 'O livro mais traduzido do mundo, alcançando bilhões em mais de 7.000 idiomas.',
+    impact: 'Alcançando cada nação e cidade com o evangelho através do anjo mensageiro.',
+    imageUrl: 'assets/rhapsody.png' // <-- Altere este nome se o arquivo for diferente
   },
   {
-    id: 'healing',
-    name: 'The Healing School',
-    description: 'Taking divine healing to the nations. Partner with us to sponsor healing sessions and broadcasts.',
-    imageUrl: 'https://picsum.photos/id/60/600/400'
+    id: 'hschool',
+    name: 'Healing School',
+    description: 'Levando o poder de cura de Deus às nações através de cruzadas de cura.',
+    impact: 'Milhões curados de diversas doenças e enfermidades em todo o mundo.',
+    imageUrl: 'assets/healing-school.png' // <-- Altere este nome se o arquivo for diferente
+  },
+  {
+    id: 'loveworld-tv',
+    name: 'LoveWorld TV',
+    description: 'Transmitindo a mensagem de esperança e vida para lares em todo o mundo 24 horas por dia.',
+    impact: 'Alcance global via satélite e digital, impactando vidas em todos os continentes.',
+    imageUrl: 'assets/loveworld-tv.png' // <-- Altere este nome se o arquivo for diferente
   },
   {
     id: 'innercity',
     name: 'InnerCity Mission',
-    description: 'Taking action to end child poverty. Every child is your child.',
-    imageUrl: 'https://picsum.photos/id/90/600/400'
-  },
-  {
-    id: 'lwsat',
-    name: 'LoveWorld SAT',
-    description: 'Broadcasting the gospel of our Lord Jesus Christ to the world via satellite television.',
-    imageUrl: 'https://picsum.photos/id/180/600/400'
+    description: 'Comprometidos em quebrar o ciclo da pobreza e alcançar crianças carentes.',
+    impact: 'Programas de alimentação, educação e abrigo para crianças vulneráveis.',
+    imageUrl: 'assets/inner-city.png' // <-- Altere este nome se o arquivo for diferente
   }
 ];
+
+export const PAYMENT_METHODS = {
+  angolan: [
+    { id: 'paypay', name: 'PayPay Africa', icon: '📱' },
+    { id: 'express', name: 'Express', icon: '🚀' },
+    { id: 'unitel', name: 'Unitel Money', icon: '📶' },
+    { id: 'afrimoney', name: 'Afrimoney', icon: '💰' },
+    { id: 'bank', name: 'Transferência Bancária', icon: '🏦' }
+  ],
+  international: [
+    { id: 'visa', name: 'Visa', icon: '💳' },
+    { id: 'mastercard', name: 'MasterCard', icon: '💳' },
+    { id: 'paypal', name: 'PayPal', icon: '🅿️' }
+  ]
+};

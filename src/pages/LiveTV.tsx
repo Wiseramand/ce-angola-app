@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Send, MessageSquare, Heart } from 'lucide-react';
 import { useAuth } from '../App';
 import { ChatMessage } from '../types';
 import UniversalPlayer from '../components/UniversalPlayer';
+import { api } from '../services/api';
 
 const LiveTV: React.FC = () => {
   const { user, system } = useAuth();
@@ -15,10 +15,8 @@ const LiveTV: React.FC = () => {
 
   const fetchMessages = async () => {
     try {
-      // t=${Date.now()} evita que o navegador sirva uma versão em cache do chat
-      const res = await fetch(`/api/chat?channel=public&t=${Date.now()}`);
-      if (res.ok && isMounted.current) {
-        const data = await res.json();
+      const data = await api.chat.getMessages('public');
+      if (isMounted.current) {
         setMessages(data);
       }
     } catch (e) {
@@ -29,10 +27,10 @@ const LiveTV: React.FC = () => {
   useEffect(() => {
     isMounted.current = true;
     fetchMessages();
-    
+
     // Polling agressivo de 2 segundos para interatividade máxima
-    const interval = setInterval(fetchMessages, 2000); 
-    
+    const interval = setInterval(fetchMessages, 2000);
+
     return () => {
       isMounted.current = false;
       clearInterval(interval);
@@ -49,26 +47,20 @@ const LiveTV: React.FC = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !user) return;
-    
+
     const textToSend = newMessage;
-    setNewMessage(''); 
+    setNewMessage('');
 
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          username: user.fullName,
-          text: textToSend,
-          channel: 'public'
-        })
+      await api.chat.sendMessage({
+        userId: user.id,
+        username: user.fullName,
+        text: textToSend,
+        channel: 'public'
       });
-      
-      if (res.ok) {
-        // Busca imediata após enviar para garantir que apareça na lista global
-        await fetchMessages();
-      }
+
+      // Busca imediata após enviar para garantir que apareça na lista global
+      await fetchMessages();
     } catch (err) {
       console.error("Erro ao enviar mensagem:", err);
     }
@@ -82,8 +74,8 @@ const LiveTV: React.FC = () => {
             <UniversalPlayer url={system.publicUrl} title={system.publicTitle} />
             <div className="absolute top-8 left-8 flex items-center space-x-3">
               <div className="bg-red-600 px-5 py-2 rounded-xl text-white text-xs font-black uppercase flex items-center shadow-2xl">
-                 <span className="w-2.5 h-2.5 bg-white rounded-full mr-3 animate-ping"></span>
-                 Direto em Angola
+                <span className="w-2.5 h-2.5 bg-white rounded-full mr-3 animate-ping"></span>
+                Direto em Angola
               </div>
             </div>
           </div>
@@ -122,12 +114,12 @@ const LiveTV: React.FC = () => {
                     </div>
                     <div className="flex-grow">
                       <div className="flex items-center space-x-2 mb-1">
-                         <p className={`text-[10px] font-black uppercase tracking-wider ${isAdmin ? 'text-ministry-gold' : 'text-slate-400'}`}>
-                           {msg.username}
-                         </p>
-                         {isAdmin && (
-                           <span className="bg-ministry-gold/20 text-ministry-gold text-[8px] px-2 py-0.5 rounded-full font-black border border-ministry-gold/30">ADMIN</span>
-                         )}
+                        <p className={`text-[10px] font-black uppercase tracking-wider ${isAdmin ? 'text-ministry-gold' : 'text-slate-400'}`}>
+                          {msg.username}
+                        </p>
+                        {isAdmin && (
+                          <span className="bg-ministry-gold/20 text-ministry-gold text-[8px] px-2 py-0.5 rounded-full font-black border border-ministry-gold/30">ADMIN</span>
+                        )}
                       </div>
                       <div className={`text-sm p-4 rounded-2xl rounded-tl-none border shadow-sm ${isAdmin ? 'bg-ministry-gold/10 border-ministry-gold/20 text-white' : 'bg-white/5 border-white/5 text-slate-300'}`}>
                         {msg.text}
@@ -141,15 +133,15 @@ const LiveTV: React.FC = () => {
           <div className="p-8 bg-black/60 border-t border-white/5">
             {user ? (
               <form onSubmit={handleSendMessage} className="relative">
-                <input 
-                  type="text" 
-                  placeholder="Escreva sua mensagem aqui..." 
-                  value={newMessage} 
-                  onChange={(e) => setNewMessage(e.target.value)} 
-                  className="w-full bg-slate-800/50 text-white text-sm rounded-2xl pl-6 pr-16 py-5 focus:ring-2 focus:ring-ministry-gold border-0 outline-none transition shadow-inner" 
+                <input
+                  type="text"
+                  placeholder="Escreva sua mensagem aqui..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  className="w-full bg-slate-800/50 text-white text-sm rounded-2xl pl-6 pr-16 py-5 focus:ring-2 focus:ring-ministry-gold border-0 outline-none transition shadow-inner"
                 />
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="absolute right-3 top-3 bottom-3 px-5 bg-ministry-gold text-white rounded-xl hover:bg-ministry-blue transition-all active:scale-90"
                 >
                   <Send size={18} />

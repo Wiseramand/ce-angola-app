@@ -1,137 +1,90 @@
+
 import React, { useState } from 'react';
-import { Button } from '../components/Button';
-import { User, UserRole } from '../types';
-import { ShieldAlert, Lock, ServerCog, CheckCircle, AlertTriangle, Terminal } from 'lucide-react';
-import { Logo } from '../components/Logo';
-import { api } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../App';
+import { Lock, User as UserIcon, Loader2, ShieldCheck } from 'lucide-react';
 
-interface AdminLoginProps {
-  onLogin: (user: User) => void;
-}
-
-export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
+const AdminLogin: React.FC = () => {
+  const { adminLogin, isLoading } = useAuth();
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  
-  const [setupMessage, setSetupMessage] = useState('');
-  const [isSettingUp, setIsSettingUp] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
-    setShowHelp(false);
-
     try {
-      const user = await api.auth.login(email, password);
-      if (user.role === UserRole.ADMIN) {
-        onLogin(user);
-      } else {
-        setError('Access denied. Administrator privileges required.');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Invalid credentials.');
-      if (err.message && (err.message.includes('404') || err.message.includes('Server Error'))) {
-          setShowHelp(true);
-      }
-    } finally {
-      setLoading(false);
+      await adminLogin({ username, pass: password });
+      navigate('/admin');
+    } catch (err) {
+      setError('Acesso negado. Credenciais de mestre inválidas.');
     }
   };
 
-  const handleFirstTimeSetup = async () => {
-      setIsSettingUp(true);
-      setSetupMessage('');
-      setError('');
-      try {
-          const msg = await api.system.setupAdmin();
-          setSetupMessage(msg);
-          setEmail('admin@christembassy.org');
-          setPassword('admin123');
-      } catch (e: any) {
-          setError(e.message);
-          setShowHelp(true);
-      } finally {
-          setIsSettingUp(false);
-      }
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gray-900">
-      <div 
-        className="absolute inset-0 z-0 opacity-40"
-        style={{
-          backgroundImage: "url('https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=2073&auto=format&fit=crop')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      ></div>
-
-      <div className="max-w-md w-full space-y-6 bg-white/10 backdrop-blur-md p-10 rounded-2xl shadow-2xl border border-white/20 relative z-10">
-        <div className="text-center">
-          <Logo className="h-20 w-20 drop-shadow-2xl mx-auto mb-6" />
-          <h2 className="text-3xl font-bold text-white tracking-tight">Admin Portal</h2>
+    <div className="min-h-screen bg-[#050a15] flex items-center justify-center p-6">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-ministry-blue mb-6 border border-white/10 shadow-2xl">
+            <ShieldCheck size={40} className="text-ministry-gold" />
+          </div>
+          <h1 className="text-2xl font-display font-bold text-white tracking-tight">Painel de Controlo Master</h1>
+          <p className="text-gray-500 text-sm mt-2 font-medium">Autenticação Restrita • Christ Embassy Angola</p>
         </div>
 
-        {error && (
-          <div className="bg-red-500/20 border border-red-500/50 text-red-200 p-3 rounded-lg text-sm text-center">
-            <AlertTriangle size={16} className="inline mr-2" /> {error}
-          </div>
-        )}
-
-        {showHelp && (
-            <div className="bg-black/40 border border-yellow-500/30 text-gray-200 p-4 rounded-lg text-xs">
-                <h4 className="text-yellow-400 font-bold flex items-center gap-2 mb-2">
-                    <Terminal size={14} /> Backend Setup Guide
-                </h4>
-                <p>Ensure `php artisan serve` is running in `cea-backend`.</p>
+        <form onSubmit={handleSubmit} className="bg-gray-900/50 backdrop-blur-xl p-10 rounded-[3rem] border border-white/5 shadow-2xl space-y-6">
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-2xl text-xs font-bold text-center uppercase tracking-widest">
+              {error}
             </div>
-        )}
+          )}
 
-        {setupMessage && (
-          <div className="bg-green-500/20 border border-green-500/50 text-green-200 p-3 rounded-lg text-sm text-center flex items-center justify-center gap-2">
-            <CheckCircle size={16} /> {setupMessage}
+          <div>
+            <label className="block text-[10px] font-black text-gray-500 uppercase mb-2 tracking-[0.2em] ml-2">Master ID</label>
+            <div className="relative">
+              <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" size={18} />
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white focus:ring-2 focus:ring-ministry-gold transition outline-none"
+                placeholder="Introduzir ID"
+                required
+              />
+            </div>
           </div>
-        )}
 
-        <form className="mt-2 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <input 
-                type="email" 
-                className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:ring-2 focus:ring-red-500 outline-none"
-                placeholder="admin@christembassy.org"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-            />
-            <input 
-                type="password" 
-                className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:ring-2 focus:ring-red-500 outline-none"
-                placeholder="••••••••"
+          <div>
+            <label className="block text-[10px] font-black text-gray-500 uppercase mb-2 tracking-[0.2em] ml-2">Chave de Acesso</label>
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" size={18} />
+              <input
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-            />
+                className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white focus:ring-2 focus:ring-ministry-gold transition outline-none"
+                placeholder="••••••••"
+                required
+              />
+            </div>
           </div>
 
-          <Button type="submit" variant="danger" className="w-full py-4 text-lg" isLoading={loading}>
-            Authenticate
-          </Button>
-
-          <div className="text-center pt-4 border-t border-white/5">
-             <button 
-                type="button"
-                onClick={handleFirstTimeSetup}
-                disabled={isSettingUp}
-                className="text-xs text-blue-300 hover:text-white flex items-center justify-center gap-1 mx-auto"
-             >
-                <ServerCog size={12} />
-                {isSettingUp ? 'Connecting...' : 'Run Auto-Setup (First Time)'}
-             </button>
-          </div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-5 bg-ministry-blue text-white rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:bg-opacity-90 transition disabled:opacity-50 shadow-xl"
+          >
+            {isLoading ? <Loader2 className="animate-spin mx-auto" size={20} /> : "Desbloquear Consola"}
+          </button>
         </form>
+
+        <p className="text-center mt-10 text-[10px] text-gray-700 font-bold uppercase tracking-widest">
+          Sistema de Segurança Integrado • v4.0.1
+        </p>
       </div>
     </div>
   );
 };
+
+export default AdminLogin;

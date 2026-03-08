@@ -1,50 +1,85 @@
+
 import React from 'react';
 
-export const Logo = ({ className = "h-12 w-auto" }: { className?: string }) => {
+interface LogoProps {
+  className?: string;
+}
+
+const Logo: React.FC<LogoProps> = ({ className = "h-12 w-auto" }) => {
   return (
     <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 200 200" 
+      viewBox="0 0 300 250" 
       className={className}
-      fill="none"
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <linearGradient id="gold-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FDB931" />
-          <stop offset="25%" stopColor="#FDF5A6" />
-          <stop offset="50%" stopColor="#D4AF37" />
-          <stop offset="75%" stopColor="#FDF5A6" />
-          <stop offset="100%" stopColor="#996515" />
+        <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style={{ stopColor: '#FDF5E6', stopOpacity: 1 }} />
+          <stop offset="20%" style={{ stopColor: '#FFD700', stopOpacity: 1 }} />
+          <stop offset="50%" style={{ stopColor: '#C5A059', stopOpacity: 1 }} />
+          <stop offset="80%" style={{ stopColor: '#8B6508', stopOpacity: 1 }} />
+          <stop offset="100%" style={{ stopColor: '#C5A059', stopOpacity: 1 }} />
         </linearGradient>
-        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="2" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        <filter id="goldShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+          <feOffset dx="2" dy="2" result="offsetblur" />
+          <feComponentTransfer>
+            <feFuncA type="linear" slope="0.5" />
+          </feComponentTransfer>
+          <feMerge>
+            <feMergeNode />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
         </filter>
       </defs>
       
-      <circle cx="100" cy="100" r="90" stroke="url(#gold-gradient)" strokeWidth="2" opacity="0.3" />
-      <ellipse cx="100" cy="100" rx="95" ry="30" stroke="url(#gold-gradient)" strokeWidth="1" transform="rotate(-15 100 100)" opacity="0.4" />
-      
+      {/* Heart Shape */}
       <path 
-        d="M100 180 C 100 180, 20 130, 20 70 C 20 30, 60 10, 90 40 L 100 50 L 110 40 C 140 10, 180 30, 180 70 C 180 130, 100 180, 100 180 Z" 
-        fill="none" 
-        stroke="url(#gold-gradient)" 
-        strokeWidth="6"
-        filter="url(#glow)"
+        d="M150 230 C150 230 20 160 20 85 C20 40 60 20 90 20 C115 20 135 35 150 55 C165 35 185 20 210 20 C240 20 280 40 280 85 C280 160 150 230 150 230Z" 
+        stroke="url(#goldGradient)" 
+        strokeWidth="12"
+        filter="url(#goldShadow)"
+        fill="transparent"
       />
       
+      {/* World Grid/Lines inside Heart */}
+      <path 
+        d="M70 45 Q150 100 230 45 M45 80 Q150 140 255 80 M35 120 Q150 180 265 120 M150 25 L150 220 M80 30 Q100 120 100 200 M220 30 Q200 120 200 200" 
+        stroke="url(#goldGradient)" 
+        strokeWidth="3" 
+        opacity="0.6"
+      />
+
+      {/* LoveWorld Text */}
       <text 
-        x="100" 
-        y="115" 
-        fontFamily="serif" 
-        fontSize="24" 
-        fontWeight="bold" 
-        fill="url(#gold-gradient)" 
-        textAnchor="middle"
-        style={{textShadow: '1px 1px 2px rgba(0,0,0,0.3)'}}
+        x="150" 
+        y="125" 
+        textAnchor="middle" 
+        fill="url(#goldGradient)" 
+        style={{ 
+          fontFamily: 'Montserrat, sans-serif', 
+          fontWeight: '900', 
+          fontSize: '42px',
+          filter: 'drop-shadow(2px 2px 2px rgba(0,0,0,0.3))'
+        }}
       >
         LoveWorld
       </text>
+
+      {/* Orbit/Ring around the heart */}
+      <ellipse 
+        cx="150" 
+        cy="120" 
+        rx="145" 
+        ry="35" 
+        stroke="url(#goldGradient)" 
+        strokeWidth="6"
+        fill="transparent"
+        transform="rotate(-5, 150, 120)"
+      />
     </svg>
   );
 };
+
+export default Logo;

@@ -1,136 +1,258 @@
-import React, { useState, useEffect } from 'react';
-import { Layout } from './components/Layout';
-import { Home } from './pages/Home';
-import { LiveStream } from './pages/LiveStream';
-import { UserAuth } from './pages/UserAuth';
-import { AdminLogin } from './pages/AdminLogin';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { UserProfile } from './pages/UserProfile';
-import { Partnership } from './pages/Partnership';
-import { PrivateLiveProgram } from './pages/PrivateLiveProgram';
-import { User, UserRole, ProgramCredential, StreamEvent } from './types';
+
+import React, { useState, createContext, useContext, useEffect, useRef } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import Home from './pages/Home';
+import LivePrograms from './pages/LivePrograms';
+import LiveTV from './pages/LiveTV';
+import Partnerships from './pages/Partnerships';
+import Donations from './pages/Donations';
+import Founder from './pages/Founder';
+import AdminDashboard from './pages/AdminDashboard';
+import Login from './pages/Login';
+import AdminLogin from './pages/AdminLogin';
+import Register from './pages/Register';
+import Profile from './pages/Profile';
+import Welcome from './pages/Welcome';
+import { User, StreamConfig, UserRole } from './types';
+import { ShieldAlert, Loader2 } from 'lucide-react';
 import { api } from './services/api';
 
-function App() {
-  const [page, setPage] = useState('home');
-  const [user, setUser] = useState<User | null>(null);
+interface UserExtended extends User {
+  sessionId?: string;
+}
+
+interface SystemState extends StreamConfig {
+  activeSessions: string[];
+}
+
+interface AuthContextType {
+  user: UserExtended | null;
+  system: SystemState;
+  login: (credentials: { username: string; pass: string }) => Promise<void>;
+  adminLogin: (credentials: { username: string; pass: string }) => Promise<void>;
+  register: (userData: any) => Promise<void>;
+  logout: () => void;
+  updateStreamConfig: (config: any) => Promise<void>;
+  isLoading: boolean;
+  refreshSystem: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
+};
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<UserExtended | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // State for Global Data
-  const [streams, setStreams] = useState<StreamEvent[]>([]);
-  const [programCredentials, setProgramCredentials] = useState<ProgramCredential[]>([]);
+  const heartbeatRef = useRef<number | null>(null);
+  const [system, setSystem] = useState<SystemState>({
+    publicUrl: '',
+    publicTitle: 'LoveWorld TV Angola',
+    publicDescription: 'Transmissão pública e gratuita.',
+    privateUrl: '',
+    privateTitle: 'Conferência Ministerial',
+    privateDescription: 'Acesso restrito para parceiros.',
+    isPrivateMode: false,
+    activeSessions: []
+  });
 
-  // Initial Data Load
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const loadedStreams = await api.streams.getAll();
-        const loadedCreds = await api.credentials.getAll();
-        setStreams(loadedStreams);
-        setProgramCredentials(loadedCreds);
-      } catch (error) {
-        console.error("Failed to load initial data", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadData();
-  }, []);
-
-  // Simple hash router
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.slice(1) || 'home';
-      setPage(hash);
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    handleHashChange(); // Init
-
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  const navigate = (path: string) => {
-    window.location.hash = path;
-  };
-
-  const handleLogin = (newUser: User) => {
-    setUser(newUser);
-    if (newUser.role === UserRole.ADMIN) {
-      navigate('admin-dashboard');
-    } else {
-      navigate('home');
-    }
-  };
-
-  const handleLogout = () => {
+  const logout = () => {
+    if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     setUser(null);
-    navigate('home');
+    localStorage.removeItem('ce_session_user');
   };
 
-  const handleUpdateUser = (updatedUser: User) => {
-    setUser(updatedUser);
+  const sendHeartbeat = async (userId: string, sessionId: string) => {
+    if (userId.startsWith('v-')) return;
+    try {
+      const res = await fetch('/api/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId.replace('m-', ''), sessionId })
+      });
+      if (res.status === 401) {
+        alert("Sessão Terminada: Foi detetado um novo acesso com esta conta noutro dispositivo.");
+        logout();
+      }
+    } catch (e) { }
   };
 
-  // Render Route
-  const renderPage = () => {
-    if (isLoading) {
-      return (
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
+  const refreshSystem = async () => {
+    try {
+      const data = await api.system.getConfig();
+      if (data) {
+        setSystem(prev => ({
+          ...prev,
+          publicUrl: data.public_url || data.publicUrl,
+          publicTitle: data.public_title || data.publicTitle,
+          publicDescription: data.public_description || data.publicDescription,
+          privateUrl: data.private_url || data.privateUrl,
+          privateTitle: data.private_title || data.privateTitle,
+          privateDescription: data.private_description || data.privateDescription,
+          isPrivateMode: !!(data.is_private_mode || data.isPrivateMode)
+        }));
+      }
+    } catch (e) { }
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      await refreshSystem();
+      const saved = localStorage.getItem('ce_session_user');
+      if (saved) {
+        try {
+          const parsedUser = JSON.parse(saved);
+          setUser(parsedUser);
+          if (parsedUser.sessionId && parsedUser.role !== 'admin' && !parsedUser.id.startsWith('v-')) {
+            heartbeatRef.current = window.setInterval(() => sendHeartbeat(parsedUser.id, parsedUser.sessionId), 10000);
+          }
+        } catch (e) { localStorage.removeItem('ce_session_user'); }
+      }
+      setIsLoading(false);
+    };
+    init();
+    return () => { if (heartbeatRef.current) clearInterval(heartbeatRef.current); };
+  }, []);
+
+  const login = async (creds: { username: string; pass: string }) => {
+    setIsLoading(true);
+    try {
+      // Use email as username for consistency if needed, or update api service
+      const user = await api.auth.login(creds.username, creds.pass);
+      setUser(user);
+      localStorage.setItem('ce_session_user', JSON.stringify(user));
+      // @ts-ignore
+      if (user.sessionId && user.role !== 'admin') {
+        if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+        // @ts-ignore
+        heartbeatRef.current = window.setInterval(() => sendHeartbeat(user.id, user.sessionId), 10000);
+      }
+    } catch (err: any) {
+      throw new Error(err.message || 'INVALID');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const adminLogin = async (creds: { username: string; pass: string }) => {
+    setIsLoading(true);
+    if (creds.username === 'master_admin' && creds.pass === 'angola_faith_2025') {
+      const admin: UserExtended = { id: 'admin-1', fullName: 'Super Administrador', email: 'admin@ceangola.org', phone: '900', country: 'Angola', address: 'Luanda', gender: 'Male', hasLiveAccess: true, role: 'admin' };
+      setUser(admin);
+      localStorage.setItem('ce_session_user', JSON.stringify(admin));
+    } else {
+      // Fallback to regular login if master admin fails
+      try {
+        await login(creds);
+      } catch (e) {
+        throw new Error('UNAUTHORIZED');
+      }
+    }
+    setIsLoading(false);
+  };
+
+  const register = async (data: any) => {
+    try {
+      const user = await api.auth.register(data.fullName, data.email, 'password123'); // Default password for visitor
+      setUser(user);
+      localStorage.setItem('ce_session_user', JSON.stringify(user));
+    } catch (e) {
+      const visitorUser: UserExtended = { ...data, id: 'v-' + Date.now(), role: 'user', hasLiveAccess: false };
+      setUser(visitorUser);
+      localStorage.setItem('ce_session_user', JSON.stringify(visitorUser));
+    }
+  };
+
+  const updateStreamConfig = async (payload: any) => {
+    await api.system.updateConfig(payload);
+    await refreshSystem();
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, system, login, adminLogin, register, logout, isLoading, updateStreamConfig, refreshSystem }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean; liveOnly?: boolean }> = ({ children, adminOnly, liveOnly }) => {
+  const { user, system, isLoading } = useAuth();
+  if (isLoading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><Loader2 className="text-ministry-gold animate-spin" size={48} /></div>;
+  if (!user && (adminOnly || liveOnly)) return <Navigate to={adminOnly ? "/central-admin" : "/login"} replace />;
+  if (adminOnly && user?.role !== 'admin') return <Navigate to="/" replace />;
+
+  if (liveOnly && system.isPrivateMode && !user?.hasLiveAccess && user?.role !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-950 p-6">
+        <div className="max-w-md w-full bg-gray-900 p-12 rounded-[4rem] border border-white/5 text-center shadow-2xl">
+          <ShieldAlert size={64} className="text-ministry-gold mx-auto mb-8 animate-bounce" />
+          <h2 className="text-3xl font-display font-black text-white mb-6 uppercase tracking-tight">Zona Privada</h2>
+          <p className="text-gray-400 mb-10 text-lg font-light leading-relaxed">Este conteúdo é reservado a parceiros com credenciais ativas do sistema master.</p>
+          <button onClick={() => window.location.hash = '#/login'} className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">Introduzir Chave de Acesso</button>
         </div>
-      );
-    }
+      </div>
+    );
+  }
+  return <>{children}</>;
+};
 
-    switch (page) {
-      case 'home':
-        return <Home onNavigate={navigate} streams={streams} />;
-      case 'live':
-        return <LiveStream user={user} onNavigate={navigate} streams={streams} />;
-      case 'private-live':
-        return <PrivateLiveProgram onNavigate={navigate} credentials={programCredentials} streams={streams} />;
-      case 'partnership':
-        return <Partnership user={user} onNavigate={navigate} />;
-      case 'profile':
-        if (!user) {
-            navigate('login');
-            return <UserAuth type="login" onLogin={handleLogin} onNavigate={navigate} />;
-        }
-        return <UserProfile user={user} onUpdateUser={handleUpdateUser} />;
-      case 'login':
-        return <UserAuth type="login" onLogin={handleLogin} onNavigate={navigate} />;
-      case 'register':
-        return <UserAuth type="register" onLogin={handleLogin} onNavigate={navigate} />;
-      case 'admin-login':
-        return <AdminLogin onLogin={handleLogin} />;
-      case 'admin-dashboard':
-        if (user?.role === UserRole.ADMIN) {
-          return (
-            <AdminDashboard 
-              user={user} 
-              credentials={programCredentials}
-              setCredentials={setProgramCredentials}
-              streams={streams}
-              setStreams={setStreams}
-            />
-          );
-        }
-        return <AdminLogin onLogin={handleLogin} />;
-      default:
-        return <Home onNavigate={navigate} streams={streams} />;
-    }
-  };
+// Componente de conteúdo que consome o useAuth
+const AppContent: React.FC = () => {
+  const { user, isLoading } = useAuth();
+  const location = useLocation();
 
-  // Admin Login Standalone Page (Full Screen)
-  if (page === 'admin-login') {
-    return <AdminLogin onLogin={handleLogin} />;
+  const isAdminPath = location.pathname === '/central-admin' || location.pathname === '/admin';
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <Loader2 className="text-ministry-gold animate-spin" size={48} />
+      </div>
+    );
+  }
+
+  // Se não houver utilizador e não for a rota de admin, obriga a identificação (Welcome)
+  if (!user && !isAdminPath) {
+    return <Welcome />;
   }
 
   return (
-    <Layout user={user} onLogout={handleLogout} onNavigate={navigate} currentPage={page}>
-      {renderPage()}
-    </Layout>
+    <div className="flex flex-col min-h-screen">
+      {!isAdminPath && <Header />}
+      <main className="flex-grow">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/live-tv" element={<LiveTV />} />
+          <Route path="/live" element={<ProtectedRoute liveOnly><LivePrograms /></ProtectedRoute>} />
+          <Route path="/partnerships" element={<Partnerships />} />
+          <Route path="/donations" element={<Donations />} />
+          <Route path="/founder" element={<Founder />} />
+          <Route path="/central-admin" element={<AdminLogin />} />
+          <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+      {!isAdminPath && <Footer />}
+    </div>
   );
-}
+};
+
+// Componente principal que provê o contexto
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+};
 
 export default App;

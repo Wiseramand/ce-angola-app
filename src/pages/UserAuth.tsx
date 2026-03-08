@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { User } from '../types';
-import { Logo } from '../components/Logo';
+import Logo from '../components/Logo';
 import { api } from '../services/api';
 
 interface AuthProps {
@@ -44,19 +44,24 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-xl border border-gray-100">
         <div className="text-center">
-          <Logo className="h-20 w-20 drop-shadow-md mx-auto mb-6" />
+          <div className="mx-auto mb-6 flex justify-center">
+            <Logo className="h-20 w-20 drop-shadow-md" />
+          </div>
           <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
             {type === 'login' ? 'Welcome Back' : 'Create Account'}
           </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            {type === 'login' ? 'Sign in to access premium content' : 'Join our digital church family today'}
+          </p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
-             <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-200">
-                {error}
-             </div>
+            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-200">
+              {error}
+            </div>
           )}
-          
+
           <div className="space-y-4">
             {type === 'register' && (
               <Input
@@ -65,7 +70,7 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
                 placeholder="John Doe"
                 required
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             )}
             <Input
@@ -74,7 +79,7 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
               placeholder="you@example.com"
               required
               value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
             <Input
               label="Password"
@@ -82,19 +87,19 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
               placeholder="••••••••"
               required
               value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             />
           </div>
 
-          <Button type="submit" className="w-full py-3" isLoading={loading}>
-            {type === 'login' ? 'Sign In' : 'Register'}
+          <Button type="submit" className="w-full" isLoading={loading}>
+            {type === 'login' ? 'Sign In' : 'Sign Up'}
           </Button>
 
-          <div className="text-center text-sm">
-            <button 
+          <div className="text-center">
+            <button
               type="button"
               onClick={() => onNavigate(type === 'login' ? 'register' : 'login')}
-              className="font-medium text-blue-900 hover:text-blue-800"
+              className="text-sm text-blue-900 hover:text-blue-700 font-medium transition-colors"
             >
               {type === 'login' ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
             </button>
