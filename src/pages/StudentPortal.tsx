@@ -523,20 +523,14 @@ const ProfileView = ({ student, isEditing, onEdit, onCancel, onSave }: any) => {
 const VideoPlayerModal = ({ title, url, onClose }: { title: string, url: string, onClose: () => void }) => {
     const getEmbedUrl = (rawUrl: string) => {
         if (!rawUrl) return '';
-        if (rawUrl.includes('youtube.com/watch?v=')) {
-            return rawUrl.replace('watch?v=', 'embed/');
-        }
-        if (rawUrl.includes('youtu.be/')) {
-            return rawUrl.replace('youtu.be/', 'youtube.com/embed/');
-        }
+        if (rawUrl.includes('youtube.com/watch?v=')) return rawUrl.replace('watch?v=', 'embed/');
+        if (rawUrl.includes('youtu.be/')) return rawUrl.replace('youtu.be/', 'youtube.com/embed/');
         if (rawUrl.includes('drive.google.com')) {
-            // Robust Drive ID extraction
             const match = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
-            if (match && match[1]) {
-                return `https://docs.google.com/get_video_info?docid=${match[1]}&sle=true&hl=en`.replace('get_video_info', 'file/d/' + match[1] + '/preview');
-            }
+            if (match && match[1]) return `https://drive.google.com/file/d/${match[1]}/preview`;
             return rawUrl.replace('/view?usp=sharing', '/preview').replace('/view', '/preview');
         }
+        if (rawUrl.startsWith('/uploads')) return `${window.location.origin}/api/school${rawUrl}`;
         return rawUrl;
     };
 
