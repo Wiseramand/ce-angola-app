@@ -240,6 +240,8 @@ const AppContent: React.FC = () => {
   }, [location.pathname]);
 
   const isAdminPath = location.pathname === '/central-admin' || location.pathname === '/admin';
+  const isSchoolPath = location.pathname.startsWith('/school');
+  const hideGlobalNav = isAdminPath || isSchoolPath;
 
   if (isLoading) {
     return (
@@ -249,14 +251,14 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Se não houver utilizador e não for a rota de admin, obriga a identificação (Welcome)
-  if (!user && !isAdminPath) {
+  // Se não houver utilizador e não for a rota de admin ou escola, obriga a identificação (Welcome)
+  if (!user && !isAdminPath && !isSchoolPath) {
     return <Welcome />;
   }
 
   return (
     <div className="flex flex-col min-h-screen">
-      {!isAdminPath && <Header />}
+      {!hideGlobalNav && <Header />}
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -282,7 +284,7 @@ const AppContent: React.FC = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      {!isAdminPath && <Footer />}
+      {!hideGlobalNav && <Footer />}
     </div>
   );
 };
