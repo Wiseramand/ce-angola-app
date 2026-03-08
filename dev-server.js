@@ -35,7 +35,7 @@ app.post('/api/school/upload', upload.single('video'), (req, res) => {
 });
 
 // Proxy all /api requests to the Vercel handler
-app.all('/api/*', async (req, res) => {
+app.use('/api', async (req, res) => {
     // Mocking the Vercel request/response object if needed
     // But here we can just call our handler directly
     try {
