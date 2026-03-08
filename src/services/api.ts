@@ -48,11 +48,15 @@ export const api = {
         storage.set('app_system_config', config);
         return;
       }
-      await fetch(`${CURRENT_API_URL}/system`, {
+      const res = await fetch(`${CURRENT_API_URL}/system`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(config)
       });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`System Config failed to update! Status: ${res.status}. Error: ${text}`);
+      }
     }
   },
 
@@ -395,11 +399,14 @@ export const api = {
     },
     live: {
       sendSignal: async (signal: { sender_id: string, receiver_id: string, type: string, data: any }): Promise<void> => {
-        await fetch(`${CURRENT_API_URL}/school/live/signaling`, {
+        const res = await fetch(`${CURRENT_API_URL}/school/live/signaling`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(signal)
         });
+        if (!res.ok) {
+          console.error("Failed to send WebRTC signal:", await res.text());
+        }
       },
       getSignals: async (receiverId: string): Promise<any[]> => {
         const res = await fetch(`${CURRENT_API_URL}/school/live/signaling?receiver_id=${receiverId}&cb=${Date.now()}`);

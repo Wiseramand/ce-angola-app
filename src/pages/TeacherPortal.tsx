@@ -50,6 +50,33 @@ const TeacherPortal: React.FC = () => {
     const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
     const signalingInterval = useRef<any>(null);
 
+    // WebRTC Debugger
+    const [debugLogs, setDebugLogs] = useState<string[]>([]);
+    const mountTime = useRef(Date.now());
+
+    useEffect(() => {
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+
+        const formatLog = (...args: any[]) => {
+            const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+            const ts = ((Date.now() - mountTime.current) / 1000).toFixed(1) + 's';
+            setDebugLogs(prev => [...prev.slice(-15), `[${ts}] ${msg}`]);
+            return msg;
+        };
+
+        console.log = (...args) => { formatLog(...args); originalLog(...args); };
+        console.warn = (...args) => { formatLog(...args); originalWarn(...args); };
+        console.error = (...args) => { formatLog(...args); originalError(...args); };
+
+        return () => {
+            console.log = originalLog;
+            console.warn = originalWarn;
+            console.error = originalError;
+        };
+    }, []);
+
     const loadDevices = async () => {
         try {
             const allDevices = await navigator.mediaDevices.enumerateDevices();
@@ -547,6 +574,11 @@ const TeacherPortal: React.FC = () => {
                                 {/* Preview Screen */}
                                 <div className="aspect-video bg-slate-900 rounded-3xl overflow-hidden shadow-2xl relative group">
                                     <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                                    {/* VISUAL DEBUGGER OVERLAY */}
+                                    <div className="absolute top-4 right-4 z-50 bg-black/80 p-4 rounded-xl border border-red-500/50 text-[9px] font-mono text-green-400 w-80 max-h-64 overflow-y-auto pointer-events-none">
+                                        <div className="text-white font-bold mb-2 uppercase">Diagnóstico do Professor</div>
+                                        {debugLogs.map((log, i) => <div key={i} className="mb-1 leading-tight">{log}</div>)}
+                                    </div>
                                     <div className="absolute top-6 left-6 flex items-center space-x-2">
                                         <div className={`w-3 h-3 ${isLive ? 'bg-red-500 animate-pulse' : 'bg-slate-500'} rounded-full shadow-lg`}></div>
                                         <span className="text-[10px] font-black text-white uppercase tracking-widest drop-shadow-md">
