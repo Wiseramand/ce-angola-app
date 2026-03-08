@@ -1,11 +1,16 @@
 
 import React from 'react';
-import { Facebook, Instagram, Youtube, Twitter, Mail, Phone, MapPin } from 'lucide-react';
+import { Facebook, Instagram, Youtube, Twitter, Mail, Phone, MapPin, Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Logo from './Logo';
 
 const Footer: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'pt' ? 'en' : 'pt';
+    i18n.changeLanguage(newLang);
+  };
   return (
     <footer className="bg-ministry-blue text-white py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -62,8 +67,23 @@ const Footer: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="mt-16 pt-8 border-t border-white/10 text-center text-xs text-gray-400">
-          <p>© {new Date().getFullYear()} Christ Embassy Angola. All rights reserved. Registered Religious Entity.</p>
+        <div className="mt-16 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 text-sm text-gray-400 font-bold uppercase tracking-widest">
+          <p>© {new Date().getFullYear()} Christ Embassy Angola. {t('footer.all_rights')}</p>
+
+          <div className="flex items-center space-x-8">
+            {/* Language Toggle in Footer */}
+            <button
+              onClick={toggleLanguage}
+              className="flex items-center space-x-2 text-white/50 hover:text-ministry-gold transition-colors"
+            >
+              <Globe size={16} />
+              <span>{i18n.language.toUpperCase()}</span>
+            </button>
+            <div className="flex items-center space-x-6">
+              <a href="#" className="hover:text-white transition">Admin</a>
+              <a href="#" className="hover:text-white transition">Webmail</a>
+            </div>
+          </div>
         </div>
       </div>
     </footer>

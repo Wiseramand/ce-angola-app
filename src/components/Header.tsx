@@ -50,32 +50,21 @@ const Header: React.FC = () => {
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-1">
             <NavLink to="/">{t('common.home')}</NavLink>
-            <NavLink to="/live-tv" icon={Tv} className="text-ministry-blue">{t('nav.live_tv')}</NavLink>
+            <NavLink to="/live-tv" icon={Tv} className="text-ministry-blue">{t('nav.live')}</NavLink>
             <NavLink to="/founder">{t('nav.founder')}</NavLink>
             <NavLink to="/partnerships">{t('nav.partnerships')}</NavLink>
-            <NavLink to="/donations">{t('nav.donations')}</NavLink>
 
-            {/* Exclusive Menu Item */}
+            {/* Exclusive Menu Item - Icon Only */}
             <NavLink
               to="/live"
               icon={Lock}
-              className="bg-ministry-gold/10 text-ministry-gold rounded-xl mx-2 hover:bg-ministry-gold/20"
-            >
-              {t('common.exclusive_access')}
-            </NavLink>
+              className="bg-ministry-gold/10 text-ministry-gold rounded-xl mx-2 hover:bg-ministry-gold/20 !px-3"
+              title={t('common.exclusive_access')}
+            />
 
             {user?.role === 'admin' && (
               <NavLink to="/admin" icon={LayoutDashboard}>{t('common.admin')}</NavLink>
             )}
-
-            {/* Language Switcher */}
-            <button
-              onClick={toggleLanguage}
-              className="flex items-center space-x-1 px-4 py-2 text-slate-500 hover:text-ministry-gold transition font-bold text-xs uppercase tracking-widest"
-            >
-              <Globe size={16} />
-              <span>{i18n.language.toUpperCase()}</span>
-            </button>
 
             {user ? (
               <div className="flex items-center ml-4 space-x-4">
@@ -127,14 +116,13 @@ const Header: React.FC = () => {
       {isOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 pb-4 shadow-lg">
           <div className="px-2 pt-2 pb-3 space-y-1">
-            <NavLink to="/">Início</NavLink>
-            <NavLink to="/live-tv" icon={Tv}>Live TV</NavLink>
-            <NavLink to="/founder">Fundador</NavLink>
-            <NavLink to="/partnerships">Parcerias</NavLink>
-            <NavLink to="/donations">Doações</NavLink>
-            <NavLink to="/live" icon={Lock} className="text-ministry-gold font-bold">Acesso Exclusivo</NavLink>
-            {user?.role === 'admin' && <NavLink to="/admin">Dashboard Admin</NavLink>}
-            {user && <NavLink to="/profile">Meu Perfil</NavLink>}
+            <NavLink to="/">{t('common.home')}</NavLink>
+            <NavLink to="/live-tv" icon={Tv}>{t('nav.live')}</NavLink>
+            <NavLink to="/founder">{t('nav.founder')}</NavLink>
+            <NavLink to="/partnerships">{t('nav.partnerships')}</NavLink>
+            <NavLink to="/live" icon={Lock} className="text-ministry-gold font-bold">{t('common.exclusive_access')}</NavLink>
+            {user?.role === 'admin' && <NavLink to="/admin">{t('common.admin')}</NavLink>}
+            {user && <NavLink to="/profile">{t('common.profile')}</NavLink>}
           </div>
           <div className="px-4 pt-4 border-t border-gray-100">
             {user ? (
