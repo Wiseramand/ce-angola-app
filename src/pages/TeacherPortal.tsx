@@ -25,7 +25,21 @@ const TeacherPortal: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
-    const [teacher, setTeacher] = useState({ fullName: 'Professor', profilePicture: '' });
+    const [isEditingSettings, setIsEditingSettings] = useState(false);
+    const [teacher, setTeacher] = useState({
+        id: null,
+        fullName: 'Professor',
+        email: '',
+        phone: '',
+        username: '',
+        profilePicture: ''
+    });
+    const [settingsData, setSettingsData] = useState({
+        fullname: '',
+        email: '',
+        phone: '',
+        password: ''
+    });
 
     const [students, setStudents] = useState<Student[]>([]);
     const [isLive, setIsLive] = useState(false);
@@ -96,9 +110,20 @@ const TeacherPortal: React.FC = () => {
                 }
                 if (savedUser) {
                     const parsed = JSON.parse(savedUser);
-                    setTeacher({
+                    const teacherData = {
+                        id: parsed.id || null,
                         fullName: parsed.fullname || parsed.fullName || 'Professor',
+                        email: parsed.email || '',
+                        phone: parsed.phone || '',
+                        username: parsed.username || '',
                         profilePicture: ''
+                    };
+                    setTeacher(teacherData);
+                    setSettingsData({
+                        fullname: teacherData.fullName,
+                        email: teacherData.email,
+                        phone: teacherData.phone,
+                        password: ''
                     });
 
                     // Load assigned students
@@ -397,13 +422,168 @@ const TeacherPortal: React.FC = () => {
                             <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-2">Configurações</h1>
                             <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em]">Gerencie sua conta de professor.</p>
                         </header>
-                        <div className="bg-white p-12 rounded-[3.5rem] shadow-xl border border-gray-100 flex flex-col items-center text-center space-y-8">
-                            <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 flex items-center justify-center text-slate-300">
-                                <Users size={48} />
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                            <div className="lg:col-span-1">
+                                <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-gray-100 flex flex-col items-center text-center space-y-6">
+                                    <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 flex items-center justify-center text-slate-300 relative group">
+                                        <Users size={48} />
+                                        <div className="absolute inset-0 bg-black/40 rounded-[2.5rem] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer">
+                                            <Save className="text-white" size={24} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{teacher.fullName}</h3>
+                                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-1">ID: {teacher.username}</p>
+                                    </div>
+                                    <div className="w-full pt-6 border-t border-gray-50 flex flex-col gap-3">
+                                        <div className="flex items-center justify-between text-xs px-2">
+                                            <span className="text-gray-400 font-bold uppercase tracking-widest">Alunos</span>
+                                            <span className="font-black text-slate-900">{myStudents.length}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs px-2">
+                                            <span className="text-gray-400 font-bold uppercase tracking-widest">Status</span>
+                                            <span className="text-green-500 font-black uppercase">Ativo</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Painel em Construção</h3>
-                                <p className="text-gray-500 font-medium max-w-sm mx-auto mt-4">Estamos aprimorando as ferramentas de professor para que você tenha a melhor experiência de ensino.</p>
+
+                            <div className="lg:col-span-2 space-y-8">
+                                <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-gray-100">
+                                    <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-50">
+                                        <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Informações Pessoais</h3>
+                                        {!isEditingSettings && (
+                                            <button
+                                                onClick={() => setIsEditingSettings(true)}
+                                                className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-700 transition"
+                                            >
+                                                Editar Dados
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nome Completo</label>
+                                            {isEditingSettings ? (
+                                                <input
+                                                    type="text"
+                                                    value={settingsData.fullname}
+                                                    onChange={e => setSettingsData({ ...settingsData, fullname: e.target.value })}
+                                                    className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition"
+                                                />
+                                            ) : (
+                                                <p className="text-sm font-bold text-slate-900 px-6 py-4 bg-slate-50 rounded-2xl border border-transparent">{teacher.fullName}</p>
+                                            )}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">E-mail de Trabalho</label>
+                                            {isEditingSettings ? (
+                                                <input
+                                                    type="email"
+                                                    value={settingsData.email}
+                                                    onChange={e => setSettingsData({ ...settingsData, email: e.target.value })}
+                                                    className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition"
+                                                />
+                                            ) : (
+                                                <p className="text-sm font-bold text-slate-900 px-6 py-4 bg-slate-50 rounded-2xl border border-transparent">{teacher.email || 'Não informado'}</p>
+                                            )}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Telefone / WhatsApp</label>
+                                            {isEditingSettings ? (
+                                                <input
+                                                    type="text"
+                                                    value={settingsData.phone}
+                                                    onChange={e => setSettingsData({ ...settingsData, phone: e.target.value })}
+                                                    className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition"
+                                                />
+                                            ) : (
+                                                <p className="text-sm font-bold text-slate-900 px-6 py-4 bg-slate-50 rounded-2xl border border-transparent">{teacher.phone || 'Não informado'}</p>
+                                            )}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Palavra-passe</label>
+                                            {isEditingSettings ? (
+                                                <input
+                                                    type="password"
+                                                    placeholder="Deixe em branco para não alterar"
+                                                    value={settingsData.password}
+                                                    onChange={e => setSettingsData({ ...settingsData, password: e.target.value })}
+                                                    className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition"
+                                                />
+                                            ) : (
+                                                <p className="text-sm font-bold text-slate-900 px-6 py-4 bg-slate-50 rounded-2xl border border-transparent">••••••••••••</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {isEditingSettings && (
+                                        <div className="mt-10 flex gap-4">
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        const updatePayload = {
+                                                            ...teacher,
+                                                            fullname: settingsData.fullname,
+                                                            email: settingsData.email,
+                                                            phone: settingsData.phone,
+                                                            password: settingsData.password || null
+                                                        };
+                                                        await api.school.saveUser(updatePayload);
+                                                        setTeacher({
+                                                            ...teacher,
+                                                            fullName: settingsData.fullname,
+                                                            email: settingsData.email,
+                                                            phone: settingsData.phone
+                                                        });
+                                                        localStorage.setItem('school_teacher', JSON.stringify({
+                                                            ...JSON.parse(localStorage.getItem('school_teacher') || '{}'),
+                                                            fullname: settingsData.fullname,
+                                                            email: settingsData.email,
+                                                            phone: settingsData.phone
+                                                        }));
+                                                        setIsEditingSettings(false);
+                                                        alert("Definições atualizadas com sucesso!");
+                                                    } catch (e) {
+                                                        alert("Erro ao salvar alterações.");
+                                                    }
+                                                }}
+                                                className="px-8 py-4 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 shadow-lg transition"
+                                            >
+                                                Salvar Alterações
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setIsEditingSettings(false);
+                                                    setSettingsData({
+                                                        fullname: teacher.fullName,
+                                                        email: teacher.email,
+                                                        phone: teacher.phone,
+                                                        password: ''
+                                                    });
+                                                }}
+                                                className="px-8 py-4 bg-slate-100 text-slate-400 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition"
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="bg-blue-50/50 p-10 rounded-[3rem] border border-blue-100/50">
+                                    <div className="flex items-start gap-6">
+                                        <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 flex-shrink-0">
+                                            <AlertCircle size={24} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight mb-2">Dica de Segurança</h4>
+                                            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                                                Certifique-se de manter seus dados de contato atualizados. Caso altere sua palavra-passe, use uma combinação forte de letras e números para garantir a segurança da sua sala de aula.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
