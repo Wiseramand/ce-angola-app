@@ -273,9 +273,10 @@ export default async function handler(req, res) {
     if (path.endsWith('/school/login') || path.endsWith('/school/teacher/login')) {
       if (req.method === 'POST') {
         const { username, password } = await getRequestBody(req);
+        const normalizedUsername = username?.toLowerCase().trim();
         const roleRequired = path.endsWith('/school/teacher/login') ? 'teacher' : 'student';
 
-        const r = await pool.query("SELECT * FROM school_users WHERE username = $1 AND password = $2 AND role = $3", [username, password, roleRequired]);
+        const r = await pool.query("SELECT * FROM school_users WHERE username = $1 AND password = $2 AND role = $3", [normalizedUsername, password, roleRequired]);
         if (r.rows.length > 0) {
           const user = r.rows[0];
 
@@ -308,17 +309,18 @@ export default async function handler(req, res) {
       if (req.method === 'POST') {
         try {
           const b = await getRequestBody(req);
+          const normalizedUsername = b.username?.toLowerCase().trim();
           const expiryVal = b.access_expiry ? new Date(b.access_expiry) : null;
 
           if (b.id) {
             await pool.query(
               "UPDATE school_users SET fullname=$1, username=$2, password=COALESCE($3, password), role=$4, email=$5, phone=$6, state=$7, city=$8, neighborhood=$9, is_member=$10, church_name=$11, church_address=$12, church_phone=$13, access_expiry=$14, teacher_id=$15, class_id=$16 WHERE id=$17",
-              [b.fullname, b.username, b.password || null, b.role || 'student', b.email, b.phone, b.state, b.city, b.neighborhood, !!b.is_member, b.church_name, b.church_address, b.church_phone, expiryVal, b.teacher_id || null, b.class_id || null, b.id]
+              [b.fullname, normalizedUsername, b.password || null, b.role || 'student', b.email, b.phone, b.state, b.city, b.neighborhood, !!b.is_member, b.church_name, b.church_address, b.church_phone, expiryVal, b.teacher_id || null, b.class_id || null, b.id]
             );
           } else {
             await pool.query(
               "INSERT INTO school_users (fullname, username, password, role, email, phone, is_credentials_generated, access_expiry, teacher_id, class_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
-              [b.fullname, b.username, b.password, b.role || 'student', b.email, b.phone, true, expiryVal, b.teacher_id || null, b.class_id || null]
+              [b.fullname, normalizedUsername, b.password, b.role || 'student', b.email, b.phone, true, expiryVal, b.teacher_id || null, b.class_id || null]
             );
           }
           return res.status(200).json({ success: true });
@@ -500,12 +502,12 @@ export default async function handler(req, res) {
             public_description = COALESCE($4, public_description),
             private_url = COALESCE($5, private_url),
             private_url2 = COALESCE($6, private_url2),
-            school_live_url = COALESCE($11, school_live_url),
             private_title = COALESCE($7, private_title),
             private_description = COALESCE($8, private_description),
             is_private_mode = COALESCE($9, is_private_mode),
             is_teacher_live = COALESCE($10, is_teacher_live),
-            live_teacher_name = COALESCE($11, live_teacher_name)
+            live_teacher_name = COALESCE($11, live_teacher_name),
+            school_live_url = COALESCE($12, school_live_url)
           WHERE id=1`,
           [
             c.public_url !== undefined ? c.public_url : null,
@@ -518,7 +520,8 @@ export default async function handler(req, res) {
             c.private_description !== undefined ? c.private_description : null,
             c.is_private_mode !== undefined ? !!c.is_private_mode : null,
             c.is_teacher_live !== undefined ? !!c.is_teacher_live : null,
-            c.live_teacher_name !== undefined ? c.live_teacher_name : null
+            c.live_teacher_name !== undefined ? c.live_teacher_name : null,
+            c.school_live_url !== undefined ? c.school_live_url : null
           ]
         );
         return res.status(200).json({ success: true });
