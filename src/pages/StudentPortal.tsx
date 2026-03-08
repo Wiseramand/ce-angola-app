@@ -57,7 +57,7 @@ const StudentPortal: React.FC = () => {
 
 
     const handleSignaling = async (teacherSignalingId: string) => {
-        const signals = await api.school.live.getSignals(studentSignalingId.current + "?cb=" + Date.now());
+        const signals = await api.school.live.getSignals(studentSignalingId.current);
         for (const signal of signals) {
             if (signal.type === 'offer') {
                 if (peerConnection.current) peerConnection.current.close();

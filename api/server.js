@@ -507,9 +507,14 @@ export default async function handler(req, res) {
         const configRes = await pool.query("SELECT * FROM system_config WHERE id = 1");
         const config = configRes.rows[0];
 
-        // Contar Espectadores (vistos nos últimos 60 segundos)
-        const viewerRes = await pool.query("SELECT COUNT(DISTINCT id) FROM sessions WHERE last_seen > NOW() - interval '60 seconds'");
-        const viewerCount = parseInt(viewerRes.rows[0].count) || 0;
+        // Contar Espectadores (vistas nos últimos 60 segundos)
+        let viewerCount = 0;
+        try {
+          const viewerRes = await pool.query("SELECT COUNT(DISTINCT id) FROM visitors WHERE created_at > NOW() - interval '60 seconds'");
+          viewerCount = parseInt(viewerRes.rows[0].count) || 0;
+        } catch (e) {
+          // Fallback se a tabela não suportar
+        }
 
         return res.status(200).json({ ...config, viewer_count: viewerCount });
       }
