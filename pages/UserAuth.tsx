@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { User } from '../types';
-import { Logo } from '../components/Logo';
+import Logo from '../components/Logo';
 import { api } from '../services/api';
 
 interface AuthProps {
@@ -57,11 +57,11 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
-             <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-200">
-                {error}
-             </div>
+            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-200">
+              {error}
+            </div>
           )}
-          
+
           <div className="space-y-4">
             {type === 'register' && (
               <Input
@@ -70,7 +70,7 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
                 placeholder="John Doe"
                 required
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             )}
             <Input
@@ -79,7 +79,7 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
               placeholder="you@example.com"
               required
               value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
             <Input
               label="Password"
@@ -87,4 +87,25 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
               placeholder="••••••••"
               required
               value={formData.password}
-              onChange={(e) => setFormData({...formData, password:
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            />
+          </div>
+
+          <Button type="submit" className="w-full" isLoading={loading}>
+            {type === 'login' ? 'Sign In' : 'Sign Up'}
+          </Button>
+
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => onNavigate(type === 'login' ? 'register' : 'login')}
+              className="text-sm text-blue-900 hover:text-blue-700 font-medium transition-colors"
+            >
+              {type === 'login' ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
