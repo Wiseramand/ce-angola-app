@@ -149,7 +149,7 @@ const TeacherPortal: React.FC = () => {
     return (
         <div className="h-screen bg-gray-50 flex flex-col md:flex-row relative overflow-hidden">
             {/* Mobile Header */}
-            <header className="md:hidden bg-slate-900 text-white p-6 flex justify-between items-center sticky top-0 z-[70] shadow-lg">
+            <header className="md:hidden bg-slate-900 text-white p-6 flex justify-between items-center sticky top-0 z-[60] shadow-lg">
                 <Logo className="h-8 w-auto brightness-0 invert" />
                 <button
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -162,13 +162,13 @@ const TeacherPortal: React.FC = () => {
             {/* Backdrop for Mobile Menu */}
             {isMenuOpen && (
                 <div
-                    className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] md:hidden animate-in fade-in duration-300"
+                    className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] md:hidden animate-in fade-in duration-300"
                     onClick={() => setIsMenuOpen(false)}
                 />
             )}
 
             <aside className={`
-                fixed md:sticky top-0 left-0 h-screen w-80 bg-slate-900 text-white flex flex-col z-50 shadow-2xl transition-transform duration-300
+                fixed md:sticky top-0 left-0 h-screen w-80 bg-slate-900 text-white flex flex-col z-[80] shadow-2xl transition-transform duration-300
                 ${isMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
             `}>
                 <div className="p-8 border-b border-white/10">

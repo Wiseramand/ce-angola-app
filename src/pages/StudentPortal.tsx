@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     GraduationCap, BookOpen, Video, Calendar, User, Settings,
     LogOut, ChevronRight, Lock, CheckCircle, PlayCircle,
-    Trophy, Clock, MessageSquare, ArrowLeft, Camera, Save, X, Menu
+    Trophy, Clock, MessageSquare, ArrowLeft, Camera, Save, X, Menu, Send
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Logo from '../components/Logo';
@@ -121,7 +121,7 @@ const StudentPortal: React.FC = () => {
     return (
         <div className="h-screen bg-gray-50 flex flex-col md:flex-row relative overflow-hidden">
             {/* Mobile Header */}
-            <header className="md:hidden bg-ministry-blue text-white p-6 flex justify-between items-center sticky top-0 z-[70] shadow-lg">
+            <header className="md:hidden bg-ministry-blue text-white p-6 flex justify-between items-center sticky top-0 z-[60] shadow-lg">
                 <Logo className="h-8 w-auto brightness-0 invert" />
                 <button
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -134,14 +134,14 @@ const StudentPortal: React.FC = () => {
             {/* Backdrop for Mobile Menu */}
             {isMenuOpen && (
                 <div
-                    className="fixed inset-0 bg-ministry-blue/60 backdrop-blur-sm z-[60] md:hidden animate-in fade-in duration-300"
+                    className="fixed inset-0 bg-ministry-blue/60 backdrop-blur-sm z-[70] md:hidden animate-in fade-in duration-300"
                     onClick={() => setIsMenuOpen(false)}
                 />
             )}
 
             {/* Sidebar */}
             <aside className={`
-                fixed md:sticky top-0 left-0 h-screen w-80 bg-ministry-blue text-white flex flex-col z-50 shadow-2xl transition-transform duration-300
+                fixed md:sticky top-0 left-0 h-screen w-80 bg-ministry-blue text-white flex flex-col z-[80] shadow-2xl transition-transform duration-300
                 ${isMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
             `}>
                 <div className="p-8 border-b border-white/10">
@@ -218,7 +218,7 @@ const StudentPortal: React.FC = () => {
                 )}
                 {activeTab === 'dashboard' && <DashboardView student={student} modules={modules} onStartCourse={() => setActiveTab('modules')} onCompleteProfile={() => setActiveTab('profile')} />}
                 {activeTab === 'modules' && <ModulesView modules={modules} onSelectVideo={setSelectedVideo} />}
-                {activeTab === 'live' && <LiveClassesView isLive={isTeacherLive} teacherName={liveTeacherName} liveUrl={liveUrl} />}
+                {activeTab === 'live' && <LiveClassesView isLive={isTeacherLive} teacherName={liveTeacherName} liveUrl={liveUrl} studentName={student.fullName} studentId={student.id || 'anonymous'} />}
                 {activeTab === 'profile' && (
                     <ProfileView
                         student={student}
@@ -389,7 +389,47 @@ const ModulesView = ({ modules, onSelectVideo }: { modules: Module[], onSelectVi
     );
 };
 
-const LiveClassesView = ({ isLive, teacherName, liveUrl }: { isLive: boolean, teacherName: string, liveUrl: string }) => {
+const LiveClassesView = ({ isLive, teacherName, liveUrl, studentName, studentId }: { isLive: boolean, teacherName: string, liveUrl: string, studentName: string, studentId: string }) => {
+    const [messages, setMessages] = useState<any[]>([]);
+    const [newMessage, setNewMessage] = useState('');
+    const chatContainerRef = useRef<HTMLDivElement>(null);
+
+    const fetchMessages = async () => {
+        try {
+            const data = await api.chat.getMessages('school-live');
+            setMessages(data);
+        } catch (e) { }
+    };
+
+    useEffect(() => {
+        if (isLive) {
+            fetchMessages();
+            const interval = setInterval(fetchMessages, 3000);
+            return () => clearInterval(interval);
+        }
+    }, [isLive]);
+
+    useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [messages]);
+
+    const handleSendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newMessage.trim()) return;
+        try {
+            await api.chat.sendMessage({
+                userId: studentId,
+                username: studentName,
+                text: newMessage,
+                channel: 'school-live'
+            });
+            setNewMessage('');
+            fetchMessages();
+        } catch (e) { }
+    };
+
     const getEmbedUrl = (url: string) => {
         if (!url) return '';
         if (url.includes('youtube.com/watch?v=')) return url.replace('watch?v=', 'embed/');
@@ -405,71 +445,98 @@ const LiveClassesView = ({ isLive, teacherName, liveUrl }: { isLive: boolean, te
     const embedUrl = getEmbedUrl(liveUrl);
 
     return (
-        <div className="space-y-12 animate-in fade-in duration-500">
+        <div className="space-y-12 animate-in fade-in duration-500 pb-20">
             <header>
-                <h1 className="text-4xl font-black text-ministry-blue uppercase tracking-tighter mb-2">Aulas ao Vivo</h1>
-                <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em]">Sessões Interativas com Professores.</p>
+                <h1 className="text-4xl font-black text-ministry-blue uppercase tracking-tighter mb-2">Aula Interativa</h1>
+                <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em]">Aprenda e interaja em tempo real.</p>
             </header>
 
-            <div className="bg-white rounded-[3rem] shadow-xl border border-gray-100 overflow-hidden">
-                <div className="p-12 border-b border-gray-50 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-center space-x-6">
-                        <div className={`w-16 h-16 ${isLive ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-slate-100 text-slate-400'} rounded-2xl flex items-center justify-center`}>
-                            <Video size={32} />
+            <div className="bg-white rounded-[3rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col h-[800px] max-h-[80vh]">
+                <div className="p-8 border-b border-gray-50 bg-slate-50/50 flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                        <div className={`w-12 h-12 ${isLive ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-slate-100 text-slate-400'} rounded-2xl flex items-center justify-center`}>
+                            <Video size={24} />
                         </div>
                         <div>
-                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 ${isLive ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-400'} rounded-full mb-2 inline-block`}>
-                                {isLive ? 'Aula em Directo' : 'Próxima Aula'}
+                            <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 ${isLive ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-400'} rounded-full mb-1 inline-block`}>
+                                {isLive ? 'Aula On-line' : 'Sem Transmissão'}
                             </span>
-                            <h3 className="text-2xl font-black text-ministry-blue uppercase tracking-tight">
-                                {isLive ? `Aula com ${teacherName}` : 'Q&A: Dúvidas Foundation'}
+                            <h3 className="text-lg font-black text-ministry-blue uppercase tracking-tight">
+                                {isLive ? `Sessão com ${teacherName}` : 'Aguardando Professor'}
                             </h3>
                         </div>
                     </div>
-                    {isLive ? (
-                        <button className="px-10 py-5 bg-red-600 text-white rounded-xl font-black uppercase text-xs tracking-widest hover:bg-red-700 transition-all shadow-lg animate-bounce-subtle">
-                            Entrar na Sala agora
-                        </button>
-                    ) : (
-                        <div className="flex items-center space-x-4">
-                            <div className="text-right">
-                                <p className="text-xs font-black text-ministry-blue uppercase">Agendado</p>
-                                <p className="text-[10px] text-gray-400 font-bold uppercase">Luanda, Angola</p>
-                            </div>
-                            <button className="px-8 py-4 bg-ministry-blue text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-ministry-gold transition-all shadow-lg">
-                                Agendar Lembrete
-                            </button>
-                        </div>
-                    )}
                 </div>
 
-                {isLive ? (
-                    <div className="p-0 aspect-video bg-black flex items-center justify-center relative overflow-hidden group">
-                        {embedUrl ? (
-                            <iframe
-                                src={embedUrl}
-                                className="w-full h-full border-0"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                            />
+                <div className="flex-grow flex flex-col md:flex-row overflow-hidden">
+                    {/* Video Area */}
+                    <div className="flex-grow bg-black flex items-center justify-center relative overflow-hidden group">
+                        {isLive ? (
+                            embedUrl ? (
+                                <iframe
+                                    src={embedUrl}
+                                    className="w-full h-full border-0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                />
+                            ) : (
+                                <div className="text-center space-y-4">
+                                    <Video size={48} className="text-white/20 mx-auto" />
+                                    <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Sinal de Vídeo em espera...</p>
+                                </div>
+                            )
                         ) : (
-                            <div className="text-center space-y-4">
-                                <Video size={48} className="text-white/20 mx-auto" />
-                                <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Sinal de Vídeo pronto para recepção</p>
+                            <div className="text-center space-y-6">
+                                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto text-white/10">
+                                    <Calendar size={32} />
+                                </div>
+                                <h4 className="text-xl font-black text-white/40 uppercase tracking-tight">Nenhuma aula agendada agora</h4>
                             </div>
                         )}
                     </div>
-                ) : (
-                    <div className="p-12 text-center py-24">
-                        <div className="max-w-md mx-auto space-y-6">
-                            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-300">
-                                <Calendar size={32} />
+
+                    {/* Chat Area */}
+                    {isLive && (
+                        <div className="w-full md:w-96 border-t md:border-t-0 md:border-l border-gray-100 flex flex-col bg-slate-50">
+                            <div className="p-4 border-b border-gray-100 bg-white">
+                                <h4 className="text-[10px] font-black text-ministry-blue uppercase tracking-widest flex items-center gap-2">
+                                    <MessageSquare size={14} className="text-ministry-gold" />
+                                    Voz dos Estudantes
+                                </h4>
                             </div>
-                            <h4 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Sem aulas agora</h4>
-                            <p className="text-gray-400 text-sm font-medium">As sessões ao vivo são agendadas pelos professores e notificadas através do portal e WhatsApp.</p>
+                            <div ref={chatContainerRef} className="flex-grow p-4 overflow-y-auto space-y-4 scrollbar-hide">
+                                {messages.length === 0 && (
+                                    <p className="text-center py-10 text-[10px] text-gray-400 font-bold uppercase tracking-widest">Seja o primeiro a perguntar...</p>
+                                )}
+                                {messages.map((msg, i) => (
+                                    <div key={i} className="flex flex-col animate-in fade-in slide-in-from-bottom-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-[9px] font-black text-ministry-blue uppercase">{msg.username}</span>
+                                            {msg.user_id === 'admin-1' && <span className="bg-ministry-gold/10 text-ministry-gold text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase">Prof</span>}
+                                        </div>
+                                        <div className={`p-3 rounded-2xl rounded-tl-none text-xs ${msg.user_id === studentId ? 'bg-ministry-blue text-white' : 'bg-white border border-gray-100 text-gray-600'}`}>
+                                            {msg.text}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-gray-100">
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Tire aqui a sua dúvida..."
+                                        value={newMessage}
+                                        onChange={e => setNewMessage(e.target.value)}
+                                        className="w-full bg-slate-50 border border-gray-100 rounded-xl py-3 pl-4 pr-12 text-xs font-bold outline-none focus:ring-2 focus:ring-ministry-blue transition"
+                                    />
+                                    <button type="submit" className="absolute right-2 top-2 bottom-2 px-3 bg-ministry-gold text-white rounded-lg hover:bg-ministry-blue transition flex items-center justify-center">
+                                        <Send size={14} />
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );
