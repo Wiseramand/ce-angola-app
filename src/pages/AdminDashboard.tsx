@@ -81,6 +81,7 @@ const AdminDashboard: React.FC = () => {
   const [studentSearch, setStudentSearch] = useState('');
   const [teacherSearch, setTeacherSearch] = useState('');
   const [visitorSearch, setVisitorSearch] = useState('');
+  const [requestSearch, setRequestSearch] = useState('');
 
   // Pagination
   const PAGE_SIZE = 8;
@@ -144,11 +145,17 @@ const AdminDashboard: React.FC = () => {
   };
 
   const filteredVisitors = visitors.filter(v => {
-    if (!filterStart && !filterEnd) return true;
+    const matchesSearch = !visitorSearch ||
+      (v.fullname || '').toLowerCase().includes(visitorSearch.toLowerCase()) ||
+      (v.email || '').toLowerCase().includes(visitorSearch.toLowerCase()) ||
+      (v.phone || '').toLowerCase().includes(visitorSearch.toLowerCase()) ||
+      (v.city || '').toLowerCase().includes(visitorSearch.toLowerCase());
+
+    if (!filterStart && !filterEnd) return matchesSearch;
     const vDate = new Date(v.created_at).getTime();
     const start = filterStart ? new Date(filterStart).getTime() : 0;
     const end = filterEnd ? new Date(filterEnd).getTime() : Infinity;
-    return vDate >= start && vDate <= end;
+    return matchesSearch && vDate >= start && vDate <= end;
   });
 
   const handleAddUser = async (e: React.FormEvent) => {
@@ -510,36 +517,112 @@ const AdminDashboard: React.FC = () => {
         </header>
 
         {activeTab === 'visitors' && (
-          <div className="mb-8 p-8 bg-white rounded-[2.5rem] shadow-sm border border-slate-100 print:hidden">
-            <div className="flex items-center space-x-4 mb-6">
-              <Filter size={18} className="text-ministry-gold" />
-              <h3 className="font-black text-ministry-blue uppercase text-xs tracking-widest">Filtrar por Período (Dia/Mês/Ano e Hora)</h3>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center px-4 print:hidden">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                <input
+                  type="text" value={visitorSearch}
+                  onChange={e => { setVisitorSearch(e.target.value); setVisitorPage(0); }}
+                  placeholder="Buscar visitante..."
+                  className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold"
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
-              <div>
-                <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">Início do Período</label>
-                <input
-                  type="datetime-local"
-                  value={filterStart}
-                  onChange={(e) => setFilterStart(e.target.value)}
-                  className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-ministry-gold transition shadow-inner"
-                />
+
+            <div className="mb-8 p-8 bg-white rounded-[2.5rem] shadow-sm border border-slate-100 print:hidden">
+              <div className="flex items-center space-x-4 mb-6">
+                <Filter size={18} className="text-ministry-gold" />
+                <h3 className="font-black text-ministry-blue uppercase text-xs tracking-widest">Filtrar por Período (Dia/Mês/Ano e Hora)</h3>
               </div>
-              <div>
-                <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">Fim do Período</label>
-                <input
-                  type="datetime-local"
-                  value={filterEnd}
-                  onChange={(e) => setFilterEnd(e.target.value)}
-                  className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-ministry-gold transition shadow-inner"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
+                <div>
+                  <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">Início do Período</label>
+                  <input
+                    type="datetime-local"
+                    value={filterStart}
+                    onChange={(e) => setFilterStart(e.target.value)}
+                    className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-ministry-gold transition shadow-inner"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">Fim do Período</label>
+                  <input
+                    type="datetime-local"
+                    value={filterEnd}
+                    onChange={(e) => setFilterEnd(e.target.value)}
+                    className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-ministry-gold transition shadow-inner"
+                  />
+                </div>
+                <button
+                  onClick={() => { setFilterStart(''); setFilterEnd(''); }}
+                  className="px-6 py-3.5 text-[9px] font-black uppercase text-slate-400 hover:text-red-500 transition tracking-widest"
+                >
+                  Limpar Filtros
+                </button>
               </div>
-              <button
-                onClick={() => { setFilterStart(''); setFilterEnd(''); }}
-                className="px-6 py-3.5 text-[9px] font-black uppercase text-slate-400 hover:text-red-500 transition tracking-widest"
-              >
-                Limpar Filtros
-              </button>
+            </div>
+
+            <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+              <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 print:hidden">
+                <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">
+                  Visitantes Listados: {filteredVisitors.length}
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase text-left border-b">
+                      <th className="px-8 py-5">{t('admin.visitor')}</th>
+                      <th className="px-8 py-5">{t('admin.contact')}</th>
+                      <th className="px-8 py-5">{t('admin.location')}</th>
+                      <th className="px-8 py-5 text-right">{t('admin.date_time')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(() => {
+                      const totalPages = Math.ceil(filteredVisitors.length / PAGE_SIZE);
+                      const page = Math.min(visitorPage, Math.max(0, totalPages - 1));
+                      const paged = filteredVisitors.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+                      if (paged.length === 0) {
+                        return <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_visitors')}</td></tr>;
+                      }
+
+                      return paged.map(v => (
+                        <tr key={v.id} className="hover:bg-slate-50/30 transition">
+                          <td className="px-8 py-6">
+                            <div className="font-bold text-ministry-blue uppercase text-xs">{v.fullname}</div>
+                            <div className="text-[10px] text-slate-400 font-bold">{v.email || 'SEM EMAIL'}</div>
+                          </td>
+                          <td className="px-8 py-6 text-slate-500 text-xs font-bold">{v.phone}</td>
+                          <td className="px-8 py-6">
+                            <div className="text-xs font-black text-slate-600 uppercase">{v.city || 'Angola'}</div>
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">{v.neighborhood || v.country}</div>
+                          </td>
+                          <td className="px-8 py-6 text-right">
+                            <div className="text-[10px] text-slate-600 font-black">{new Date(v.created_at).toLocaleDateString()}</div>
+                            <div className="text-[9px] text-slate-400 font-bold">{new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+              {(() => {
+                const totalPages = Math.ceil(filteredVisitors.length / PAGE_SIZE);
+                if (totalPages <= 1) return null;
+                return (
+                  <div className="flex justify-between items-center px-8 py-6 bg-slate-50 border-t border-slate-100">
+                    <span className="text-[10px] font-black text-slate-400 uppercase">{filteredVisitors.length} visitantes · Pág. {visitorPage + 1}/{totalPages}</span>
+                    <div className="flex gap-3">
+                      <button disabled={visitorPage === 0} onClick={() => setVisitorPage(p => p - 1)} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:border-ministry-gold transition">Anterior</button>
+                      <button disabled={visitorPage >= totalPages - 1} onClick={() => setVisitorPage(p => p + 1)} className="px-5 py-2.5 bg-ministry-blue text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:bg-ministry-gold transition">Próxima</button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -604,699 +687,708 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'visitors' && (
-          <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
-            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 print:hidden">
-              <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">
-                Visitantes Listados: {filteredVisitors.length}
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase text-left border-b">
-                    <th className="px-8 py-5">{t('admin.visitor')}</th>
-                    <th className="px-8 py-5">{t('admin.contact')}</th>
-                    <th className="px-8 py-5">{t('admin.location')}</th>
-                    <th className="px-8 py-5 text-right">{t('admin.date_time')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredVisitors.length === 0 ? (
-                    <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_visitors')}</td></tr>
-                  ) : filteredVisitors.map(v => (
-                    <tr key={v.id} className="hover:bg-slate-50/30 transition">
-                      <td className="px-8 py-6">
-                        <div className="font-bold text-ministry-blue uppercase text-xs">{v.fullname}</div>
-                        <div className="text-[10px] text-slate-400 font-bold">{v.email || 'SEM EMAIL'}</div>
-                      </td>
-                      <td className="px-8 py-6 text-slate-500 text-xs font-bold">{v.phone}</td>
-                      <td className="px-8 py-6">
-                        <div className="text-xs font-black text-slate-600 uppercase">{v.city || 'Angola'}</div>
-                        <div className="text-[10px] text-slate-400 font-bold uppercase">{v.neighborhood || v.country}</div>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <div className="text-[10px] text-slate-600 font-black">{new Date(v.created_at).toLocaleDateString()}</div>
-                        <div className="text-[9px] text-slate-400 font-bold">{new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
 
-        {activeTab === 'streams' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-500">
-            <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
-              <div className="flex items-center space-x-4 mb-8">
-                <div className="w-12 h-12 bg-blue-50 text-ministry-blue rounded-2xl flex items-center justify-center">
-                  <Video size={24} />
+        {
+          activeTab === 'streams' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-500">
+              <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
+                <div className="flex items-center space-x-4 mb-8">
+                  <div className="w-12 h-12 bg-blue-50 text-ministry-blue rounded-2xl flex items-center justify-center">
+                    <Video size={24} />
+                  </div>
+                  <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Canal TV Público</h3>
                 </div>
-                <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Canal TV Público</h3>
+                <InputField label="URL Transmissão (Principal)" value={streamForm.public_url} onChange={v => setStreamForm({ ...streamForm, public_url: v })} />
+                <InputField label="URL Transmissão (Suporte/Player 2)" value={streamForm.public_url2} onChange={v => setStreamForm({ ...streamForm, public_url2: v })} />
+                <InputField label="Título da Emissão" value={streamForm.public_title} onChange={v => setStreamForm({ ...streamForm, public_title: v })} />
+                <InputField label="Descrição" value={streamForm.public_description} onChange={v => setStreamForm({ ...streamForm, public_description: v })} />
               </div>
-              <InputField label="URL Transmissão (Principal)" value={streamForm.public_url} onChange={v => setStreamForm({ ...streamForm, public_url: v })} />
-              <InputField label="URL Transmissão (Suporte/Player 2)" value={streamForm.public_url2} onChange={v => setStreamForm({ ...streamForm, public_url2: v })} />
-              <InputField label="Título da Emissão" value={streamForm.public_title} onChange={v => setStreamForm({ ...streamForm, public_title: v })} />
-              <InputField label="Descrição" value={streamForm.public_description} onChange={v => setStreamForm({ ...streamForm, public_description: v })} />
-            </div>
 
-            <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
-              <div className="flex items-center space-x-4 mb-8">
-                <div className="w-12 h-12 bg-ministry-gold/10 text-ministry-gold rounded-2xl flex items-center justify-center">
-                  <Shield size={24} />
+              <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
+                <div className="flex items-center space-x-4 mb-8">
+                  <div className="w-12 h-12 bg-ministry-gold/10 text-ministry-gold rounded-2xl flex items-center justify-center">
+                    <Shield size={24} />
+                  </div>
+                  <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Canal de Parceiros</h3>
                 </div>
-                <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Canal de Parceiros</h3>
+                <InputField label="URL Transmissão (Principal)" value={streamForm.private_url} onChange={v => setStreamForm({ ...streamForm, private_url: v })} />
+                <InputField label="URL Transmissão (Suporte/Player 2)" value={streamForm.private_url2} onChange={v => setStreamForm({ ...streamForm, private_url2: v })} />
+                <InputField label="Título Privado" value={streamForm.private_title} onChange={v => setStreamForm({ ...streamForm, private_title: v })} />
+
+                <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border border-slate-100 mt-6">
+                  <div>
+                    <span className="text-[11px] font-black text-ministry-blue uppercase tracking-widest block">Restringir Área Exclusiva</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase mt-1">Visitantes normais não poderão ver este sinal.</span>
+                  </div>
+                  <button onClick={() => setStreamForm({ ...streamForm, is_private_mode: !streamForm.is_private_mode })} className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_private_mode ? 'bg-ministry-gold shadow-[0_0_15px_rgba(197,160,89,0.5)]' : 'bg-slate-300'}`}>
+                    <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${streamForm.is_private_mode ? 'left-7' : 'left-1'}`} />
+                  </button>
+                </div>
               </div>
-              <InputField label="URL Transmissão (Principal)" value={streamForm.private_url} onChange={v => setStreamForm({ ...streamForm, private_url: v })} />
-              <InputField label="URL Transmissão (Suporte/Player 2)" value={streamForm.private_url2} onChange={v => setStreamForm({ ...streamForm, private_url2: v })} />
-              <InputField label="Título Privado" value={streamForm.private_title} onChange={v => setStreamForm({ ...streamForm, private_title: v })} />
 
-              <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border border-slate-100 mt-6">
-                <div>
-                  <span className="text-[11px] font-black text-ministry-blue uppercase tracking-widest block">Restringir Área Exclusiva</span>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase mt-1">Visitantes normais não poderão ver este sinal.</span>
-                </div>
-                <button onClick={() => setStreamForm({ ...streamForm, is_private_mode: !streamForm.is_private_mode })} className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_private_mode ? 'bg-ministry-gold shadow-[0_0_15px_rgba(197,160,89,0.5)]' : 'bg-slate-300'}`}>
-                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${streamForm.is_private_mode ? 'left-7' : 'left-1'}`} />
+              <div className="lg:col-span-2 pt-4">
+                <button onClick={handleSaveStreams} className="w-full py-6 bg-ministry-blue text-white rounded-[2rem] font-black uppercase text-xs tracking-[0.3em] shadow-2xl hover:bg-ministry-gold transition-all flex items-center justify-center space-x-4">
+                  <Save size={20} />
+                  <span>{t('admin.save_changes')}</span>
                 </button>
               </div>
             </div>
+          )
+        }
 
-            <div className="lg:col-span-2 pt-4">
-              <button onClick={handleSaveStreams} className="w-full py-6 bg-ministry-blue text-white rounded-[2rem] font-black uppercase text-xs tracking-[0.3em] shadow-2xl hover:bg-ministry-gold transition-all flex items-center justify-center space-x-4">
-                <Save size={20} />
-                <span>{t('admin.save_changes')}</span>
-              </button>
-            </div>
-          </div>
-        )}
+        {
+          showUserModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
+              <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300">
+                <button onClick={() => { setShowUserModal(false); setEditingUser(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
+                  <X size={28} />
+                </button>
+                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingUser ? 'Editar' : 'Criar'} Acesso de Membro</h2>
+                <form onSubmit={handleAddUser} className="space-y-6">
+                  <InputField label="Nome do Membro" value={newUser.fullname} onChange={v => setNewUser({ ...newUser, fullname: v })} placeholder="Ex: Diácono Silva" />
 
-        {showUserModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300">
-              <button onClick={() => { setShowUserModal(false); setEditingUser(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
-                <X size={28} />
-              </button>
-              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingUser ? 'Editar' : 'Criar'} Acesso de Membro</h2>
-              <form onSubmit={handleAddUser} className="space-y-6">
-                <InputField label="Nome do Membro" value={newUser.fullname} onChange={v => setNewUser({ ...newUser, fullname: v })} placeholder="Ex: Diácono Silva" />
+                  <div className="relative">
+                    <InputField label="ID de Utilizador" value={newUser.username} onChange={v => setNewUser({ ...newUser, username: v })} placeholder="ex: silva_2025" />
+                    {!editingUser && (
+                      <button type="button" onClick={generateCredentials} className="absolute right-4 top-[38px] text-[9px] font-black uppercase text-ministry-gold hover:text-ministry-blue transition tracking-widest bg-white px-2">
+                        Gerar Automático
+                      </button>
+                    )}
+                  </div>
 
-                <div className="relative">
-                  <InputField label="ID de Utilizador" value={newUser.username} onChange={v => setNewUser({ ...newUser, username: v })} placeholder="ex: silva_2025" />
-                  {!editingUser && (
-                    <button type="button" onClick={generateCredentials} className="absolute right-4 top-[38px] text-[9px] font-black uppercase text-ministry-gold hover:text-ministry-blue transition tracking-widest bg-white px-2">
-                      Gerar Automático
-                    </button>
-                  )}
-                </div>
+                  <InputField label="Senha Secreta" value={newUser.password} onChange={v => setNewUser({ ...newUser, password: v })} placeholder="Mínimo 6 caracteres" />
 
-                <InputField label="Senha Secreta" value={newUser.password} onChange={v => setNewUser({ ...newUser, password: v })} placeholder="Mínimo 6 caracteres" />
-
-                <div className="pt-6">
-                  <button type="submit" className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-blue transition-all">
-                    {editingUser ? 'Guardar Alterações' : 'Ativar Credenciais'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-        {activeTab === 'school' && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-              <div>
-                <h3 className="font-black text-ministry-blue uppercase text-lg tracking-tight">Escola de Fundação</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Gestão de Alunos, Professores e Conteúdo</p>
-              </div>
-              <nav className="flex bg-slate-100 p-1.5 rounded-2xl">
-                <button onClick={() => setSchoolSubTab('requests')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'requests' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Solicitações</button>
-                <button onClick={() => setSchoolSubTab('students')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'students' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Alunos</button>
-                <button onClick={() => setSchoolSubTab('teachers')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'teachers' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Professores</button>
-                <button onClick={() => setSchoolSubTab('media')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'media' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Área Média</button>
-              </nav>
-            </header>
-
-            {schoolSubTab === 'requests' && (
-              <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
-                      <th className="px-8 py-5">Aluno</th>
-                      <th className="px-8 py-5">Localização</th>
-                      <th className="px-8 py-5">Membro?</th>
-                      <th className="px-8 py-5 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {schoolRequests.length === 0 ? (
-                      <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Sem solicitações pendentes.</td></tr>
-                    ) : schoolRequests.map(r => (
-                      <tr key={r.id} className="hover:bg-slate-50 transition">
-                        <td className="px-8 py-6">
-                          <div className="font-bold text-ministry-blue uppercase text-xs">{r.fullname}</div>
-                          <div className="text-[10px] text-slate-400 font-bold">{r.email} • {r.phone}</div>
-                        </td>
-                        <td className="px-8 py-6">
-                          <div className="text-[10px] font-black text-slate-600 uppercase">{r.city}, {r.state}</div>
-                          <div className="text-[9px] text-slate-400 font-bold uppercase">{r.neighborhood}, {r.country}</div>
-                        </td>
-                        <td className="px-8 py-6">
-                          {r.is_member ? (
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-black text-green-600 uppercase">Sim</span>
-                              <span className="text-[9px] text-slate-400 font-bold truncate max-w-[150px]">{r.church_name}</span>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] font-black text-slate-400 uppercase">Não</span>
-                          )}
-                        </td>
-                        <td className="px-8 py-6 text-right">
-                          <div className="flex justify-end space-x-2">
-                            <button onClick={() => setSelectedRequest(r)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition" title="Ver Detalhes">Ver Detalhes</button>
-                            <button onClick={() => handleApproveSchool(r.id)} className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition">Aprovar</button>
-                            <button onClick={() => handleRejectSchool(r.id)} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition">Rejeitar</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {schoolSubTab === 'students' && (() => {
-              const allStudents = schoolUsers.filter(u => u.role === 'student');
-              const filtered = allStudents.filter(u =>
-                (u.fullname || '').toLowerCase().includes(studentSearch.toLowerCase()) ||
-                (u.username || '').toLowerCase().includes(studentSearch.toLowerCase()) ||
-                (u.email || '').toLowerCase().includes(studentSearch.toLowerCase())
-              );
-              const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-              const page = Math.min(studentPage, Math.max(0, totalPages - 1));
-              const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-              return (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center px-4">
-                    <div className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
-                      <input
-                        type="text" value={studentSearch}
-                        onChange={e => { setStudentSearch(e.target.value); setStudentPage(0); }}
-                        placeholder="Buscar aluno..."
-                        className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold"
-                      />
-                    </div>
-                    <button onClick={() => { setEditingStudent(null); setNewStudent({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '', teacher_id: '', class_id: '' }); setShowStudentModal(true); }} className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md">
-                      <UserPlus size={14} /><span>Novo Aluno</span>
+                  <div className="pt-6">
+                    <button type="submit" className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-blue transition-all">
+                      {editingUser ? 'Guardar Alterações' : 'Ativar Credenciais'}
                     </button>
                   </div>
-                  <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
-                          <th className="px-8 py-5">Aluno</th>
-                          <th className="px-8 py-5">Credenciais</th>
-                          <th className="px-8 py-5">Professor / Turma</th>
-                          <th className="px-8 py-5">Data / Validade</th>
-                          <th className="px-8 py-5 text-right">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {paged.length === 0 ? (
-                          <tr><td colSpan={5} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum aluno encontrado.</td></tr>
-                        ) : paged.map(u => (
-                          <tr key={u.id} className="hover:bg-slate-50 transition">
-                            <td className="px-8 py-6">
-                              <div className="font-bold text-ministry-blue uppercase text-xs">{u.fullname}</div>
-                              <div className="text-[10px] text-slate-400 font-bold">{u.email} • {u.phone}</div>
-                            </td>
-                            <td className="px-8 py-6 font-mono text-[10px] text-slate-500">
-                              {u.is_credentials_generated ? (
-                                <span className="text-green-600 font-black">● {u.username}</span>
-                              ) : (
-                                <span className="text-orange-500 italic">Pendente</span>
-                              )}
-                            </td>
-                            <td className="px-8 py-6 text-[10px] text-slate-500">
-                              <div className="font-bold">{schoolUsers.find(t => t.id === u.teacher_id)?.fullname || '—'}</div>
-                              <div className="text-slate-400">{schoolModules.find(m => m.id === u.class_id)?.title || '—'}</div>
-                            </td>
-                            <td className="px-8 py-6 text-[10px] text-slate-400 font-bold">
-                              <div>{new Date(u.created_at).toLocaleDateString()}</div>
-                              {u.access_expiry && <div className="text-red-400 mt-1">Val.: {new Date(u.access_expiry).toLocaleDateString()}</div>}
-                            </td>
-                            <td className="px-8 py-6 text-right">
-                              <div className="flex justify-end space-x-2">
-                                {!u.is_credentials_generated && (
-                                  <button onClick={() => handleGenerateSchoolCredentials(u.id)} className="px-4 py-2 bg-ministry-gold text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:translate-y-[-1px] transition-all">Gerar</button>
+                </form>
+              </div>
+            </div>
+          )
+        }
+        {
+          activeTab === 'school' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                <div>
+                  <h3 className="font-black text-ministry-blue uppercase text-lg tracking-tight">Escola de Fundação</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Gestão de Alunos, Professores e Conteúdo</p>
+                </div>
+                <nav className="flex bg-slate-100 p-1.5 rounded-2xl">
+                  <button onClick={() => setSchoolSubTab('requests')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'requests' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Solicitações</button>
+                  <button onClick={() => setSchoolSubTab('students')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'students' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Alunos</button>
+                  <button onClick={() => setSchoolSubTab('teachers')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'teachers' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Professores</button>
+                  <button onClick={() => setSchoolSubTab('media')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'media' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Área Média</button>
+                </nav>
+              </header>
+
+              {schoolSubTab === 'requests' && (() => {
+                const filtered = schoolRequests.filter(r =>
+                  (r.fullname || '').toLowerCase().includes(requestSearch.toLowerCase()) ||
+                  (r.email || '').toLowerCase().includes(requestSearch.toLowerCase()) ||
+                  (r.phone || '').toLowerCase().includes(requestSearch.toLowerCase()) ||
+                  (r.city || '').toLowerCase().includes(requestSearch.toLowerCase()) ||
+                  (r.church_name || '').toLowerCase().includes(requestSearch.toLowerCase())
+                );
+                const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+                const page = Math.min(requestPage, Math.max(0, totalPages - 1));
+                const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+                return (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center px-4">
+                      <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                        <input
+                          type="text" value={requestSearch}
+                          onChange={e => { setRequestSearch(e.target.value); setRequestPage(0); }}
+                          placeholder="Buscar solicitação..."
+                          className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold"
+                        />
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
+                            <th className="px-8 py-5">Aluno</th>
+                            <th className="px-8 py-5">Localização</th>
+                            <th className="px-8 py-5">Membro?</th>
+                            <th className="px-8 py-5 text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {paged.length === 0 ? (
+                            <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Sem solicitações pendentes.</td></tr>
+                          ) : paged.map(r => (
+                            <tr key={r.id} className="hover:bg-slate-50 transition">
+                              <td className="px-8 py-6">
+                                <div className="font-bold text-ministry-blue uppercase text-xs">{r.fullname}</div>
+                                <div className="text-[10px] text-slate-400 font-bold">{r.email} • {r.phone}</div>
+                              </td>
+                              <td className="px-8 py-6">
+                                <div className="text-[10px] font-black text-slate-600 uppercase">{r.city}, {r.state}</div>
+                                <div className="text-[9px] text-slate-400 font-bold uppercase">{r.neighborhood}, {r.country}</div>
+                              </td>
+                              <td className="px-8 py-6">
+                                {r.is_member ? (
+                                  <div className="flex flex-col">
+                                    <span className="text-[10px] font-black text-green-600 uppercase">Sim</span>
+                                    <span className="text-[9px] text-slate-400 font-bold truncate max-w-[150px]">{r.church_name}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] font-black text-slate-400 uppercase">Não</span>
                                 )}
-                                <button onClick={() => shareSchoolUserViaWhatsApp(u)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition" title="WhatsApp"><MessageCircle size={14} /></button>
-                                <button onClick={() => shareSchoolUserViaEmail(u)} className="p-2 text-ministry-gold hover:bg-ministry-gold/10 rounded-lg transition" title="Email"><Mail size={14} /></button>
-                                <button onClick={() => copySchoolUserCredentials(u)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition" title="Copiar"><Copy size={14} /></button>
-                                <button onClick={() => handleEditStudent(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
-                                <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {totalPages > 1 && (
-                      <div className="flex justify-between items-center px-8 py-4 border-t border-slate-100 bg-slate-50">
-                        <span className="text-[10px] font-black text-slate-400 uppercase">{filtered.length} alunos · Pág. {page + 1}/{totalPages}</span>
-                        <div className="flex gap-2">
-                          <button disabled={page === 0} onClick={() => setStudentPage(p => p - 1)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:border-ministry-gold transition">Anterior</button>
-                          <button disabled={page >= totalPages - 1} onClick={() => setStudentPage(p => p + 1)} className="px-4 py-2 bg-ministry-blue text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:bg-ministry-gold transition">Próxima</button>
+                              </td>
+                              <td className="px-8 py-6 text-right">
+                                <div className="flex justify-end space-x-2">
+                                  <button onClick={() => setSelectedRequest(r)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition" title="Ver Detalhes">Ver Detalhes</button>
+                                  <button onClick={() => handleApproveSchool(r.id)} className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition">Aprovar</button>
+                                  <button onClick={() => handleRejectSchool(r.id)} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition">Rejeitar</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {totalPages > 1 && (
+                        <div className="flex justify-between items-center px-8 py-4 border-t border-slate-100 bg-slate-50">
+                          <span className="text-[10px] font-black text-slate-400 uppercase">{filtered.length} solicitações · Pág. {page + 1}/{totalPages}</span>
+                          <div className="flex gap-2">
+                            <button disabled={page === 0} onClick={() => setRequestPage(p => p - 1)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:border-ministry-gold transition">Anterior</button>
+                            <button disabled={page >= totalPages - 1} onClick={() => setRequestPage(p => p + 1)} className="px-4 py-2 bg-ministry-blue text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:bg-ministry-gold transition">Próxima</button>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {schoolSubTab === 'teachers' && (() => {
-              const allTeachers = schoolUsers.filter(u => u.role === 'teacher');
-              const filtered = allTeachers.filter(u =>
-                (u.fullname || '').toLowerCase().includes(teacherSearch.toLowerCase()) ||
-                (u.username || '').toLowerCase().includes(teacherSearch.toLowerCase()) ||
-                (u.email || '').toLowerCase().includes(teacherSearch.toLowerCase())
-              );
-              const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-              const page = Math.min(teacherPage, Math.max(0, totalPages - 1));
-              const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-              return (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center px-4">
-                    <div className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
-                      <input
-                        type="text" value={teacherSearch}
-                        onChange={e => { setTeacherSearch(e.target.value); setTeacherPage(0); }}
-                        placeholder="Buscar professor..."
-                        className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold"
-                      />
+                      )}
                     </div>
-                    <button onClick={() => { setEditingTeacher(null); setNewTeacher({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '' }); setShowTeacherModal(true); }} className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md">
-                      <UserPlus size={14} /><span>Novo Professor</span>
+                  </div>
+                );
+              })()}
+
+              {schoolSubTab === 'students' && (() => {
+                const allStudents = schoolUsers.filter(u => u.role === 'student');
+                const filtered = allStudents.filter(u =>
+                  (u.fullname || '').toLowerCase().includes(studentSearch.toLowerCase()) ||
+                  (u.username || '').toLowerCase().includes(studentSearch.toLowerCase()) ||
+                  (u.email || '').toLowerCase().includes(studentSearch.toLowerCase())
+                );
+                const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+                const page = Math.min(studentPage, Math.max(0, totalPages - 1));
+                const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+                return (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center px-4">
+                      <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                        <input
+                          type="text" value={studentSearch}
+                          onChange={e => { setStudentSearch(e.target.value); setStudentPage(0); }}
+                          placeholder="Buscar aluno..."
+                          className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold"
+                        />
+                      </div>
+                      <button onClick={() => { setEditingStudent(null); setNewStudent({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '', teacher_id: '', class_id: '' }); setShowStudentModal(true); }} className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md">
+                        <UserPlus size={14} /><span>Novo Aluno</span>
+                      </button>
+                    </div>
+                    <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
+                            <th className="px-8 py-5">Aluno</th>
+                            <th className="px-8 py-5">Credenciais</th>
+                            <th className="px-8 py-5">Professor / Turma</th>
+                            <th className="px-8 py-5">Data / Validade</th>
+                            <th className="px-8 py-5 text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {paged.length === 0 ? (
+                            <tr><td colSpan={5} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum aluno encontrado.</td></tr>
+                          ) : paged.map(u => (
+                            <tr key={u.id} className="hover:bg-slate-50 transition">
+                              <td className="px-8 py-6">
+                                <div className="font-bold text-ministry-blue uppercase text-xs">{u.fullname}</div>
+                                <div className="text-[10px] text-slate-400 font-bold">{u.email} • {u.phone}</div>
+                              </td>
+                              <td className="px-8 py-6 font-mono text-[10px] text-slate-500">
+                                {u.is_credentials_generated ? (
+                                  <span className="text-green-600 font-black">● {u.username}</span>
+                                ) : (
+                                  <span className="text-orange-500 italic">Pendente</span>
+                                )}
+                              </td>
+                              <td className="px-8 py-6 text-[10px] text-slate-500">
+                                <div className="font-bold">{schoolUsers.find(t => t.id === u.teacher_id)?.fullname || '—'}</div>
+                                <div className="text-slate-400">{schoolModules.find(m => m.id === u.class_id)?.title || '—'}</div>
+                              </td>
+                              <td className="px-8 py-6 text-[10px] text-slate-400 font-bold">
+                                <div>{new Date(u.created_at).toLocaleDateString()}</div>
+                                {u.access_expiry && <div className="text-red-400 mt-1">Val.: {new Date(u.access_expiry).toLocaleDateString()}</div>}
+                              </td>
+                              <td className="px-8 py-6 text-right">
+                                <div className="flex justify-end space-x-2">
+                                  {!u.is_credentials_generated && (
+                                    <button onClick={() => handleGenerateSchoolCredentials(u.id)} className="px-4 py-2 bg-ministry-gold text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:translate-y-[-1px] transition-all">Gerar</button>
+                                  )}
+                                  <button onClick={() => shareSchoolUserViaWhatsApp(u)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition" title="WhatsApp"><MessageCircle size={14} /></button>
+                                  <button onClick={() => shareSchoolUserViaEmail(u)} className="p-2 text-ministry-gold hover:bg-ministry-gold/10 rounded-lg transition" title="Email"><Mail size={14} /></button>
+                                  <button onClick={() => copySchoolUserCredentials(u)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition" title="Copiar"><Copy size={14} /></button>
+                                  <button onClick={() => handleEditStudent(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
+                                  <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {totalPages > 1 && (
+                        <div className="flex justify-between items-center px-8 py-4 border-t border-slate-100 bg-slate-50">
+                          <span className="text-[10px] font-black text-slate-400 uppercase">{filtered.length} alunos · Pág. {page + 1}/{totalPages}</span>
+                          <div className="flex gap-2">
+                            <button disabled={page === 0} onClick={() => setStudentPage(p => p - 1)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:border-ministry-gold transition">Anterior</button>
+                            <button disabled={page >= totalPages - 1} onClick={() => setStudentPage(p => p + 1)} className="px-4 py-2 bg-ministry-blue text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:bg-ministry-gold transition">Próxima</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {schoolSubTab === 'teachers' && (() => {
+                const allTeachers = schoolUsers.filter(u => u.role === 'teacher');
+                const filtered = allTeachers.filter(u =>
+                  (u.fullname || '').toLowerCase().includes(teacherSearch.toLowerCase()) ||
+                  (u.username || '').toLowerCase().includes(teacherSearch.toLowerCase()) ||
+                  (u.email || '').toLowerCase().includes(teacherSearch.toLowerCase())
+                );
+                const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+                const page = Math.min(teacherPage, Math.max(0, totalPages - 1));
+                const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+                return (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center px-4">
+                      <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                        <input
+                          type="text" value={teacherSearch}
+                          onChange={e => { setTeacherSearch(e.target.value); setTeacherPage(0); }}
+                          placeholder="Buscar professor..."
+                          className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold"
+                        />
+                      </div>
+                      <button onClick={() => { setEditingTeacher(null); setNewTeacher({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '' }); setShowTeacherModal(true); }} className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md">
+                        <UserPlus size={14} /><span>Novo Professor</span>
+                      </button>
+                    </div>
+                    <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
+                            <th className="px-8 py-5">Professor</th>
+                            <th className="px-8 py-5">Login</th>
+                            <th className="px-8 py-5">Status</th>
+                            <th className="px-8 py-5 text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {paged.length === 0 ? (
+                            <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum professor encontrado.</td></tr>
+                          ) : paged.map(u => (
+                            <tr key={u.id} className="hover:bg-slate-50 transition">
+                              <td className="px-8 py-6">
+                                <div className="font-bold text-ministry-blue uppercase text-xs">{u.fullname}</div>
+                                <div className="text-[10px] text-slate-400 font-bold">{u.email}</div>
+                              </td>
+                              <td className="px-8 py-6 font-mono text-xs text-slate-500">{u.username}</td>
+                              <td className="px-8 py-6">
+                                {u.access_expiry && new Date(u.access_expiry) < new Date() ? (
+                                  <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-[9px] font-black uppercase tracking-widest">Expirado</span>
+                                ) : (
+                                  <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">Ativo</span>
+                                )}
+                                {u.access_expiry && <div className="text-[9px] text-slate-400 font-bold mt-2">Val.: {new Date(u.access_expiry).toLocaleDateString()}</div>}
+                              </td>
+                              <td className="px-8 py-6 text-right">
+                                <div className="flex justify-end space-x-2">
+                                  <button onClick={() => shareSchoolUserViaWhatsApp(u)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition" title="WhatsApp"><MessageCircle size={14} /></button>
+                                  <button onClick={() => shareSchoolUserViaEmail(u)} className="p-2 text-ministry-gold hover:bg-ministry-gold/10 rounded-lg transition" title="Email"><Mail size={14} /></button>
+                                  <button onClick={() => copySchoolUserCredentials(u)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition" title="Copiar"><Copy size={14} /></button>
+                                  <button onClick={() => handleEditTeacher(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
+                                  <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {totalPages > 1 && (
+                        <div className="flex justify-between items-center px-8 py-4 border-t border-slate-100 bg-slate-50">
+                          <span className="text-[10px] font-black text-slate-400 uppercase">{filtered.length} professores · Pág. {page + 1}/{totalPages}</span>
+                          <div className="flex gap-2">
+                            <button disabled={page === 0} onClick={() => setTeacherPage(p => p - 1)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:border-ministry-gold transition">Anterior</button>
+                            <button disabled={page >= totalPages - 1} onClick={() => setTeacherPage(p => p + 1)} className="px-4 py-2 bg-ministry-blue text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:bg-ministry-gold transition">Próxima</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {schoolSubTab === 'media' && (
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center px-4">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Currículo da Escola</h4>
+                    <button onClick={() => {
+                      setEditingModule(null);
+                      setModuleForm({ title: '', description: '', video_url: '', module_order: schoolModules.length + 1 });
+                      setShowModuleModal(true);
+                    }}
+                      className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md"
+                    >
+                      <Video size={14} />
+                      <span>Adicionar Classe</span>
                     </button>
                   </div>
-                  <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
-                          <th className="px-8 py-5">Professor</th>
-                          <th className="px-8 py-5">Login</th>
-                          <th className="px-8 py-5">Status</th>
-                          <th className="px-8 py-5 text-right">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {paged.length === 0 ? (
-                          <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum professor encontrado.</td></tr>
-                        ) : paged.map(u => (
-                          <tr key={u.id} className="hover:bg-slate-50 transition">
-                            <td className="px-8 py-6">
-                              <div className="font-bold text-ministry-blue uppercase text-xs">{u.fullname}</div>
-                              <div className="text-[10px] text-slate-400 font-bold">{u.email}</div>
-                            </td>
-                            <td className="px-8 py-6 font-mono text-xs text-slate-500">{u.username}</td>
-                            <td className="px-8 py-6">
-                              {u.access_expiry && new Date(u.access_expiry) < new Date() ? (
-                                <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-[9px] font-black uppercase tracking-widest">Expirado</span>
-                              ) : (
-                                <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">Ativo</span>
-                              )}
-                              {u.access_expiry && <div className="text-[9px] text-slate-400 font-bold mt-2">Val.: {new Date(u.access_expiry).toLocaleDateString()}</div>}
-                            </td>
-                            <td className="px-8 py-6 text-right">
-                              <div className="flex justify-end space-x-2">
-                                <button onClick={() => shareSchoolUserViaWhatsApp(u)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition" title="WhatsApp"><MessageCircle size={14} /></button>
-                                <button onClick={() => shareSchoolUserViaEmail(u)} className="p-2 text-ministry-gold hover:bg-ministry-gold/10 rounded-lg transition" title="Email"><Mail size={14} /></button>
-                                <button onClick={() => copySchoolUserCredentials(u)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition" title="Copiar"><Copy size={14} /></button>
-                                <button onClick={() => handleEditTeacher(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
-                                <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {totalPages > 1 && (
-                      <div className="flex justify-between items-center px-8 py-4 border-t border-slate-100 bg-slate-50">
-                        <span className="text-[10px] font-black text-slate-400 uppercase">{filtered.length} professores · Pág. {page + 1}/{totalPages}</span>
-                        <div className="flex gap-2">
-                          <button disabled={page === 0} onClick={() => setTeacherPage(p => p - 1)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:border-ministry-gold transition">Anterior</button>
-                          <button disabled={page >= totalPages - 1} onClick={() => setTeacherPage(p => p + 1)} className="px-4 py-2 bg-ministry-blue text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:bg-ministry-gold transition">Próxima</button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {schoolModules.map(m => (
+                      <div key={m.id} className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 flex flex-col justify-between group hover:border-ministry-gold transition-all">
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-start">
+                            <span className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xs">{m.module_order}</span>
+                            <div className="flex space-x-1">
+                              <button onClick={() => {
+                                setEditingModule(m);
+                                setModuleForm({ title: m.title, description: m.description, video_url: m.video_url || '', module_order: m.module_order });
+                                setShowModuleModal(true);
+                              }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
+                              <button onClick={() => handleDeleteModule(m.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
+                            </div>
+                          </div>
+                          <div>
+                            <h5 className="text-sm font-black text-ministry-blue uppercase tracking-tight">{m.title}</h5>
+                            <p className="text-[10px] text-gray-500 font-medium line-clamp-2 mt-2">{m.description}</p>
+                          </div>
+                        </div>
+                        <div className="mt-8 pt-6 border-t border-slate-50">
+                          <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest">
+                            <div className={`flex items-center space-x-2 ${m.video_url ? 'text-green-500' : 'text-slate-300'}`}>
+                              <Play size={14} />
+                              <span>{m.video_url ? 'Vídeo OK' : 'Sem Vídeo'}</span>
+                            </div>
+                            <span className="text-slate-400 font-bold">Classe {m.module_order}</span>
+                          </div>
                         </div>
                       </div>
-                    )}
+                    ))}
                   </div>
                 </div>
-              );
-            })()}
-
-            {schoolSubTab === 'media' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center px-4">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Currículo da Escola</h4>
-                  <button onClick={() => {
-                    setEditingModule(null);
-                    setModuleForm({ title: '', description: '', video_url: '', module_order: schoolModules.length + 1 });
-                    setShowModuleModal(true);
-                  }}
-                    className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md"
-                  >
-                    <Video size={14} />
-                    <span>Adicionar Classe</span>
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {schoolModules.map(m => (
-                    <div key={m.id} className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 flex flex-col justify-between group hover:border-ministry-gold transition-all">
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-start">
-                          <span className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xs">{m.module_order}</span>
-                          <div className="flex space-x-1">
-                            <button onClick={() => {
-                              setEditingModule(m);
-                              setModuleForm({ title: m.title, description: m.description, video_url: m.video_url || '', module_order: m.module_order });
-                              setShowModuleModal(true);
-                            }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
-                            <button onClick={() => handleDeleteModule(m.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
-                          </div>
-                        </div>
-                        <div>
-                          <h5 className="text-sm font-black text-ministry-blue uppercase tracking-tight">{m.title}</h5>
-                          <p className="text-[10px] text-gray-500 font-medium line-clamp-2 mt-2">{m.description}</p>
-                        </div>
-                      </div>
-                      <div className="mt-8 pt-6 border-t border-slate-50">
-                        <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest">
-                          <div className={`flex items-center space-x-2 ${m.video_url ? 'text-green-500' : 'text-slate-300'}`}>
-                            <Play size={14} />
-                            <span>{m.video_url ? 'Vídeo OK' : 'Sem Vídeo'}</span>
-                          </div>
-                          <span className="text-slate-400 font-bold">Classe {m.module_order}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )
+        }
 
         {/* Modal de Detalhes da Solicitação */}
-        {selectedRequest && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-6">
-            <div className="bg-gray-900 border border-white/10 rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl">
-              <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
-                <div>
-                  <h3 className="text-xl font-black text-white uppercase tracking-tight">Detalhes da Inscrição</h3>
-                  <p className="text-xs text-blue-400 font-bold uppercase tracking-widest mt-1">Verificação de Candidato</p>
-                </div>
-                <button onClick={() => setSelectedRequest(null)} className="p-3 hover:bg-white/5 rounded-2xl transition-colors">
-                  <X className="text-gray-500" />
-                </button>
-              </div>
-
-              <div className="p-8 max-h-[70vh] overflow-y-auto space-y-8">
-                <div className="grid grid-cols-2 gap-8">
+        {
+          selectedRequest && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-6">
+              <div className="bg-gray-900 border border-white/10 rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl">
+                <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Nome Completo</label>
-                    <p className="text-white font-bold">{selectedRequest.fullname}</p>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight">Detalhes da Inscrição</h3>
+                    <p className="text-xs text-blue-400 font-bold uppercase tracking-widest mt-1">Verificação de Candidato</p>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Email</label>
-                    <p className="text-white font-bold">{selectedRequest.email || 'Não informado'}</p>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Telefone</label>
-                    <p className="text-white font-bold">{selectedRequest.phone}</p>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Localização</label>
-                    <p className="text-white font-bold">{selectedRequest.neighborhood}, {selectedRequest.city}</p>
-                    <p className="text-xs text-gray-400">{selectedRequest.state}, {selectedRequest.country}</p>
-                  </div>
+                  <button onClick={() => setSelectedRequest(null)} className="p-3 hover:bg-white/5 rounded-2xl transition-colors">
+                    <X className="text-gray-500" />
+                  </button>
                 </div>
 
-                <div className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-400">Dados Eclesiásticos</h4>
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${selectedRequest.is_member ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500'}`}>
-                      {selectedRequest.is_member ? 'Membro' : 'Não Membro'}
-                    </span>
-                  </div>
-
-                  {selectedRequest.is_member && (
-                    <div className="grid grid-cols-2 gap-6 pt-4 border-t border-white/5">
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">Igreja</label>
-                        <p className="text-white font-bold">{selectedRequest.church_name}</p>
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">Endereço da Igreja</label>
-                        <p className="text-white font-bold">{selectedRequest.church_address}</p>
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">Telefone da Igreja</label>
-                        <p className="text-white font-bold">{selectedRequest.church_phone}</p>
-                      </div>
+                <div className="p-8 max-h-[70vh] overflow-y-auto space-y-8">
+                  <div className="grid grid-cols-2 gap-8">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Nome Completo</label>
+                      <p className="text-white font-bold">{selectedRequest.fullname}</p>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-8 border-t border-white/5 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-2">Atribuir Professor</label>
-                    <select
-                      value={approvalTeacherId}
-                      onChange={e => setApprovalTeacherId(e.target.value)}
-                      className="w-full bg-white/10 text-white border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-ministry-gold"
-                    >
-                      <option value="">Sem professor</option>
-                      {schoolUsers.filter(u => u.role === 'teacher').map(t => (
-                        <option key={t.id} value={t.id}>{t.fullname}</option>
-                      ))}
-                    </select>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Email</label>
+                      <p className="text-white font-bold">{selectedRequest.email || 'Não informado'}</p>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Telefone</label>
+                      <p className="text-white font-bold">{selectedRequest.phone}</p>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Localização</label>
+                      <p className="text-white font-bold">{selectedRequest.neighborhood}, {selectedRequest.city}</p>
+                      <p className="text-xs text-gray-400">{selectedRequest.state}, {selectedRequest.country}</p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-2">Atribuir Turma/Classe</label>
-                    <select
-                      value={approvalClassId}
-                      onChange={e => setApprovalClassId(e.target.value)}
-                      className="w-full bg-white/10 text-white border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-ministry-gold"
-                    >
-                      <option value="">Sem turma</option>
-                      {schoolModules.map(m => (
-                        <option key={m.id} value={m.id}>{m.title}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => handleApproveSchool(selectedRequest.id)}
-                    className="flex-grow py-4 bg-green-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-green-500/20 active:scale-95 transition-all"
-                  >
-                    Aprovar Agora
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleRejectSchool(selectedRequest.id);
-                      setSelectedRequest(null);
-                    }}
-                    className="flex-grow py-4 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all"
-                  >
-                    Rejeitar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {showSchoolModal && credentials && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300 text-center">
-              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Check size={40} />
-              </div>
-              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-2">Acesso Gerado!</h2>
-              <p className="text-gray-500 text-sm font-medium mb-8">Envie as credenciais para o aluno iniciar o curso.</p>
-
-              <div className="bg-slate-50 rounded-2xl p-6 mb-8 text-left space-y-3 cursor-pointer hover:bg-slate-100 transition" onClick={() => {
-                navigator.clipboard.writeText(`Usuário: ${credentials.username}\nSenha: ${credentials.password}`);
-                alert("Copiado!");
-              }}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-black text-slate-400 uppercase">Usuário</span>
-                  <span className="text-sm font-black text-ministry-blue">{credentials.username}</span>
-                </div>
-                <div className="flex justify-between items-center border-t border-gray-100 pt-3">
-                  <span className="text-[10px] font-black text-slate-400 uppercase">Senha</span>
-                  <span className="text-sm font-black text-ministry-blue">{credentials.password}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <button onClick={() => shareSchoolCredentials('wa')} className="flex items-center justify-center space-x-2 py-4 bg-green-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-green-700 transition">
-                  <MessageCircle size={18} />
-                  <span>WhatsApp</span>
-                </button>
-                <button onClick={() => shareSchoolCredentials('email')} className="flex items-center justify-center space-x-2 py-4 bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-black transition">
-                  <Mail size={18} />
-                  <span>E-mail</span>
-                </button>
-              </div>
-
-              <button onClick={() => setShowSchoolModal(false)} className="mt-8 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:text-ministry-gold transition">Fechar Janela</button>
-            </div>
-          </div>
-        )}
-
-        {showTeacherModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300">
-              <button onClick={() => { setShowTeacherModal(false); setEditingTeacher(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
-                <X size={28} />
-              </button>
-              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingTeacher ? 'Editar' : 'Criar'} Acesso Professor</h2>
-              <form onSubmit={handleSaveTeacher} className="space-y-6">
-                <InputField label="Nome Completo" value={newTeacher.fullname} onChange={(v: string) => setNewTeacher({ ...newTeacher, fullname: v })} placeholder="Ex: Pr. Antunes" />
-                <div className="grid grid-cols-2 gap-4">
-                  <InputField label="Email" value={newTeacher.email} onChange={(v: string) => setNewTeacher({ ...newTeacher, email: v })} />
-                  <InputField label="ID de Utilizador" value={newTeacher.username} onChange={(v: string) => setNewTeacher({ ...newTeacher, username: v.toLowerCase() })} placeholder="ex: pr_antunes" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <InputField label="Senha Secreta" value={newTeacher.password} onChange={(v: string) => setNewTeacher({ ...newTeacher, password: v })} placeholder={editingTeacher ? "Deixe vazio para manter" : "Mínimo 6 caracteres"} type={editingTeacher ? "text" : "password"} />
-                  <InputField label="Validade do Acesso" value={newTeacher.access_expiry || ''} onChange={(v: string) => setNewTeacher({ ...newTeacher, access_expiry: v })} placeholder="" type="date" />
-                </div>
-                <div className="pt-6">
-                  <button type="submit" className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-blue transition-all">
-                    {editingTeacher ? 'Atualizar Conta Professor' : 'Ativar Conta Professor'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {showModuleModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
-              <button onClick={() => { setShowModuleModal(false); setEditingModule(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
-                <X size={28} />
-              </button>
-              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingModule ? 'Editar' : 'Novo'} Classe</h2>
-              <form onSubmit={handleSaveModule} className="space-y-6">
-                <div className="grid grid-cols-4 gap-4 items-end">
-                  <div className="col-span-3">
-                    <InputField label="Título do Classe" value={moduleForm.title} onChange={(v: string) => setModuleForm({ ...moduleForm, title: v })} placeholder="Ex: Classe 1" />
-                  </div>
-                  <div className="col-span-1">
-                    <InputField label="Ordem" value={String(moduleForm.module_order)} onChange={(v: string) => setModuleForm({ ...moduleForm, module_order: parseInt(v) || 1 })} />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase block ml-2 tracking-widest">Descrição do Conteúdo</label>
-                  <textarea
-                    value={moduleForm.description}
-                    onChange={e => setModuleForm({ ...moduleForm, description: e.target.value })}
-                    className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm min-h-[100px]"
-                    placeholder="O que os alunos vão aprender?"
-                  />
-                </div>
-                <div className="space-y-6">
-                  <InputField label="URL do Vídeo (YouTube/Drive)" value={moduleForm.video_url} onChange={(v: string) => setModuleForm({ ...moduleForm, video_url: v })} placeholder="Link ou ID" />
-
-                  <div className="relative group">
-                    <input
-                      type="file"
-                      accept="video/*"
-                      onChange={handleVideoUpload}
-                      disabled={isUploadingVideo}
-                      className="w-full opacity-0 absolute inset-0 cursor-pointer z-10 h-full"
-                    />
-                    <div className={`w-full border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center transition-colors ${isUploadingVideo ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200 group-hover:border-ministry-gold'}`}>
-                      {isUploadingVideo ? (
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ministry-gold mb-2"></div>
-                      ) : (
-                        <Video className="text-slate-300 mb-2" size={24} />
-                      )}
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center leading-relaxed">
-                        {isUploadingVideo ? 'A Enviar Vídeo...' : 'Ou carregar do computador (MP4, MKV...)'}
+                  <div className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-400">Dados Eclesiásticos</h4>
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${selectedRequest.is_member ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500'}`}>
+                        {selectedRequest.is_member ? 'Membro' : 'Não Membro'}
                       </span>
                     </div>
+
+                    {selectedRequest.is_member && (
+                      <div className="grid grid-cols-2 gap-6 pt-4 border-t border-white/5">
+                        <div>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">Igreja</label>
+                          <p className="text-white font-bold">{selectedRequest.church_name}</p>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">Endereço da Igreja</label>
+                          <p className="text-white font-bold">{selectedRequest.church_address}</p>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">Telefone da Igreja</label>
+                          <p className="text-white font-bold">{selectedRequest.church_phone}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="pt-6">
-                  <button type="submit" disabled={isRefreshing || isUploadingVideo} className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-gold transition-all disabled:opacity-50">
-                    {editingModule ? 'Atualizar Classe' : 'Publicar Classe'}
+
+                <div className="p-8 border-t border-white/5 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-2">Atribuir Professor</label>
+                      <select
+                        value={approvalTeacherId}
+                        onChange={e => setApprovalTeacherId(e.target.value)}
+                        className="w-full bg-white/10 text-white border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-ministry-gold"
+                      >
+                        <option value="">Sem professor</option>
+                        {schoolUsers.filter(u => u.role === 'teacher').map(t => (
+                          <option key={t.id} value={t.id}>{t.fullname}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-2">Atribuir Turma/Classe</label>
+                      <select
+                        value={approvalClassId}
+                        onChange={e => setApprovalClassId(e.target.value)}
+                        className="w-full bg-white/10 text-white border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-ministry-gold"
+                      >
+                        <option value="">Sem turma</option>
+                        {schoolModules.map(m => (
+                          <option key={m.id} value={m.id}>{m.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => handleApproveSchool(selectedRequest.id)}
+                      className="flex-grow py-4 bg-green-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-green-500/20 active:scale-95 transition-all"
+                    >
+                      Aprovar Agora
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleRejectSchool(selectedRequest.id);
+                        setSelectedRequest(null);
+                      }}
+                      className="flex-grow py-4 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all"
+                    >
+                      Rejeitar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        {
+          showSchoolModal && credentials && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
+              <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300 text-center">
+                <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Check size={40} />
+                </div>
+                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-2">Acesso Gerado!</h2>
+                <p className="text-gray-500 text-sm font-medium mb-8">Envie as credenciais para o aluno iniciar o curso.</p>
+
+                <div className="bg-slate-50 rounded-2xl p-6 mb-8 text-left space-y-3 cursor-pointer hover:bg-slate-100 transition" onClick={() => {
+                  navigator.clipboard.writeText(`Usuário: ${credentials.username}\nSenha: ${credentials.password}`);
+                  alert("Copiado!");
+                }}>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black text-slate-400 uppercase">Usuário</span>
+                    <span className="text-sm font-black text-ministry-blue">{credentials.username}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-gray-100 pt-3">
+                    <span className="text-[10px] font-black text-slate-400 uppercase">Senha</span>
+                    <span className="text-sm font-black text-ministry-blue">{credentials.password}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <button onClick={() => shareSchoolCredentials('wa')} className="flex items-center justify-center space-x-2 py-4 bg-green-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-green-700 transition">
+                    <MessageCircle size={18} />
+                    <span>WhatsApp</span>
+                  </button>
+                  <button onClick={() => shareSchoolCredentials('email')} className="flex items-center justify-center space-x-2 py-4 bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-black transition">
+                    <Mail size={18} />
+                    <span>E-mail</span>
                   </button>
                 </div>
-              </form>
+
+                <button onClick={() => setShowSchoolModal(false)} className="mt-8 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:text-ministry-gold transition">Fechar Janela</button>
+              </div>
             </div>
-          </div>
-        )}
+          )
+        }
+
+        {
+          showTeacherModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
+              <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300">
+                <button onClick={() => { setShowTeacherModal(false); setEditingTeacher(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
+                  <X size={28} />
+                </button>
+                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingTeacher ? 'Editar' : 'Criar'} Acesso Professor</h2>
+                <form onSubmit={handleSaveTeacher} className="space-y-6">
+                  <InputField label="Nome Completo" value={newTeacher.fullname} onChange={(v: string) => setNewTeacher({ ...newTeacher, fullname: v })} placeholder="Ex: Pr. Antunes" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Email" value={newTeacher.email} onChange={(v: string) => setNewTeacher({ ...newTeacher, email: v })} />
+                    <InputField label="ID de Utilizador" value={newTeacher.username} onChange={(v: string) => setNewTeacher({ ...newTeacher, username: v.toLowerCase() })} placeholder="ex: pr_antunes" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Senha Secreta" value={newTeacher.password} onChange={(v: string) => setNewTeacher({ ...newTeacher, password: v })} placeholder={editingTeacher ? "Deixe vazio para manter" : "Mínimo 6 caracteres"} type={editingTeacher ? "text" : "password"} />
+                    <InputField label="Validade do Acesso" value={newTeacher.access_expiry || ''} onChange={(v: string) => setNewTeacher({ ...newTeacher, access_expiry: v })} placeholder="" type="date" />
+                  </div>
+                  <div className="pt-6">
+                    <button type="submit" className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-blue transition-all">
+                      {editingTeacher ? 'Atualizar Conta Professor' : 'Ativar Conta Professor'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )
+        }
+
+        {
+          showModuleModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
+              <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
+                <button onClick={() => { setShowModuleModal(false); setEditingModule(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
+                  <X size={28} />
+                </button>
+                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingModule ? 'Editar' : 'Novo'} Classe</h2>
+                <form onSubmit={handleSaveModule} className="space-y-6">
+                  <div className="grid grid-cols-4 gap-4 items-end">
+                    <div className="col-span-3">
+                      <InputField label="Título do Classe" value={moduleForm.title} onChange={(v: string) => setModuleForm({ ...moduleForm, title: v })} placeholder="Ex: Classe 1" />
+                    </div>
+                    <div className="col-span-1">
+                      <InputField label="Ordem" value={String(moduleForm.module_order)} onChange={(v: string) => setModuleForm({ ...moduleForm, module_order: parseInt(v) || 1 })} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase block ml-2 tracking-widest">Descrição do Conteúdo</label>
+                    <textarea
+                      value={moduleForm.description}
+                      onChange={e => setModuleForm({ ...moduleForm, description: e.target.value })}
+                      className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm min-h-[100px]"
+                      placeholder="O que os alunos vão aprender?"
+                    />
+                  </div>
+                  <div className="space-y-6">
+                    <InputField label="URL do Vídeo (YouTube/Drive)" value={moduleForm.video_url} onChange={(v: string) => setModuleForm({ ...moduleForm, video_url: v })} placeholder="Link ou ID" />
+
+                    <div className="relative group">
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={handleVideoUpload}
+                        disabled={isUploadingVideo}
+                        className="w-full opacity-0 absolute inset-0 cursor-pointer z-10 h-full"
+                      />
+                      <div className={`w-full border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center transition-colors ${isUploadingVideo ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200 group-hover:border-ministry-gold'}`}>
+                        {isUploadingVideo ? (
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ministry-gold mb-2"></div>
+                        ) : (
+                          <Video className="text-slate-300 mb-2" size={24} />
+                        )}
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center leading-relaxed">
+                          {isUploadingVideo ? 'A Enviar Vídeo...' : 'Ou carregar do computador (MP4, MKV...)'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="pt-6">
+                    <button type="submit" disabled={isRefreshing || isUploadingVideo} className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-gold transition-all disabled:opacity-50">
+                      {editingModule ? 'Atualizar Classe' : 'Publicar Classe'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )
+        }
         {/* Modal Novo Aluno */}
-        {showStudentModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300">
-              <button onClick={() => { setShowStudentModal(false); setEditingStudent(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
-                <X size={28} />
-              </button>
-              <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingStudent ? 'Editar' : 'Registar'} Aluno (Manual)</h2>
-              <form onSubmit={handleSaveStudent} className="space-y-6">
-                <InputField label="Nome Completo" value={newStudent.fullname} onChange={(v: string) => setNewStudent({ ...newStudent, fullname: v })} placeholder="Nome Completo" />
-                <div className="grid grid-cols-2 gap-4">
-                  <InputField label="Email" value={newStudent.email} onChange={(v: string) => setNewStudent({ ...newStudent, email: v })} required={false} />
-                  <InputField label="ID de Utilizador" value={newStudent.username} onChange={(v: string) => setNewStudent({ ...newStudent, username: v.toLowerCase() })} placeholder="Ex: joao123" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <InputField label="Senha Secreta" value={newStudent.password} onChange={(v: string) => setNewStudent({ ...newStudent, password: v })} placeholder={editingStudent ? "Deixe vazio para manter" : "Mínimo 6 caracteres"} type={editingStudent ? "text" : "password"} required={!editingStudent} />
-                  <InputField label="Validade do Acesso" value={newStudent.access_expiry || ''} onChange={(v: string) => setNewStudent({ ...newStudent, access_expiry: v })} placeholder="" type="date" required={false} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="mb-6">
-                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">Atribuir Professor</label>
-                    <select value={newStudent.teacher_id || ''} onChange={e => setNewStudent({ ...newStudent, teacher_id: e.target.value })}
-                      className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm">
-                      <option value="">Sem professor</option>
-                      {schoolUsers.filter(u => u.role === 'teacher').map(t => (
-                        <option key={t.id} value={t.id}>{t.fullname}</option>
-                      ))}
-                    </select>
+        {
+          showStudentModal && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
+              <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative animate-in zoom-in duration-300">
+                <button onClick={() => { setShowStudentModal(false); setEditingStudent(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
+                  <X size={28} />
+                </button>
+                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingStudent ? 'Editar' : 'Registar'} Aluno (Manual)</h2>
+                <form onSubmit={handleSaveStudent} className="space-y-6">
+                  <InputField label="Nome Completo" value={newStudent.fullname} onChange={(v: string) => setNewStudent({ ...newStudent, fullname: v })} placeholder="Nome Completo" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Email" value={newStudent.email} onChange={(v: string) => setNewStudent({ ...newStudent, email: v })} required={false} />
+                    <InputField label="ID de Utilizador" value={newStudent.username} onChange={(v: string) => setNewStudent({ ...newStudent, username: v.toLowerCase() })} placeholder="Ex: joao123" />
                   </div>
-                  <div className="mb-6">
-                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">Turma/Classe</label>
-                    <select value={newStudent.class_id || ''} onChange={e => setNewStudent({ ...newStudent, class_id: e.target.value })}
-                      className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm">
-                      <option value="">Sem turma</option>
-                      {schoolModules.map(m => (
-                        <option key={m.id} value={m.id}>{m.title}</option>
-                      ))}
-                    </select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Senha Secreta" value={newStudent.password} onChange={(v: string) => setNewStudent({ ...newStudent, password: v })} placeholder={editingStudent ? "Deixe vazio para manter" : "Mínimo 6 caracteres"} type={editingStudent ? "text" : "password"} required={!editingStudent} />
+                    <InputField label="Validade do Acesso" value={newStudent.access_expiry || ''} onChange={(v: string) => setNewStudent({ ...newStudent, access_expiry: v })} placeholder="" type="date" required={false} />
                   </div>
-                </div>
-                <div className="pt-6">
-                  <button type="submit" disabled={isRefreshing} className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-gold transition-all disabled:opacity-50">
-                    {isRefreshing ? 'A Processar...' : (editingStudent ? 'Atualizar Conta de Aluno' : 'Criar Conta de Aluno')}
-                  </button>
-                </div>
-              </form>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="mb-6">
+                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">Atribuir Professor</label>
+                      <select value={newStudent.teacher_id || ''} onChange={e => setNewStudent({ ...newStudent, teacher_id: e.target.value })}
+                        className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm">
+                        <option value="">Sem professor</option>
+                        {schoolUsers.filter(u => u.role === 'teacher').map(t => (
+                          <option key={t.id} value={t.id}>{t.fullname}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="mb-6">
+                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">Turma/Classe</label>
+                      <select value={newStudent.class_id || ''} onChange={e => setNewStudent({ ...newStudent, class_id: e.target.value })}
+                        className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm">
+                        <option value="">Sem turma</option>
+                        {schoolModules.map(m => (
+                          <option key={m.id} value={m.id}>{m.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="pt-6">
+                    <button type="submit" disabled={isRefreshing} className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-gold transition-all disabled:opacity-50">
+                      {isRefreshing ? 'A Processar...' : (editingStudent ? 'Atualizar Conta de Aluno' : 'Criar Conta de Aluno')}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
-          </div>
-        )}
-      </main>
-    </div>
+          )
+        }
+      </main >
+    </div >
   );
 };
 
