@@ -2,17 +2,24 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
-import { Menu, X, LogOut, LayoutDashboard, Radio, Lock, Tv } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Menu, X, LogOut, LayoutDashboard, Radio, Lock, Tv, Globe } from 'lucide-react';
 import Logo from './Logo';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
+  const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'pt' ? 'en' : 'pt';
+    i18n.changeLanguage(newLang);
   };
 
   const NavLink = ({ to, children, icon: Icon, className = "" }: any) => (
@@ -42,24 +49,33 @@ const Header: React.FC = () => {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-1">
-            <NavLink to="/">Início</NavLink>
-            <NavLink to="/live-tv" icon={Tv} className="text-ministry-blue">Live TV</NavLink>
-            <NavLink to="/founder">Fundador</NavLink>
-            <NavLink to="/partnerships">Parcerias</NavLink>
-            <NavLink to="/donations">Doações</NavLink>
-            
+            <NavLink to="/">{t('common.home')}</NavLink>
+            <NavLink to="/live-tv" icon={Tv} className="text-ministry-blue">{t('nav.live_tv')}</NavLink>
+            <NavLink to="/founder">{t('nav.founder')}</NavLink>
+            <NavLink to="/partnerships">{t('nav.partnerships')}</NavLink>
+            <NavLink to="/donations">{t('nav.donations')}</NavLink>
+
             {/* Exclusive Menu Item */}
-            <NavLink 
-              to="/live" 
-              icon={Lock} 
+            <NavLink
+              to="/live"
+              icon={Lock}
               className="bg-ministry-gold/10 text-ministry-gold rounded-xl mx-2 hover:bg-ministry-gold/20"
             >
-              Acesso Exclusivo
+              {t('common.exclusive_access')}
             </NavLink>
-            
+
             {user?.role === 'admin' && (
-              <NavLink to="/admin" icon={LayoutDashboard}>Admin</NavLink>
+              <NavLink to="/admin" icon={LayoutDashboard}>{t('common.admin')}</NavLink>
             )}
+
+            {/* Language Switcher */}
+            <button
+              onClick={toggleLanguage}
+              className="flex items-center space-x-1 px-4 py-2 text-slate-500 hover:text-ministry-gold transition font-bold text-xs uppercase tracking-widest"
+            >
+              <Globe size={16} />
+              <span>{i18n.language.toUpperCase()}</span>
+            </button>
 
             {user ? (
               <div className="flex items-center ml-4 space-x-4">

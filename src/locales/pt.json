@@ -1,0 +1,98 @@
+{
+    "common": {
+        "welcome": "Bem-vindo",
+        "login": "Entrar",
+        "register": "Registar",
+        "logout": "Sair",
+        "admin": "Admin",
+        "profile": "Perfil",
+        "home": "Início",
+        "exclusive_access": "Acesso Exclusivo",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "loading": "Carregando...",
+        "back": "Voltar"
+    },
+    "nav": {
+        "live_tv": "Live TV",
+        "founder": "Fundador",
+        "partnerships": "Parcerias",
+        "donations": "Doações",
+        "online_giving": "Ofertas Online"
+    },
+    "footer": {
+        "quick_links": "Links Rápidos",
+        "support": "Suporte",
+        "contact_info": "Contacto",
+        "all_rights": "Todos os direitos reservados. Entidade Religiosa Registada."
+    },
+    "home": {
+        "hero_title": "Espalhando o Evangelho em Angola",
+        "hero_subtitle": "Levando esperança a milhões através da palavra de Deus.",
+        "live_now": "EM DIRETO AGORA",
+        "watch_live": "Assistir Agora"
+    },
+    "contact": {
+        "title": "Contacte-nos",
+        "subtitle": "Estamos aqui para o ouvir e apoiar na sua jornada de fé",
+        "info": "Informações",
+        "location": "Localização",
+        "phone": "Telefone",
+        "email": "E-mail",
+        "worship_times": "Horários de Culto",
+        "form_name": "Seu Nome",
+        "form_email": "Seu E-mail",
+        "form_subject": "Assunto",
+        "form_message": "Sua Mensagem",
+        "send": "Enviar Mensagem",
+        "send_other": "Enviar Outra",
+        "sent_success": "Mensagem Enviada!",
+        "sent_desc": "Responderemos o mais breve possível. Deus o abençoe."
+    },
+    "welcome": {
+        "title": "Bem-vindo à Christ Embassy Angola",
+        "subtitle": "Por favor, identifique-se para continuar",
+        "visitor": "Entrar como Visitante",
+        "partner": "Sou um Parceiro Registado",
+        "form_name": "Nome Completo",
+        "form_email": "Endereço de E-mail",
+        "form_church": "Sua Igreja/Grupo",
+        "start_exp": "Começar Experiência"
+    },
+    "auth": {
+        "login_title": "Acesso para Parceiros",
+        "login_subtitle": "Introduza as suas credenciais para aceder a conteúdos exclusivos",
+        "user_id": "ID de Utilizador",
+        "password": "Senha",
+        "enter": "Entrar no Sistema",
+        "no_account": "Não tem as suas credenciais?",
+        "contact_admin": "Contacte o seu líder de célula ou administração.",
+        "register_title": "Registo de Novo Parceiro",
+        "register_subtitle": "Junte-se a nós e faça parte desta visão global",
+        "full_name": "Nome Completo",
+        "create_account": "Criar Minha Conta"
+    },
+    "admin": {
+        "dashboard": "Painel de Administração",
+        "members": "Membros",
+        "visitors": "Visitantes",
+        "streams": "Transmissões",
+        "add_member": "Adicionar Membro",
+        "search": "Procurar...",
+        "full_name": "Nome Completo",
+        "username": "Utilizador",
+        "role": "Função",
+        "actions": "Ações",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "share": "Partilhar",
+        "save_changes": "Guardar Alterações",
+        "members_title": "Membros com Acesso Privado",
+        "no_members": "Nenhum membro registado.",
+        "visitor": "Visitante",
+        "contact": "Contacto",
+        "location": "Localização",
+        "date_time": "Data e Hora",
+        "no_visitors": "Sem registos para o período selecionado."
+    }
+}

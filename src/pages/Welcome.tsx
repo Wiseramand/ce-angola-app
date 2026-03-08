@@ -1,33 +1,27 @@
-
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
 import { api } from '../services/api';
-import { User as UserIcon, Phone, Globe, ChevronRight, Loader2, MapPin, Building2 } from 'lucide-react';
+import { User, Users, Globe, ArrowRight, CheckCircle2, ShieldCheck, Heart } from 'lucide-react';
 
 const Welcome: React.FC = () => {
+  const { t } = useTranslation();
   const { register } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mode, setMode] = useState<'visitor' | 'partner'>('visitor');
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    phone: '',
-    country: 'Angola',
-    city: '',
-    neighborhood: ''
+    church: ''
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleIdentify = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
 
     setIsSubmitting(true);
-    const userPayload = { ...formData, gender: 'Male', address: `${formData.city}, ${formData.neighborhood}` };
+    const userPayload = { ...formData };
 
     // TÉCNICA SÉNIOR: Tentamos salvar, mas não deixamos o utilizador esperar mais de 1.5s
     // Se o servidor falhar, ele entra no portal do mesmo jeito (Prioridade: Experiência do Utilizador)
@@ -35,7 +29,7 @@ const Welcome: React.FC = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 1500);
 
-      api.auth.register(userPayload.fullName, userPayload.email, userPayload.phone)
+      api.auth.register(userPayload.fullName, userPayload.email, userPayload.church)
         .catch(err => console.warn("Registo em background falhou, mas utilizador prossegue."));
 
       // Aguardamos apenas um momento curto para dar sensação de processamento
@@ -66,58 +60,90 @@ const Welcome: React.FC = () => {
         </div>
 
         <div className="bg-white/10 backdrop-blur-3xl p-8 md:p-14 rounded-[4rem] border border-white/10 shadow-2xl">
-          <form onSubmit={handleIdentify} className="space-y-6">
-            <div className="space-y-2">
-              <label className="block text-[10px] font-black text-ministry-gold uppercase ml-3 tracking-widest">Nome Completo</label>
-              <div className="relative">
-                <UserIcon className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" size={20} />
-                <input type="text" name="fullName" value={formData.fullName} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-[2rem] py-5 pl-16 pr-8 text-white outline-none focus:ring-4 focus:ring-ministry-gold/20 font-bold text-lg" placeholder="Seu nome" required />
-              </div>
-            </div>
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-display font-black text-ministry-blue mb-4 tracking-tighter uppercase">
+              {t('welcome.title')}
+            </h1>
+            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">
+              {t('welcome.subtitle')}
+            </p>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="block text-[10px] font-black text-ministry-gold uppercase ml-3 tracking-widest">Telefone</label>
-                <div className="relative">
-                  <Phone className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" size={20} />
-                  <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-[2rem] py-5 pl-16 pr-8 text-white outline-none focus:ring-4 focus:ring-ministry-gold/20 font-bold" placeholder="+244..." required />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="block text-[10px] font-black text-ministry-gold uppercase ml-3 tracking-widest">País</label>
-                <div className="relative">
-                  <Globe className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" size={20} />
-                  <select name="country" value={formData.country} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-[2rem] py-5 pl-16 pr-8 text-white outline-none focus:ring-4 focus:ring-ministry-gold/20 font-bold appearance-none">
-                    <option value="Angola">Angola</option>
-                    <option value="Brasil">Brasil</option>
-                    <option value="Portugal">Portugal</option>
-                    <option value="Moçambique">Moçambique</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="block text-[10px] font-black text-ministry-gold uppercase ml-3 tracking-widest">Cidade</label>
-                <div className="relative">
-                  <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" size={20} />
-                  <input type="text" name="city" value={formData.city} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-[2rem] py-5 pl-16 pr-8 text-white outline-none focus:ring-4 focus:ring-ministry-gold/20 font-bold" placeholder="Luanda" required />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="block text-[10px] font-black text-ministry-gold uppercase ml-3 tracking-widest">Bairro</label>
-                <div className="relative">
-                  <Building2 className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" size={20} />
-                  <input type="text" name="neighborhood" value={formData.neighborhood} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-[2rem] py-5 pl-16 pr-8 text-white outline-none focus:ring-4 focus:ring-ministry-gold/20 font-bold" placeholder="Talatona" required />
-                </div>
-              </div>
-            </div>
-
-            <button type="submit" disabled={isSubmitting} className="w-full py-6 mt-6 bg-ministry-gold text-white rounded-[2.5rem] font-black uppercase tracking-[0.2em] shadow-2xl active:scale-95 disabled:opacity-50 flex items-center justify-center space-x-4 transition-all hover:bg-white hover:text-ministry-blue">
-              {isSubmitting ? <Loader2 className="animate-spin" size={28} /> : <><span>ENTRAR NA TRANSMISSÃO</span><ChevronRight size={24} /></>}
+          <div className="grid grid-cols-2 gap-4 mb-10">
+            <button
+              type="button"
+              onClick={() => setMode('visitor')}
+              className={`py-6 rounded-3xl border-2 transition-all duration-300 flex flex-col items-center space-y-3 ${mode === 'visitor' ? 'border-ministry-gold bg-ministry-gold/5 text-ministry-blue ring-4 ring-ministry-gold/10' : 'border-gray-50 text-slate-400 hover:border-gray-100'}`}
+            >
+              <Users size={24} />
+              <span className="font-black text-[10px] uppercase tracking-widest">{t('welcome.visitor')}</span>
             </button>
-          </form>
+            <button
+              type="button"
+              onClick={() => setMode('partner')}
+              className={`py-6 rounded-3xl border-2 transition-all duration-300 flex flex-col items-center space-y-3 ${mode === 'partner' ? 'border-ministry-blue bg-ministry-blue/5 text-ministry-blue ring-4 ring-ministry-blue/10' : 'border-gray-50 text-slate-400 hover:border-gray-100'}`}
+            >
+              <ShieldCheck size={24} />
+              <span className="font-black text-[10px] uppercase tracking-widest">{t('welcome.partner')}</span>
+            </button>
+          </div>
+
+          {mode === 'partner' ? (
+            <div className="text-center py-10 animate-in fade-in slide-in-from-bottom duration-500">
+              <ShieldCheck size={48} className="mx-auto text-ministry-gold mb-6" />
+              <h3 className="text-xl font-black text-ministry-blue uppercase mb-4">{t('auth.login_title')}</h3>
+              <p className="text-slate-500 font-bold mb-8 text-sm">{t('auth.login_subtitle')}</p>
+              <button
+                type="button"
+                onClick={() => window.location.hash = '#/login'}
+                className="px-10 py-5 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-ministry-gold transition shadow-xl"
+              >
+                {t('common.login')}
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom duration-500">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">{t('welcome.form_name')}</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.fullName}
+                  onChange={e => setFormData({ ...formData, fullName: e.target.value })}
+                  className="w-full bg-gray-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">{t('welcome.form_email')}</label>
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full bg-gray-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">{t('welcome.form_church')}</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.church}
+                  onChange={e => setFormData({ ...formData, church: e.target.value })}
+                  className="w-full bg-gray-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-blue outline-none transition font-bold"
+                  placeholder="ex: Belas I"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-2xl hover:bg-ministry-blue transition-all flex items-center justify-center space-x-3 active:scale-95"
+              >
+                <span>{t('welcome.start_exp')}</span>
+                <ArrowRight size={18} />
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

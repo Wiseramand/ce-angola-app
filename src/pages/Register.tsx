@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../App';
 import { api } from '../services/api';
-import { User as UserIcon, Camera, ChevronRight, Check, Phone, Info, Loader2 } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Loader2, User, Mail, Phone, Lock, Heart, Globe, MapPin, User as UserIcon, Camera, ChevronRight, Check, Info } from 'lucide-react';
 
 const COUNTRY_DATA = [
   { name: "Angola", code: "+244" }, { name: "Portugal", code: "+351" }, { name: "Brazil", code: "+55" },
@@ -13,6 +13,7 @@ const COUNTRY_DATA = [
 ];
 
 const Register: React.FC = () => {
+  const { t } = useTranslation();
   const { register } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -82,16 +83,10 @@ const Register: React.FC = () => {
     <div className="min-h-screen bg-gray-50 py-12 px-4 flex items-center justify-center">
       <div className="max-w-2xl w-full">
         <div className="bg-white rounded-[40px] shadow-2xl overflow-hidden border border-gray-100">
-          <div className="bg-ministry-blue p-10 flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-display font-bold text-white">Identificação Comunitária</h1>
-              <p className="text-blue-100/60 text-sm mt-1">Diga-nos quem você é para interagir no chat</p>
-            </div>
-            <div className="flex space-x-2">
-              <div className={`w-3 h-3 rounded-full ${step === 1 ? 'bg-ministry-gold' : 'bg-white/20'}`}></div>
-              <div className={`w-3 h-3 rounded-full ${step === 2 ? 'bg-ministry-gold' : 'bg-white/20'}`}></div>
-            </div>
-          </div>
+          <header className="text-center mb-12">
+            <h1 className="text-4xl font-display font-black text-ministry-blue mb-4 tracking-tighter uppercase">{t('auth.register_title')}</h1>
+            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">{t('auth.register_subtitle')}</p>
+          </header>
 
           <div className="bg-blue-50 p-4 px-10 flex items-center space-x-4 border-b border-blue-100">
             <Info className="text-blue-600 flex-shrink-0" size={20} />

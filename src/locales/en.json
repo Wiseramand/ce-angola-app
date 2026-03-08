@@ -1,0 +1,98 @@
+{
+    "common": {
+        "welcome": "Welcome",
+        "login": "Login",
+        "register": "Register",
+        "logout": "Logout",
+        "admin": "Admin",
+        "profile": "Profile",
+        "home": "Home",
+        "exclusive_access": "Exclusive Access",
+        "save": "Save",
+        "cancel": "Cancel",
+        "loading": "Loading...",
+        "back": "Back"
+    },
+    "nav": {
+        "live_tv": "Live TV",
+        "founder": "Founder",
+        "partnerships": "Partnerships",
+        "donations": "Donations",
+        "online_giving": "Online Giving"
+    },
+    "footer": {
+        "quick_links": "Quick Links",
+        "support": "Support",
+        "contact_info": "Contact Info",
+        "all_rights": "All rights reserved. Registered Religious Entity."
+    },
+    "home": {
+        "hero_title": "Spreading the Gospel in Angola",
+        "hero_subtitle": "Bringing hope to millions through the word of God.",
+        "live_now": "LIVE NOW",
+        "watch_live": "Watch Now"
+    },
+    "contact": {
+        "title": "Contact Us",
+        "subtitle": "We are here to listen and support you on your faith journey",
+        "info": "Information",
+        "location": "Location",
+        "phone": "Phone",
+        "email": "Email",
+        "worship_times": "Worship Times",
+        "form_name": "Your Name",
+        "form_email": "Your Email",
+        "form_subject": "Subject",
+        "form_message": "Your Message",
+        "send": "Send Message",
+        "send_other": "Send Another",
+        "sent_success": "Message Sent!",
+        "sent_desc": "We will get back to you as soon as possible. God bless you."
+    },
+    "welcome": {
+        "title": "Welcome to Christ Embassy Angola",
+        "subtitle": "Please identify yourself to continue",
+        "visitor": "Enter as Visitor",
+        "partner": "I am a Registered Partner",
+        "form_name": "Full Name",
+        "form_email": "Email Address",
+        "form_church": "Your Church/Group",
+        "start_exp": "Start Experience"
+    },
+    "auth": {
+        "login_title": "Partner Access",
+        "login_subtitle": "Enter your credentials to access exclusive content",
+        "user_id": "User ID",
+        "password": "Password",
+        "enter": "Login to System",
+        "no_account": "Don't have credentials?",
+        "contact_admin": "Contact your cell leader or administration.",
+        "register_title": "New Partner Registration",
+        "register_subtitle": "Join us and be part of this global vision",
+        "full_name": "Full Name",
+        "create_account": "Create Account"
+    },
+    "admin": {
+        "dashboard": "Admin Dashboard",
+        "members": "Members",
+        "visitors": "Visitors",
+        "streams": "Streams",
+        "add_member": "Add Member",
+        "search": "Search...",
+        "full_name": "Full Name",
+        "username": "Username",
+        "role": "Role",
+        "actions": "Actions",
+        "edit": "Edit",
+        "delete": "Delete",
+        "share": "Share",
+        "save_changes": "Save Changes",
+        "members_title": "Members with Private Access",
+        "no_members": "No members registered.",
+        "visitor": "Visitor",
+        "contact": "Contact",
+        "location": "Location",
+        "date_time": "Date & Time",
+        "no_visitors": "No records for the selected period."
+    }
+}

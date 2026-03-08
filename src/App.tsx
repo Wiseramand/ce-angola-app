@@ -15,6 +15,10 @@ import AdminLogin from './pages/AdminLogin';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import Welcome from './pages/Welcome';
+import OnlineGiving from './pages/Donations'; // Reusing Donations for Online Giving
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import ContactUs from './pages/ContactUs';
 import { User, StreamConfig, UserRole } from './types';
 import { ShieldAlert, Loader2 } from 'lucide-react';
 import { api } from './services/api';
@@ -236,6 +240,10 @@ const AppContent: React.FC = () => {
           <Route path="/central-admin" element={<AdminLogin />} />
           <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/online-giving" element={<Donations />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/contact" element={<ContactUs />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,9 +1,11 @@
 
 import React from 'react';
 import { Facebook, Instagram, Youtube, Twitter, Mail, Phone, MapPin } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import Logo from './Logo';
 
 const Footer: React.FC = () => {
+  const { t } = useTranslation();
   return (
     <footer className="bg-ministry-blue text-white py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -25,27 +27,27 @@ const Footer: React.FC = () => {
           </div>
 
           <div>
-            <h3 className="font-display font-bold text-lg mb-6 text-ministry-gold">Quick Links</h3>
+            <h3 className="font-display font-bold text-lg mb-6 text-ministry-gold">{t('footer.quick_links')}</h3>
             <ul className="space-y-3 text-gray-300 text-sm">
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Live TV</a></li>
+              <li><a href="#/live-tv" className="hover:text-white hover:translate-x-1 transition-transform inline-block">{t('nav.live_tv')}</a></li>
               <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Healing School</a></li>
               <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">InnerCity Mission</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Partnerships</a></li>
+              <li><a href="#/partnerships" className="hover:text-white hover:translate-x-1 transition-transform inline-block">{t('nav.partnerships')}</a></li>
             </ul>
           </div>
 
           <div>
-            <h3 className="font-display font-bold text-lg mb-6 text-ministry-gold">Support</h3>
+            <h3 className="font-display font-bold text-lg mb-6 text-ministry-gold">{t('footer.support')}</h3>
             <ul className="space-y-3 text-gray-300 text-sm">
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Online Giving</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Contact Us</a></li>
+              <li><a href="#/online-giving" className="hover:text-white hover:translate-x-1 transition-transform inline-block">{t('nav.online_giving')}</a></li>
+              <li><a href="#/terms" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Terms of Service</a></li>
+              <li><a href="#/privacy" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Privacy Policy</a></li>
+              <li><a href="#/contact" className="hover:text-white hover:translate-x-1 transition-transform inline-block">{t('contact.title')}</a></li>
             </ul>
           </div>
 
           <div className="space-y-4">
-            <h3 className="font-display font-bold text-lg mb-6 text-ministry-gold">Contact Info</h3>
+            <h3 className="font-display font-bold text-lg mb-6 text-ministry-gold">{t('footer.contact_info')}</h3>
             <div className="flex items-start space-x-3 text-sm text-gray-300">
               <MapPin size={18} className="text-ministry-gold mt-1 flex-shrink-0" />
               <span>Belas, Luanda, Angola</span>

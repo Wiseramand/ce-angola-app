@@ -1,12 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
-  Users, Video, Shield, RefreshCw, ArrowLeft, UserPlus, FileSpreadsheet, Printer, X, Save, Calendar, Clock, Filter, Edit2, Trash2, Share2, Copy, Mail, MessageCircle, ExternalLink
+  Users, Video, Shield, RefreshCw, ArrowLeft, UserPlus, FileSpreadsheet, Printer, X, Save, Calendar, Clock, Filter, Edit2, Trash2, Share2, Copy, Mail, MessageCircle, ExternalLink,
+  LogOut, Radio, LayoutDashboard, Search, Settings, Check, ShieldAlert, Key, Loader2, Play
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
 import { api } from '../services/api';
-import { useNavigate } from 'react-router-dom';
 
 interface ManagedUser {
   id: string;
@@ -27,9 +28,10 @@ interface Visitor {
 }
 
 const AdminDashboard: React.FC = () => {
-  const { updateStreamConfig } = useAuth();
+  const { t } = useTranslation();
+  const { user, logout, updateStreamConfig } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'users' | 'visitors' | 'streams'>('users');
+  const [activeTab, setActiveTab] = useState<'members' | 'visitors' | 'streams'>('members');
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -193,7 +195,7 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         <nav className="flex-grow p-6 space-y-3">
-          <button onClick={() => setActiveTab('users')} className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${activeTab === 'users' ? 'bg-ministry-gold text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>
+          <button onClick={() => setActiveTab('members')} className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${activeTab === 'members' ? 'bg-ministry-gold text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>
             <Shield size={20} />
             <span>Gestão Membros</span>
           </button>
@@ -275,13 +277,13 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'users' && (
+        {activeTab === 'members' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center print:hidden">
-              <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">Membros com Acesso Privado</h3>
+              <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">{t('admin.members_title')}</h3>
               <button onClick={() => setShowUserModal(true)} className="flex items-center space-x-3 px-8 py-4 bg-ministry-blue text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-ministry-gold transition-all">
                 <UserPlus size={18} />
-                <span>Novo Membro</span>
+                <span>{t('admin.add_member')}</span>
               </button>
             </div>
 
@@ -289,16 +291,16 @@ const AdminDashboard: React.FC = () => {
               <table className="w-full">
                 <thead>
                   <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
-                    <th className="px-8 py-5">Nome</th>
-                    <th className="px-8 py-5">Usuário (ID)</th>
-                    <th className="px-8 py-5">Senha</th>
-                    <th className="px-8 py-5">Ações</th>
-                    <th className="px-8 py-5 text-right">Partilhar</th>
+                    <th className="px-8 py-5">{t('admin.full_name')}</th>
+                    <th className="px-8 py-5">{t('admin.username')}</th>
+                    <th className="px-8 py-5">{t('admin.password')}</th>
+                    <th className="px-8 py-5">{t('admin.actions')}</th>
+                    <th className="px-8 py-5 text-right">{t('admin.share')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {users.length === 0 ? (
-                    <tr><td colSpan={5} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum membro registado.</td></tr>
+                    <tr><td colSpan={5} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_members')}</td></tr>
                   ) : users.map(u => (
                     <tr key={u.id} className="hover:bg-slate-50 transition">
                       <td className="px-8 py-6 font-bold text-ministry-blue uppercase text-xs">{u.name}</td>
@@ -346,15 +348,15 @@ const AdminDashboard: React.FC = () => {
               <table className="w-full">
                 <thead>
                   <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase text-left border-b">
-                    <th className="px-8 py-5">Visitante</th>
-                    <th className="px-8 py-5">Contacto</th>
-                    <th className="px-8 py-5">Localização</th>
-                    <th className="px-8 py-5 text-right">Data e Hora</th>
+                    <th className="px-8 py-5">{t('admin.visitor')}</th>
+                    <th className="px-8 py-5">{t('admin.contact')}</th>
+                    <th className="px-8 py-5">{t('admin.location')}</th>
+                    <th className="px-8 py-5 text-right">{t('admin.date_time')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredVisitors.length === 0 ? (
-                    <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Sem registos para o período selecionado.</td></tr>
+                    <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_visitors')}</td></tr>
                   ) : filteredVisitors.map(v => (
                     <tr key={v.id} className="hover:bg-slate-50/30 transition">
                       <td className="px-8 py-6">
@@ -416,7 +418,7 @@ const AdminDashboard: React.FC = () => {
             <div className="lg:col-span-2 pt-4">
               <button onClick={handleSaveStreams} className="w-full py-6 bg-ministry-blue text-white rounded-[2rem] font-black uppercase text-xs tracking-[0.3em] shadow-2xl hover:bg-ministry-gold transition-all flex items-center justify-center space-x-4">
                 <Save size={20} />
-                <span>Publicar Todas as Alterações</span>
+                <span>{t('admin.save_changes')}</span>
               </button>
             </div>
           </div>
