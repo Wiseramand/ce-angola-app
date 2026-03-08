@@ -76,18 +76,40 @@ const StudentPortal: React.FC = () => {
                 if (peerConnection.current) peerConnection.current.close();
 
                 const pc = new RTCPeerConnection({
-                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' },
+                        // Free public TURN servers for NAT traversal
+                        {
+                            urls: [
+                                'turn:openrelay.metered.ca:80',
+                                'turn:openrelay.metered.ca:443',
+                                'turns:openrelay.metered.ca:443'
+                            ],
+                            username: 'openrelayproject',
+                            credential: 'openrelayproject'
+                        }
+                    ],
+                    iceCandidatePoolSize: 10
                 });
 
                 pc.onicecandidate = (event) => {
                     if (event.candidate) {
+                        console.log("Student ICE candidate:", event.candidate.type);
                         api.school.live.sendSignal({
                             sender_id: studentSignalingId.current,
                             receiver_id: teacherSignalingId,
                             type: 'candidate',
                             data: event.candidate
                         });
+                    } else {
+                        console.log("Student: ICE gathering complete.");
                     }
+                };
+
+                pc.oniceconnectionstatechange = () => {
+                    console.log("Student ICE state:", pc.iceConnectionState);
                 };
 
                 pc.ontrack = (event) => {
