@@ -64,7 +64,7 @@ export const api = {
     getConfig: async (): Promise<any> => {
       if (!USE_BACKEND) return storage.get('app_system_config') || {};
       try {
-        const res = await fetch(`${CURRENT_API_URL}/system`);
+        const res = await fetch(`${CURRENT_API_URL}/system?t=${Date.now()}`);
         if (res.ok) return await res.json();
       } catch (e) {
         console.error("System Config fetch failed", e);

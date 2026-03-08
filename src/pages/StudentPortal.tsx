@@ -55,7 +55,7 @@ const StudentPortal: React.FC = () => {
             if (config && config.is_teacher_live) {
                 setIsTeacherLive(!!config.is_teacher_live);
                 setLiveTeacherName(config.live_teacher_name || 'Professor');
-                setLiveUrl(config.private_url || '');
+                setLiveUrl(config.school_live_url || '');
             } else {
                 setIsTeacherLive(false);
             }
