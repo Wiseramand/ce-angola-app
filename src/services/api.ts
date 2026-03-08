@@ -435,6 +435,26 @@ export const api = {
       const res = await fetch(`${CURRENT_API_URL}/school/teacher/students?teacher_id=${teacherId}`);
       if (res.ok) return await res.json();
       return [];
+    },
+    live: {
+      sendSignal: async (signal: { sender_id: string, receiver_id: string, type: string, data: any }): Promise<void> => {
+        await fetch(`${CURRENT_API_URL}/school/live/signaling`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(signal)
+        });
+      },
+      getSignals: async (receiverId: string): Promise<any[]> => {
+        const res = await fetch(`${CURRENT_API_URL}/school/live/signaling?receiver_id=${receiverId}`);
+        if (res.ok) {
+          const data = await res.json();
+          return data.map((s: any) => ({ ...s, data: JSON.parse(s.data) }));
+        }
+        return [];
+      },
+      clearSignals: async (sessionId: string): Promise<void> => {
+        await fetch(`${CURRENT_API_URL}/school/live/signaling?session_id=${sessionId}`, { method: 'DELETE' });
+      }
     }
   }
 }

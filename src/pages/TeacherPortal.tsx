@@ -45,6 +45,9 @@ const TeacherPortal: React.FC = () => {
     const [selectedAudio, setSelectedAudio] = useState('');
     const videoRef = useRef<HTMLVideoElement>(null);
     const [stream, setStream] = useState<MediaStream | null>(null);
+    const [isMicMuted, setIsMicMuted] = useState(false);
+    const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
+    const signalingInterval = useRef<any>(null);
 
     const loadDevices = async () => {
         try {
@@ -61,13 +64,85 @@ const TeacherPortal: React.FC = () => {
             stream.getTracks().forEach(t => t.stop());
         }
         try {
-            const newStream = await navigator.mediaDevices.getUserMedia({
+            const constraints = {
                 video: selectedVideo ? { deviceId: { exact: selectedVideo } } : true,
                 audio: selectedAudio ? { deviceId: { exact: selectedAudio } } : true
-            });
+            };
+            const newStream = await navigator.mediaDevices.getUserMedia(constraints);
             setStream(newStream);
             if (videoRef.current) videoRef.current.srcObject = newStream;
+
+            // If already live, update tracks for all peers
+            if (isLive) {
+                peerConnections.current.forEach(pc => {
+                    const senders = pc.getSenders();
+                    newStream.getTracks().forEach(track => {
+                        const sender = senders.find(s => s.track?.kind === track.kind);
+                        if (sender) sender.replaceTrack(track);
+                        else pc.addTrack(track, newStream);
+                    });
+                });
+            }
         } catch (e) { alert("Erro ao acessar câmera/microfone"); }
+    };
+
+    const toggleMic = () => {
+        if (stream) {
+            const audioTrack = stream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setIsMicMuted(!audioTrack.enabled);
+            }
+        }
+    };
+
+    const createPeerConnection = (studentId: string) => {
+        const pc = new RTCPeerConnection({
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                api.school.live.sendSignal({
+                    sender_id: `teacher-${teacher.id}`,
+                    receiver_id: studentId,
+                    type: 'candidate',
+                    data: event.candidate
+                });
+            }
+        };
+
+        if (stream) {
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        }
+
+        return pc;
+    };
+
+    const handleSignaling = async () => {
+        const signals = await api.school.live.getSignals(`teacher-${teacher.id}`);
+        for (const signal of signals) {
+            let pc = peerConnections.current.get(signal.sender_id);
+
+            if (signal.type === 'join') {
+                if (pc) pc.close();
+                pc = createPeerConnection(signal.sender_id);
+                peerConnections.current.set(signal.sender_id, pc);
+
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                await api.school.live.sendSignal({
+                    sender_id: `teacher-${teacher.id}`,
+                    receiver_id: signal.sender_id,
+                    type: 'offer',
+                    data: offer
+                });
+            } else if (signal.type === 'answer' && pc) {
+                await pc.setRemoteDescription(new RTCSessionDescription(signal.data));
+            } else if (signal.type === 'candidate' && pc) {
+                await pc.addIceCandidate(new RTCIceCandidate(signal.data));
+            }
+        }
     };
 
     const handleGoLive = async () => {
@@ -75,10 +150,12 @@ const TeacherPortal: React.FC = () => {
             await api.system.updateConfig({
                 is_teacher_live: true,
                 live_teacher_name: teacher.fullName,
-                school_live_url: liveUrl
+                live_teacher_id: `teacher-${teacher.id}`,
+                school_live_url: 'WEBRTC_DIRECT'
             });
             setIsLive(true);
-            alert("VOCÊ ESTÁ AO VIVO! Os alunos foram notificados.");
+            signalingInterval.current = setInterval(handleSignaling, 2000);
+            alert("VOCÊ ESTÁ AO VIVO! Os alunos podem entrar agora.");
         } catch (e) { alert("Erro ao iniciar transmissão"); }
     };
 
@@ -86,6 +163,10 @@ const TeacherPortal: React.FC = () => {
         try {
             await api.system.updateConfig({ is_teacher_live: false, live_teacher_name: '' });
             setIsLive(false);
+            if (signalingInterval.current) clearInterval(signalingInterval.current);
+            peerConnections.current.forEach(pc => pc.close());
+            peerConnections.current.clear();
+            await api.school.live.clearSignals(`teacher-${teacher.id}`);
             if (stream) stream.getTracks().forEach(t => t.stop());
             setStream(null);
             alert("Transmissão encerrada.");
@@ -332,15 +413,25 @@ const TeacherPortal: React.FC = () => {
                                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Status da Transmissão</h3>
 
                                 <div className="space-y-6">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">URL da Transmissão (YouTube/Drive/etc.)</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Link do vídeo ao vivo..."
-                                            value={liveUrl}
-                                            onChange={e => setLiveUrl(e.target.value)}
-                                            className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition"
-                                        />
+                                    <div className="flex items-center justify-between p-6 bg-blue-50 rounded-2xl border border-blue-100">
+                                        <div className="flex items-center space-x-4">
+                                            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                                                <Video size={20} />
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Sinal de Vídeo</p>
+                                                <h4 className="text-sm font-black text-slate-900 uppercase">WebRTC Direct Stream</h4>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <button
+                                                onClick={toggleMic}
+                                                className={`p-3 rounded-xl transition-all ${isMicMuted ? 'bg-red-500 text-white' : 'bg-white text-slate-400 hover:text-blue-600 shadow-sm'}`}
+                                                title={isMicMuted ? "Ativar Microfone" : "Silenciar Microfone"}
+                                            >
+                                                {isMicMuted ? <AlertCircle size={20} /> : <BookOpen size={20} />}
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="flex gap-4">

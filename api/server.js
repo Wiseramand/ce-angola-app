@@ -65,6 +65,14 @@ const initDb = async () => {
         scheduled_for TIMESTAMP,
         status TEXT DEFAULT 'scheduled'
       );
+      CREATE TABLE IF NOT EXISTS live_signaling (
+        id SERIAL PRIMARY KEY,
+        sender_id TEXT,
+        receiver_id TEXT,
+        type TEXT, -- 'offer', 'answer', 'candidate'
+        data TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
       CREATE TABLE IF NOT EXISTS system_config (
         id INTEGER PRIMARY KEY,
         public_url TEXT, public_url2 TEXT, public_title TEXT, public_description TEXT,
@@ -95,6 +103,7 @@ const initDb = async () => {
       "is_private_mode BOOLEAN DEFAULT FALSE",
       "is_teacher_live BOOLEAN DEFAULT FALSE",
       "live_teacher_name TEXT",
+      "live_teacher_id TEXT",
       "school_live_url TEXT"
     ];
     for (const col of systemColumns) {
@@ -107,6 +116,7 @@ const initDb = async () => {
         UPDATE system_config SET 
           is_teacher_live = COALESCE(is_teacher_live, FALSE),
           live_teacher_name = COALESCE(live_teacher_name, ''),
+          live_teacher_id = COALESCE(live_teacher_id, ''),
           school_live_url = COALESCE(school_live_url, '')
         WHERE id = 1
       `);
@@ -518,7 +528,8 @@ export default async function handler(req, res) {
             is_private_mode = COALESCE($9, is_private_mode),
             is_teacher_live = COALESCE($10, is_teacher_live),
             live_teacher_name = COALESCE($11, live_teacher_name),
-            school_live_url = COALESCE($12, school_live_url)
+            live_teacher_id = COALESCE($12, live_teacher_id),
+            school_live_url = COALESCE($13, school_live_url)
           WHERE id=1`,
           [
             c.public_url !== undefined ? c.public_url : null,
@@ -532,9 +543,34 @@ export default async function handler(req, res) {
             c.is_private_mode !== undefined ? !!c.is_private_mode : null,
             c.is_teacher_live !== undefined ? !!c.is_teacher_live : null,
             c.live_teacher_name !== undefined ? c.live_teacher_name : null,
+            c.live_teacher_id !== undefined ? c.live_teacher_id : null,
             c.school_live_url !== undefined ? c.school_live_url : null
           ]
         );
+        return res.status(200).json({ success: true });
+      }
+    }
+
+    if (path.endsWith('/school/live/signaling')) {
+      if (req.method === 'GET') {
+        const receiverId = queryParams.get('receiver_id');
+        const r = await pool.query("SELECT * FROM live_signaling WHERE receiver_id = $1 ORDER BY created_at ASC", [receiverId]);
+        if (r.rows.length > 0) {
+          await pool.query("DELETE FROM live_signaling WHERE receiver_id = $1", [receiverId]);
+        }
+        return res.status(200).json(r.rows);
+      }
+      if (req.method === 'POST') {
+        const { sender_id, receiver_id, type, data } = await getRequestBody(req);
+        await pool.query(
+          "INSERT INTO live_signaling (sender_id, receiver_id, type, data) VALUES ($1, $2, $3, $4)",
+          [sender_id, receiver_id, type, JSON.stringify(data)]
+        );
+        return res.status(200).json({ success: true });
+      }
+      if (req.method === 'DELETE') {
+        const sessionId = queryParams.get('session_id');
+        await pool.query("DELETE FROM live_signaling WHERE sender_id = $1 OR receiver_id = $1", [sessionId]);
         return res.status(200).json({ success: true });
       }
     }

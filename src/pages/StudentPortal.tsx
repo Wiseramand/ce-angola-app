@@ -47,22 +47,90 @@ const StudentPortal: React.FC = () => {
     const [liveTeacherName, setLiveTeacherName] = useState('');
     const [liveUrl, setLiveUrl] = useState('');
     const [selectedVideo, setSelectedVideo] = useState<{ title: string, url: string } | null>(null);
+    const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
+    const peerConnection = useRef<RTCPeerConnection | null>(null);
+    const signalingInterval = useRef<any>(null);
+    const studentSignalingId = useRef(`student-${Math.random().toString(36).substr(2, 9)}`);
+
+
+    const handleSignaling = async (teacherSignalingId: string) => {
+        const signals = await api.school.live.getSignals(studentSignalingId.current);
+        for (const signal of signals) {
+            if (signal.type === 'offer') {
+                if (peerConnection.current) peerConnection.current.close();
+
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        api.school.live.sendSignal({
+                            sender_id: studentSignalingId.current,
+                            receiver_id: teacherSignalingId,
+                            type: 'candidate',
+                            data: event.candidate
+                        });
+                    }
+                };
+
+                pc.ontrack = (event) => {
+                    setRemoteStream(event.streams[0]);
+                };
+
+                await pc.setRemoteDescription(new RTCSessionDescription(signal.data));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+
+                await api.school.live.sendSignal({
+                    sender_id: studentSignalingId.current,
+                    receiver_id: teacherSignalingId,
+                    type: 'answer',
+                    data: answer
+                });
+
+                peerConnection.current = pc;
+            } else if (signal.type === 'candidate' && peerConnection.current) {
+                await peerConnection.current.addIceCandidate(new RTCIceCandidate(signal.data));
+            }
+        }
+    };
+
+    const joinLiveSession = async (teacherSignalingId: string) => {
+        await api.school.live.sendSignal({
+            sender_id: studentSignalingId.current,
+            receiver_id: teacherSignalingId,
+            type: 'join',
+            data: {}
+        });
+        if (signalingInterval.current) clearInterval(signalingInterval.current);
+        signalingInterval.current = setInterval(() => handleSignaling(teacherSignalingId), 2000);
+    };
 
     const checkLiveStatus = async () => {
         try {
             const config = await api.system.getConfig();
             if (config) {
-                // Robust boolean check (handles 't', 'f', 1, 0, or true/false)
                 const live = config.is_teacher_live === true ||
                     config.is_teacher_live === 'true' ||
                     config.is_teacher_live === 't' ||
                     config.is_teacher_live === 1 ||
                     config.is_teacher_live === '1';
 
+                const wasLive = isTeacherLive;
                 setIsTeacherLive(live);
-                setLiveTeacherName(config.live_teacher_name || config.live_teacher_name || 'Professor');
-                setLiveUrl(config.school_live_url || config.school_live_url || '');
+                setLiveTeacherName(config.live_teacher_name || 'Professor');
+                setLiveUrl(config.school_live_url || '');
+
+                if (live && !wasLive && config.live_teacher_id) {
+                    joinLiveSession(config.live_teacher_id);
+                } else if (!live && wasLive) {
+                    if (signalingInterval.current) clearInterval(signalingInterval.current);
+                    if (peerConnection.current) peerConnection.current.close();
+                    peerConnection.current = null;
+                    setRemoteStream(null);
+                }
             } else {
                 setIsTeacherLive(false);
             }
@@ -226,7 +294,7 @@ const StudentPortal: React.FC = () => {
                 )}
                 {activeTab === 'dashboard' && <DashboardView student={student} modules={modules} onStartCourse={() => setActiveTab('modules')} onCompleteProfile={() => setActiveTab('profile')} />}
                 {activeTab === 'modules' && <ModulesView modules={modules} onSelectVideo={setSelectedVideo} />}
-                {activeTab === 'live' && <LiveClassesView isLive={isTeacherLive} teacherName={liveTeacherName} liveUrl={liveUrl} studentName={student.fullName} studentId={student.id || 'anonymous'} />}
+                {activeTab === 'live' && <LiveClassesView isLive={isTeacherLive} teacherName={liveTeacherName} liveUrl={liveUrl} studentName={student.fullName} studentId={student.id || 'anonymous'} remoteStream={remoteStream} />}
                 {activeTab === 'profile' && (
                     <ProfileView
                         student={student}
@@ -397,10 +465,19 @@ const ModulesView = ({ modules, onSelectVideo }: { modules: Module[], onSelectVi
     );
 };
 
-const LiveClassesView = ({ isLive, teacherName, liveUrl, studentName, studentId }: { isLive: boolean, teacherName: string, liveUrl: string, studentName: string, studentId: string }) => {
+const LiveClassesView = ({ isLive, teacherName, liveUrl, studentName, studentId, remoteStream }: { isLive: boolean, teacherName: string, liveUrl: string, studentName: string, studentId: string, remoteStream: MediaStream | null }) => {
     const [messages, setMessages] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const chatContainerRef = useRef<HTMLDivElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [volume, setVolume] = useState(0.8);
+    const [isMuted, setIsMuted] = useState(false);
+
+    useEffect(() => {
+        if (videoRef.current && remoteStream) {
+            videoRef.current.srcObject = remoteStream;
+        }
+    }, [remoteStream]);
 
     const fetchMessages = async () => {
         try {
@@ -480,18 +557,47 @@ const LiveClassesView = ({ isLive, teacherName, liveUrl, studentName, studentId 
                     {/* Video Area */}
                     <div className="flex-grow bg-black flex items-center justify-center relative overflow-hidden group">
                         {isLive ? (
-                            embedUrl ? (
+                            liveUrl === 'WEBRTC_DIRECT' ? (
+                                <>
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        playsInline
+                                        muted={isMuted}
+                                        className="w-full h-full object-cover"
+                                    />
+                                    <div className="absolute bottom-10 left-10 right-10 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all duration-500">
+                                        <div className="flex items-center space-x-6 bg-slate-900/80 backdrop-blur-xl px-8 py-4 rounded-3xl border border-white/10 shadow-2xl">
+                                            <button
+                                                onClick={() => setIsMuted(!isMuted)}
+                                                className="text-white hover:text-ministry-gold transition"
+                                            >
+                                                {isMuted || volume === 0 ? <X size={24} /> : <Video size={24} />}
+                                            </button>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="1"
+                                                step="0.01"
+                                                value={volume}
+                                                onChange={(e) => {
+                                                    const v = parseFloat(e.target.value);
+                                                    setVolume(v);
+                                                    if (videoRef.current) videoRef.current.volume = v;
+                                                    if (v > 0) setIsMuted(false);
+                                                }}
+                                                className="w-32 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-ministry-gold"
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
                                 <iframe
                                     src={embedUrl}
                                     className="w-full h-full border-0"
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                     allowFullScreen
                                 />
-                            ) : (
-                                <div className="text-center space-y-4">
-                                    <Video size={48} className="text-white/20 mx-auto" />
-                                    <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Sinal de Vídeo em espera...</p>
-                                </div>
                             )
                         ) : (
                             <div className="text-center space-y-6">
