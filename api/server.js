@@ -524,6 +524,14 @@ export default async function handler(req, res) {
       if (req.method === 'POST') {
         const c = await getRequestBody(req);
         console.log("SYSTEM_CONFIG_UPDATE:", c);
+
+        // CRITICAL: Force-add the live streaming columns inline every time.
+        // This bypasses cold/warm start caching issues in Vercel.
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS is_teacher_live BOOLEAN DEFAULT FALSE").catch(() => { });
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS live_teacher_name TEXT").catch(() => { });
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS live_teacher_id TEXT").catch(() => { });
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS school_live_url TEXT").catch(() => { });
+
         await pool.query(
           `UPDATE system_config SET 
             public_url = COALESCE($1, public_url),
