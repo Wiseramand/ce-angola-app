@@ -4,10 +4,9 @@ import { MOCK_STREAMS } from '../constants';
 // --- CONFIGURATION ---
 export const USE_BACKEND = true;
 
-// Primary URL (Artisan Serve - Recommended for Local Dev)
-const API_URL_ARTISAN = 'http://127.0.0.1:8000/api';
-// Fallback URL (XAMPP Standard)
-const API_URL_XAMPP = 'http://localhost/cea-backend/public/api';
+// Em produção, queremos sempre usar o proxy relativo `/api` para bater no Node.js/Vercel
+// Em dev local, o proxy do Vite encaminha `/api` para `:3001`
+export const CURRENT_API_URL = '/api';
 
 // Helper for LocalStorage
 const storage = {
@@ -22,43 +21,16 @@ const storage = {
   setString: (key: string, value: string) => localStorage.setItem(key, value)
 };
 
-// Current Active URL - Defaults to /api for relative proxying in dev/prod
-export let CURRENT_API_URL = storage.getString('api_base_url') || '/api';
-
 export const api = {
   // --- SYSTEM CHECKS ---
   system: {
     setupAdmin: async (): Promise<string> => {
-      // Try Artisan First
       try {
-        console.log(`Connecting to: ${CURRENT_API_URL}/setup-admin`);
         let res = await fetch(`${CURRENT_API_URL}/setup-admin`);
-
-        if (!res.ok) {
-          // Try XAMPP
-          const altUrl = API_URL_XAMPP;
-          console.log(`Retrying with: ${altUrl}/setup-admin`);
-          res = await fetch(`${altUrl}/setup-admin`);
-          if (res.ok) {
-            CURRENT_API_URL = altUrl;
-            storage.setString('api_base_url', CURRENT_API_URL);
-          }
-        }
         const data = await res.json();
         return data.message || "Setup completed.";
       } catch (error: any) {
-        // Fallback attempt
-        try {
-          const altUrl = API_URL_ARTISAN;
-          const res = await fetch(`${altUrl}/setup-admin`);
-          if (res.ok) {
-            CURRENT_API_URL = altUrl;
-            storage.setString('api_base_url', CURRENT_API_URL);
-            const data = await res.json();
-            return data.message;
-          }
-        } catch (e) { }
-        throw new Error("Could not connect to Backend. Certifique-se que o terminal 'php artisan serve' esta rodando.");
+        throw new Error("Could not connect to Backend.");
       }
     },
     getConfig: async (): Promise<any> => {
@@ -126,28 +98,13 @@ export const api = {
           body: JSON.stringify({ email, password })
         });
 
-        // Auto-switch logic if connection fails
-        if (!res.ok && res.status !== 401 && res.status !== 422) {
-          const altUrl = CURRENT_API_URL === API_URL_ARTISAN ? API_URL_XAMPP : API_URL_ARTISAN;
-          const resFallback = await fetch(`${altUrl}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ email, password })
-          });
-          if (resFallback.ok || resFallback.status === 401) {
-            CURRENT_API_URL = altUrl;
-            storage.setString('api_base_url', CURRENT_API_URL);
-            res = resFallback;
-          }
-        }
-
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Login failed');
         if (data.user) data.user.id = String(data.user.id);
         return data.user;
       } catch (error: any) {
         console.error("Login Error:", error);
-        throw new Error("Erro de conexao. Verifique se o Backend esta rodando.");
+        throw new Error("Erro de conexão.");
       }
     },
 
