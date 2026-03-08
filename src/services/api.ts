@@ -404,7 +404,7 @@ export const api = {
     uploadModuleVideo: async (file: File): Promise<{ url: string }> => {
       const formData = new FormData();
       formData.append('video', file);
-      const res = await fetch(`/api/school/upload`, {
+      const res = await fetch(`${CURRENT_API_URL}/school/upload`, {
         method: 'POST',
         body: formData
       });

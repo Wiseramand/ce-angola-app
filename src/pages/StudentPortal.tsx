@@ -44,6 +44,8 @@ const StudentPortal: React.FC = () => {
     const [modules, setModules] = useState<Module[]>([]);
     const [isTeacherLive, setIsTeacherLive] = useState(false);
     const [liveTeacherName, setLiveTeacherName] = useState('');
+    const [selectedVideo, setSelectedVideo] = useState<{ title: string, url: string } | null>(null);
+
 
     const checkLiveStatus = async () => {
         try {
@@ -205,6 +207,14 @@ const StudentPortal: React.FC = () => {
                         }}
                     />
                 )}
+                {selectedVideo && (
+                    <VideoPlayerModal
+                        title={selectedVideo.title}
+                        url={selectedVideo.url}
+                        onClose={() => setSelectedVideo(null)}
+                    />
+                )}
+
             </main>
         </div>
     );
@@ -295,11 +305,13 @@ const ModulesView = ({ modules }: { modules: Module[] }) => {
                 {modules.map((m, idx) => (
                     <div
                         key={m.id}
+                        onClick={() => m.isUnlocked && setSelectedVideo({ title: m.title, url: (m as any).video_url })}
                         className={`group relative p-8 rounded-[2.5rem] border-2 transition-all duration-500 ${m.isUnlocked
                             ? 'bg-white border-gray-100 hover:border-ministry-gold hover:shadow-2xl cursor-pointer'
                             : 'bg-gray-50 border-transparent opacity-60 grayscale'
                             }`}
                     >
+
                         <div className="flex justify-between items-start mb-6">
                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${m.isCompleted ? 'bg-green-100 text-green-600' : 'bg-ministry-blue text-white'}`}>
                                 {m.isCompleted ? <CheckCircle size={24} /> : <span className="text-xl font-black">{m.id}</span>}
@@ -486,6 +498,66 @@ const ProfileView = ({ student, isEditing, onEdit, onCancel, onSave }: any) => {
         </div>
     );
 };
+
+const VideoPlayerModal = ({ title, url, onClose }: { title: string, url: string, onClose: () => void }) => {
+    const getEmbedUrl = (rawUrl: string) => {
+        if (!rawUrl) return '';
+        if (rawUrl.includes('youtube.com/watch?v=')) {
+            return rawUrl.replace('watch?v=', 'embed/');
+        }
+        if (rawUrl.includes('youtu.be/')) {
+            return rawUrl.replace('youtu.be/', 'youtube.com/embed/');
+        }
+        if (rawUrl.includes('drive.google.com/file/d/')) {
+            return rawUrl.replace('/view?usp=sharing', '/preview').replace('/view', '/preview');
+        }
+        return rawUrl;
+    };
+
+    const isDirectVideo = url && (url.startsWith('/uploads') || url.endsWith('.mp4') || url.endsWith('.webm'));
+    const embedUrl = getEmbedUrl(url);
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10">
+            <div className="absolute inset-0 bg-ministry-blue/90 backdrop-blur-md" onClick={onClose}></div>
+            <div className="relative bg-white w-full max-w-5xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+                <div className="p-8 border-b border-gray-50 flex justify-between items-center">
+                    <div>
+                        <p className="text-[10px] font-black text-ministry-gold uppercase tracking-[0.3em] mb-1">Assistindo agora</p>
+                        <h3 className="text-2xl font-black text-ministry-blue uppercase tracking-tight">{title}</h3>
+                    </div>
+                    <button onClick={onClose} className="p-4 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+                <div className="aspect-video bg-black">
+                    {isDirectVideo ? (
+                        <video src={url} controls className="w-full h-full" autoPlay />
+                    ) : embedUrl ? (
+                        <iframe
+                            src={embedUrl}
+                            className="w-full h-full"
+                            allow="autoplay; fullscreen"
+                            title={title}
+                        ></iframe>
+                    ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-white/20 space-y-4">
+                            <Video size={64} />
+                            <p className="font-black uppercase tracking-widest text-xs">Vídeo não disponível</p>
+                        </div>
+                    )}
+                </div>
+                <div className="p-8 bg-slate-50 flex justify-between items-center">
+                    <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Escola de Fundação Christ Embassy Angola</p>
+                    <button onClick={onClose} className="px-8 py-4 bg-ministry-blue text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-ministry-gold transition-all shadow-lg">
+                        Concluído
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 // --- HELPERS ---
 

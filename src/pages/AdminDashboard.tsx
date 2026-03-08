@@ -82,6 +82,8 @@ const AdminDashboard: React.FC = () => {
   const [teacherSearch, setTeacherSearch] = useState('');
   const [visitorSearch, setVisitorSearch] = useState('');
   const [requestSearch, setRequestSearch] = useState('');
+  const [memberSearch, setMemberSearch] = useState('');
+
 
   // Pagination
   const PAGE_SIZE = 8;
@@ -89,6 +91,8 @@ const AdminDashboard: React.FC = () => {
   const [teacherPage, setTeacherPage] = useState(0);
   const [visitorPage, setVisitorPage] = useState(0);
   const [requestPage, setRequestPage] = useState(0);
+  const [memberPage, setMemberPage] = useState(0);
+
 
   // Filtros de Data e Hora
   const [filterStart, setFilterStart] = useState('');
@@ -629,8 +633,19 @@ const AdminDashboard: React.FC = () => {
 
         {activeTab === 'members' && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center print:hidden">
-              <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">{t('admin.members_title')}</h3>
+            <div className="flex justify-between items-center print:hidden px-4">
+              <div className="flex items-center space-x-6">
+                <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">{t('admin.members_title')}</h3>
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                  <input
+                    type="text" value={memberSearch}
+                    onChange={e => { setMemberSearch(e.target.value); setMemberPage(0); }}
+                    placeholder="Buscar membro..."
+                    className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold transition w-64"
+                  />
+                </div>
+              </div>
               <button onClick={() => setShowUserModal(true)} className="flex items-center space-x-3 px-8 py-4 bg-ministry-blue text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-ministry-gold transition-all">
                 <UserPlus size={18} />
                 <span>{t('admin.add_member')}</span>
@@ -649,40 +664,69 @@ const AdminDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {users.length === 0 ? (
-                    <tr><td colSpan={5} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_members')}</td></tr>
-                  ) : users.map(u => (
-                    <tr key={u.id} className="hover:bg-slate-50 transition">
-                      <td className="px-8 py-6 font-bold text-ministry-blue uppercase text-xs">{u.name}</td>
-                      <td className="px-8 py-6 font-mono text-sm text-slate-500">{u.username}</td>
-                      <td className="px-8 py-6 font-mono text-sm text-slate-500">{u.password}</td>
-                      <td className="px-8 py-6">
-                        <div className="flex space-x-2">
-                          <button onClick={() => handleEditUser(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar">
-                            <Edit2 size={16} />
-                          </button>
-                          <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <div className="flex justify-end space-x-2">
-                          <button onClick={() => shareViaWhatsApp(u)} className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition" title="WhatsApp">
-                            <MessageCircle size={16} />
-                          </button>
-                          <button onClick={() => shareViaEmail(u)} className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition" title="Email">
-                            <Mail size={16} />
-                          </button>
-                          <button onClick={() => copyCredentials(u)} className="p-2 text-ministry-gold hover:bg-gold-50 rounded-lg transition" title="Copiar">
-                            <Copy size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    const filtered = users.filter(u =>
+                      (u.name || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
+                      (u.username || '').toLowerCase().includes(memberSearch.toLowerCase())
+                    );
+                    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+                    const page = Math.min(memberPage, Math.max(0, totalPages - 1));
+                    const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+                    if (paged.length === 0) {
+                      return <tr><td colSpan={5} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_members')}</td></tr>;
+                    }
+
+                    return paged.map(u => (
+                      <tr key={u.id} className="hover:bg-slate-50 transition">
+                        <td className="px-8 py-6 font-bold text-ministry-blue uppercase text-xs">{u.name}</td>
+                        <td className="px-8 py-6 font-mono text-sm text-slate-500">{u.username}</td>
+                        <td className="px-8 py-6 font-mono text-sm text-slate-500">{u.password}</td>
+                        <td className="px-8 py-6">
+                          <div className="flex space-x-2">
+                            <button onClick={() => handleEditUser(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar">
+                              <Edit2 size={16} />
+                            </button>
+                            <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex justify-end space-x-2">
+                            <button onClick={() => shareViaWhatsApp(u)} className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition" title="WhatsApp">
+                              <MessageCircle size={16} />
+                            </button>
+                            <button onClick={() => shareViaEmail(u)} className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition" title="Email">
+                              <Mail size={16} />
+                            </button>
+                            <button onClick={() => copyCredentials(u)} className="p-2 text-ministry-gold hover:bg-gold-50 rounded-lg transition" title="Copiar">
+                              <Copy size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
                 </tbody>
               </table>
+              {(() => {
+                const filtered = users.filter(u =>
+                  (u.name || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
+                  (u.username || '').toLowerCase().includes(memberSearch.toLowerCase())
+                );
+                const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+                if (totalPages <= 1) return null;
+                return (
+                  <div className="flex justify-between items-center px-8 py-6 bg-slate-50 border-t border-slate-100">
+                    <span className="text-[10px] font-black text-slate-400 uppercase">{filtered.length} membros · Pág. {memberPage + 1}/{totalPages}</span>
+                    <div className="flex gap-3">
+                      <button disabled={memberPage === 0} onClick={() => setMemberPage(p => p - 1)} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:border-ministry-gold transition">Anterior</button>
+                      <button disabled={memberPage >= totalPages - 1} onClick={() => setMemberPage(p => p + 1)} className="px-5 py-2.5 bg-ministry-blue text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:bg-ministry-gold transition">Próxima</button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
