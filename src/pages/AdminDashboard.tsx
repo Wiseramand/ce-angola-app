@@ -205,10 +205,29 @@ const AdminDashboard: React.FC = () => {
 
   const generateCredentials = () => {
     const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const firstName = newUser.fullname.split(' ')[0].toLowerCase() || 'membro';
+    const firstName = (newUser.fullname || '').split(' ')[0].toLowerCase() || 'membro';
     const generatedUsername = `${firstName}_${randomNum}`;
     const generatedPassword = Math.random().toString(36).slice(-8);
     setNewUser({ ...newUser, username: generatedUsername, password: generatedPassword });
+  };
+
+  const generateUserCredentials = (type: 'teacher' | 'student') => {
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    if (type === 'teacher') {
+      const firstName = (newTeacher.fullname || '').split(' ')[0].toLowerCase() || 'prof';
+      setNewTeacher({
+        ...newTeacher,
+        username: `${firstName}_${randomNum}`,
+        password: Math.random().toString(36).slice(-8)
+      });
+    } else {
+      const firstName = (newStudent.fullname || '').split(' ')[0].toLowerCase() || 'aluno';
+      setNewStudent({
+        ...newStudent,
+        username: `${firstName}_${randomNum}`,
+        password: Math.random().toString(36).slice(-8)
+      });
+    }
   };
 
   const getLoginLink = () => `${window.location.origin}/login`;
@@ -300,6 +319,22 @@ const AdminDashboard: React.FC = () => {
       loadData();
     } catch (e) {
       alert("Erro ao rejeitar solicitação.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleResetPassword = async (user: any) => {
+    const newPassword = Math.random().toString(36).slice(-8);
+    if (!confirm(`Deseja redefinir a senha de ${user.fullname} para: ${newPassword}?`)) return;
+
+    setIsRefreshing(true);
+    try {
+      await api.school.saveUser({ ...user, password: newPassword });
+      alert(`Senha de ${user.fullname} redefinida com sucesso!\n\nNova Senha: ${newPassword}`);
+      loadData();
+    } catch (e: any) {
+      alert("Erro ao redefinir senha: " + e.message);
     } finally {
       setIsRefreshing(false);
     }
@@ -980,6 +1015,7 @@ const AdminDashboard: React.FC = () => {
                                   <button onClick={() => shareSchoolUserViaWhatsApp(u)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition" title="WhatsApp"><MessageCircle size={14} /></button>
                                   <button onClick={() => shareSchoolUserViaEmail(u)} className="p-2 text-ministry-gold hover:bg-ministry-gold/10 rounded-lg transition" title="Email"><Mail size={14} /></button>
                                   <button onClick={() => copySchoolUserCredentials(u)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition" title="Copiar"><Copy size={14} /></button>
+                                  <button onClick={() => handleResetPassword(u)} className="p-2 text-ministry-gold hover:bg-gold-50 rounded-lg transition" title="Redefinir Senha"><Key size={14} /></button>
                                   <button onClick={() => handleEditStudent(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
                                   <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
                                 </div>
@@ -1061,6 +1097,7 @@ const AdminDashboard: React.FC = () => {
                                   <button onClick={() => shareSchoolUserViaWhatsApp(u)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition" title="WhatsApp"><MessageCircle size={14} /></button>
                                   <button onClick={() => shareSchoolUserViaEmail(u)} className="p-2 text-ministry-gold hover:bg-ministry-gold/10 rounded-lg transition" title="Email"><Mail size={14} /></button>
                                   <button onClick={() => copySchoolUserCredentials(u)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition" title="Copiar"><Copy size={14} /></button>
+                                  <button onClick={() => handleResetPassword(u)} className="p-2 text-ministry-gold hover:bg-gold-50 rounded-lg transition" title="Redefinir Senha"><Key size={14} /></button>
                                   <button onClick={() => handleEditTeacher(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar"><Edit2 size={14} /></button>
                                   <button onClick={() => handleDeleteSchoolUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar"><Trash2 size={14} /></button>
                                 </div>
@@ -1304,10 +1341,14 @@ const AdminDashboard: React.FC = () => {
                   <InputField label="Nome Completo" value={newTeacher.fullname} onChange={(v: string) => setNewTeacher({ ...newTeacher, fullname: v })} placeholder="Ex: Pr. Antunes" />
                   <div className="grid grid-cols-2 gap-4">
                     <InputField label="Email" value={newTeacher.email} onChange={(v: string) => setNewTeacher({ ...newTeacher, email: v })} />
-                    <InputField label="ID de Utilizador" value={newTeacher.username} onChange={(v: string) => setNewTeacher({ ...newTeacher, username: v.toLowerCase() })} placeholder="ex: pr_antunes" />
+                    <InputField label="ID de Utilizador" value={newTeacher.username} onChange={(v: string) => setNewTeacher({ ...newTeacher, username: v.toLowerCase() })} placeholder="ex: pr_antunes"
+                      action={<button type="button" onClick={() => generateUserCredentials('teacher')} className="text-ministry-gold hover:text-ministry-blue transition"><RefreshCw size={14} /></button>}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField label="Senha Secreta" value={newTeacher.password} onChange={(v: string) => setNewTeacher({ ...newTeacher, password: v })} placeholder={editingTeacher ? "Deixe vazio para manter" : "Mínimo 6 caracteres"} type={editingTeacher ? "text" : "password"} />
+                    <InputField label="Senha Secreta" value={newTeacher.password} onChange={(v: string) => setNewTeacher({ ...newTeacher, password: v })} placeholder={editingTeacher ? "Deixe vazio para manter" : "Mínimo 6 caracteres"} type={editingTeacher ? "text" : "password"}
+                      action={<button type="button" onClick={() => generateUserCredentials('teacher')} className="text-ministry-gold hover:text-ministry-blue transition"><RefreshCw size={14} /></button>}
+                    />
                     <InputField label="Validade do Acesso" value={newTeacher.access_expiry || ''} onChange={(v: string) => setNewTeacher({ ...newTeacher, access_expiry: v })} placeholder="" type="date" />
                   </div>
                   <div className="pt-6">
@@ -1393,10 +1434,14 @@ const AdminDashboard: React.FC = () => {
                   <InputField label="Nome Completo" value={newStudent.fullname} onChange={(v: string) => setNewStudent({ ...newStudent, fullname: v })} placeholder="Nome Completo" />
                   <div className="grid grid-cols-2 gap-4">
                     <InputField label="Email" value={newStudent.email} onChange={(v: string) => setNewStudent({ ...newStudent, email: v })} required={false} />
-                    <InputField label="ID de Utilizador" value={newStudent.username} onChange={(v: string) => setNewStudent({ ...newStudent, username: v.toLowerCase() })} placeholder="Ex: joao123" />
+                    <InputField label="ID de Utilizador" value={newStudent.username} onChange={(v: string) => setNewStudent({ ...newStudent, username: v.toLowerCase() })} placeholder="Ex: joao123"
+                      action={<button type="button" onClick={() => generateUserCredentials('student')} className="text-ministry-gold hover:text-ministry-blue transition"><RefreshCw size={14} /></button>}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField label="Senha Secreta" value={newStudent.password} onChange={(v: string) => setNewStudent({ ...newStudent, password: v })} placeholder={editingStudent ? "Deixe vazio para manter" : "Mínimo 6 caracteres"} type={editingStudent ? "text" : "password"} required={!editingStudent} />
+                    <InputField label="Senha Secreta" value={newStudent.password} onChange={(v: string) => setNewStudent({ ...newStudent, password: v })} placeholder={editingStudent ? "Deixe vazio para manter" : "Mínimo 6 caracteres"} type={editingStudent ? "text" : "password"} required={!editingStudent}
+                      action={<button type="button" onClick={() => generateUserCredentials('student')} className="text-ministry-gold hover:text-ministry-blue transition"><RefreshCw size={14} /></button>}
+                    />
                     <InputField label="Validade do Acesso" value={newStudent.access_expiry || ''} onChange={(v: string) => setNewStudent({ ...newStudent, access_expiry: v })} placeholder="" type="date" required={false} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -1436,9 +1481,12 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-const InputField = ({ label, value, onChange, placeholder, type = "text", required = true }: any) => (
+const InputField = ({ label, value, onChange, placeholder, type = "text", required = true, action }: any) => (
   <div className="mb-6">
-    <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">{label}</label>
+    <div className="flex justify-between items-center mb-2 ml-2">
+      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</label>
+      {action}
+    </div>
     <input
       type={type}
       value={value}

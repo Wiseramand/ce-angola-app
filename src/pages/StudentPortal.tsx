@@ -523,9 +523,9 @@ const VideoPlayerModal = ({ title, url, onClose }: { title: string, url: string,
     const embedUrl = getEmbedUrl(url);
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8">
             <div className="absolute inset-0 bg-ministry-blue/90 backdrop-blur-md" onClick={onClose}></div>
-            <div className="relative bg-white w-full max-w-5xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+            <div className="relative bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
                 <div className="p-8 border-b border-gray-50 flex justify-between items-center">
                     <div>
                         <p className="text-[10px] font-black text-ministry-gold uppercase tracking-[0.3em] mb-1">Assistindo agora</p>
