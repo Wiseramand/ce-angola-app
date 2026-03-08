@@ -57,7 +57,7 @@ const StudentPortal: React.FC = () => {
 
 
     const handleSignaling = async (teacherSignalingId: string) => {
-        const signals = await api.school.live.getSignals(studentSignalingId.current);
+        const signals = await api.school.live.getSignals(studentSignalingId.current + "?cb=" + Date.now());
         for (const signal of signals) {
             if (signal.type === 'offer') {
                 if (peerConnection.current) peerConnection.current.close();
@@ -88,7 +88,10 @@ const StudentPortal: React.FC = () => {
                     }
                 };
 
+                peerConnection.current = pc;
+                console.log("Student: Setting remote description...");
                 await pc.setRemoteDescription(new RTCSessionDescription(signal.data));
+                console.log("Student: Remote description set. Creating answer...");
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
 
@@ -98,10 +101,13 @@ const StudentPortal: React.FC = () => {
                     type: 'answer',
                     data: answer
                 });
-
-                peerConnection.current = pc;
-            } else if (signal.type === 'candidate' && peerConnection.current) {
-                await peerConnection.current.addIceCandidate(new RTCIceCandidate(signal.data));
+            } else if (signal.type === 'candidate') {
+                const pc = peerConnection.current;
+                if (pc && pc.remoteDescription) {
+                    await pc.addIceCandidate(new RTCIceCandidate(signal.data)).catch(e => console.error("Error adding candidate", e));
+                } else {
+                    console.warn("Student: PC not ready for candidate or remoteDescription missing.");
+                }
             }
         }
     };
@@ -120,6 +126,7 @@ const StudentPortal: React.FC = () => {
     const checkLiveStatus = async () => {
         try {
             const config = await api.system.getConfig();
+            console.log("Student: Checking live status...", config?.is_teacher_live);
             if (config) {
                 const live = config.is_teacher_live === true ||
                     config.is_teacher_live === 'true' ||

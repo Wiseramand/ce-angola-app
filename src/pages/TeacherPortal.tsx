@@ -53,10 +53,11 @@ const TeacherPortal: React.FC = () => {
     const loadDevices = async () => {
         try {
             const allDevices = await navigator.mediaDevices.enumerateDevices();
-            setDevices({
-                video: allDevices.filter(d => d.kind === 'videoinput'),
-                audio: allDevices.filter(d => d.kind === 'audioinput')
-            });
+            const v = allDevices.filter(d => d.kind === 'videoinput');
+            const a = allDevices.filter(d => d.kind === 'audioinput');
+            setDevices({ video: v, audio: a });
+            if (v.length > 0 && !selectedVideo) setSelectedVideo(v[0].deviceId);
+            if (a.length > 0 && !selectedAudio) setSelectedAudio(a[0].deviceId);
         } catch (e) { console.error(e); }
     };
 
@@ -127,12 +128,14 @@ const TeacherPortal: React.FC = () => {
             let pc = peerConnections.current.get(signal.sender_id);
 
             if (signal.type === 'join') {
+                console.log("Teacher: Received JOIN from", signal.sender_id);
                 if (pc) pc.close();
                 pc = createPeerConnection(signal.sender_id);
                 peerConnections.current.set(signal.sender_id, pc);
 
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
+                console.log("Teacher: Sending OFFER to", signal.sender_id);
                 await api.school.live.sendSignal({
                     sender_id: `teacher-${teacher.id}`,
                     receiver_id: signal.sender_id,
@@ -140,8 +143,10 @@ const TeacherPortal: React.FC = () => {
                     data: offer
                 });
             } else if (signal.type === 'answer' && pc) {
+                console.log("Teacher: Received ANSWER from", signal.sender_id);
                 await pc.setRemoteDescription(new RTCSessionDescription(signal.data));
             } else if (signal.type === 'candidate' && pc) {
+                console.log("Teacher: Received CANDIDATE from", signal.sender_id);
                 await pc.addIceCandidate(new RTCIceCandidate(signal.data));
             }
         }
@@ -150,6 +155,13 @@ const TeacherPortal: React.FC = () => {
     const handleGoLive = async () => {
         if (!teacher.id) {
             alert("Erro: ID do professor não encontrado. Tente sair e entrar novamente.");
+            return;
+        }
+        if (!stream) {
+            await startPreview();
+        }
+        if (!stream) {
+            alert("Erro: Por favor, verifique se a sua câmera está ativa antes de iniciar.");
             return;
         }
         try {
@@ -163,21 +175,47 @@ const TeacherPortal: React.FC = () => {
             if (signalingInterval.current) clearInterval(signalingInterval.current);
             signalingInterval.current = setInterval(handleSignaling, 2000);
             alert("VOCÊ ESTÁ AO VIVO! Os alunos podem entrar agora.");
-        } catch (e) { alert("Erro ao iniciar transmissão"); }
+        } catch (e: any) { alert("Erro ao iniciar transmissão: " + e.message); }
     };
 
     const handleEndLive = async () => {
         try {
-            await api.system.updateConfig({ is_teacher_live: false, live_teacher_name: '' });
+            await api.system.updateConfig({
+                is_teacher_live: false,
+                live_teacher_name: '',
+                live_teacher_id: '',
+                school_live_url: ''
+            });
             setIsLive(false);
             if (signalingInterval.current) clearInterval(signalingInterval.current);
             peerConnections.current.forEach(pc => pc.close());
             peerConnections.current.clear();
             await api.school.live.clearSignals(`teacher-${teacher.id}`);
-            if (stream) stream.getTracks().forEach(t => t.stop());
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+                setStream(null);
+            }
+            alert("Transmissão encerrada com sucesso.");
+        } catch (e: any) {
+            console.error("Teacher: End live error", e);
+            alert("AVISO: Erro ao sincronizar com o servidor, mas a aula foi fechada localmente. Erro: " + e.message);
+            setIsLive(false);
+            if (signalingInterval.current) clearInterval(signalingInterval.current);
+            peerConnections.current.forEach(pc => pc.close());
+            peerConnections.current.clear();
+        }
+    };
+
+    const handleForceStop = () => {
+        setIsLive(false);
+        if (signalingInterval.current) clearInterval(signalingInterval.current);
+        peerConnections.current.forEach(pc => pc.close());
+        peerConnections.current.clear();
+        if (stream) {
+            stream.getTracks().forEach(t => t.stop());
             setStream(null);
-            alert("Transmissão encerrada.");
-        } catch (e) { }
+        }
+        alert("Encerrado localmente à força.");
     };
 
     const fetchChatMessages = async () => {
@@ -218,7 +256,6 @@ const TeacherPortal: React.FC = () => {
     };
 
     useEffect(() => {
-        loadDevices();
         const loadPortalData = async () => {
             setIsLoading(true);
             try {
@@ -248,6 +285,9 @@ const TeacherPortal: React.FC = () => {
                     const assignedStudents = await api.school.getTeacherStudents(parsed.id);
                     setMyStudents(assignedStudents || []);
                 }
+
+                await loadDevices();
+                setTimeout(startPreview, 1000); // Auto-start preview after loading devices
             } catch (e) {
                 console.error(e);
             } finally {
@@ -482,12 +522,20 @@ const TeacherPortal: React.FC = () => {
                                         Iniciar Transmissão
                                     </button>
                                 ) : (
-                                    <button
-                                        onClick={handleEndLive}
-                                        className="w-full px-12 py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-slate-800 transition-all"
-                                    >
-                                        Encerrar Aula
-                                    </button>
+                                    <div className="flex flex-col gap-4">
+                                        <button
+                                            onClick={handleEndLive}
+                                            className="w-full px-12 py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-slate-800 transition-all"
+                                        >
+                                            Encerrar Aula
+                                        </button>
+                                        <button
+                                            onClick={handleForceStop}
+                                            className="w-full py-2 text-[8px] font-black text-slate-400 uppercase tracking-widest hover:text-red-500 transition"
+                                        >
+                                            Forçar Fechamento (Se travar)
+                                        </button>
+                                    </div>
                                 )}
 
                                 {/* Preview Screen */}

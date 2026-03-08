@@ -445,7 +445,7 @@ export const api = {
         });
       },
       getSignals: async (receiverId: string): Promise<any[]> => {
-        const res = await fetch(`${CURRENT_API_URL}/school/live/signaling?receiver_id=${receiverId}`);
+        const res = await fetch(`${CURRENT_API_URL}/school/live/signaling?receiver_id=${receiverId}&cb=${Date.now()}`);
         if (res.ok) {
           const data = await res.json();
           return data.map((s: any) => ({ ...s, data: JSON.parse(s.data) }));
