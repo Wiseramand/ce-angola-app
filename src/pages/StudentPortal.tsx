@@ -539,32 +539,6 @@ const LiveClassesView = ({ isLive, teacherName, liveUrl, studentName, studentId,
     const [volume, setVolume] = useState(0.8);
     const [isMuted, setIsMuted] = useState(true); // Default to muted for autoplay
 
-    // WebRTC Debugger
-    const [debugLogs, setDebugLogs] = useState<string[]>([]);
-    const mountTime = useRef(Date.now());
-
-    useEffect(() => {
-        const originalLog = console.log;
-        const originalWarn = console.warn;
-        const originalError = console.error;
-
-        const formatLog = (...args: any[]) => {
-            const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-            const ts = ((Date.now() - mountTime.current) / 1000).toFixed(1) + 's';
-            setDebugLogs(prev => [...prev.slice(-15), `[${ts}] ${msg}`]);
-            return msg;
-        };
-
-        console.log = (...args) => { formatLog(...args); originalLog(...args); };
-        console.warn = (...args) => { formatLog(...args); originalWarn(...args); };
-        console.error = (...args) => { formatLog(...args); originalError(...args); };
-
-        return () => {
-            console.log = originalLog;
-            console.warn = originalWarn;
-            console.error = originalError;
-        };
-    }, []);
 
     useEffect(() => {
         if (videoRef.current && remoteStream) {
