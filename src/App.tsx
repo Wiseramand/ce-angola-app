@@ -93,7 +93,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const sendHeartbeat = async (userId: string, sessionId: string) => {
-    if (userId.startsWith('v-')) return;
     try {
       const res = await fetch(`/api/heartbeat`, {
         method: 'POST',
@@ -136,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const parsedUser = JSON.parse(saved);
           setUser(parsedUser);
-          if (parsedUser.sessionId && parsedUser.role !== 'admin' && !parsedUser.id.startsWith('v-')) {
+          if (parsedUser.sessionId && parsedUser.role !== 'admin') {
             heartbeatRef.current = window.setInterval(() => sendHeartbeat(parsedUser.id, parsedUser.sessionId), 10000);
           }
         } catch (e) { localStorage.removeItem('ce_session_user'); }
@@ -189,10 +188,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const user = await api.auth.register(data.fullName, data.email, 'password123'); // Default password for visitor
       setUser(user);
       localStorage.setItem('ce_session_user', JSON.stringify(user));
+      
+      // Iniciar heartbeat imediatamente após registo bem-sucedido
+      if (user.sessionId) {
+        if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+        heartbeatRef.current = window.setInterval(() => sendHeartbeat(user.id, user.sessionId!), 10000);
+      }
     } catch (e) {
-      const visitorUser: UserExtended = { ...data, id: 'v-' + Date.now(), role: 'user', hasLiveAccess: false };
+      const sessionId = Math.random().toString(36).substring(2, 15);
+      const visitorUser: UserExtended = { ...data, id: 'v-' + Date.now(), role: 'user', hasLiveAccess: false, sessionId };
       setUser(visitorUser);
       localStorage.setItem('ce_session_user', JSON.stringify(visitorUser));
+      
+      // Iniciar heartbeat imediatamente para visitante também
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      heartbeatRef.current = window.setInterval(() => sendHeartbeat(visitorUser.id, sessionId), 10000);
     }
   };
 

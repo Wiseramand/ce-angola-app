@@ -21,25 +21,14 @@ const Welcome: React.FC = () => {
     if (isSubmitting) return;
 
     setIsSubmitting(true);
-    const userPayload = { ...formData };
-
-    // TÉCNICA SÉNIOR: Tentamos salvar, mas não deixamos o utilizador esperar mais de 1.5s
-    // Se o servidor falhar, ele entra no portal do mesmo jeito (Prioridade: Experiência do Utilizador)
+    
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1500);
-
-      api.auth.register(userPayload.fullName, userPayload.email, userPayload.church)
-        .catch(err => console.warn("Registo em background falhou, mas utilizador prossegue."));
-
-      // Aguardamos apenas um momento curto para dar sensação de processamento
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      clearTimeout(timeoutId);
-      await register(userPayload);
+      // Simplificamos a lógica: Apenas chamamos o registo do contexto que já trata fallback
+      // Não precisamos de chamadas duplas ou timeouts complexos aqui
+      await register(formData);
     } catch (err) {
-      // Em caso de erro crítico, ainda assim deixamos entrar
-      await register(userPayload);
+      console.error("Erro durante o registo de visitante:", err);
+      // O register do contexto já deve tratar a entrada forçada em caso de erro
     } finally {
       setIsSubmitting(false);
     }

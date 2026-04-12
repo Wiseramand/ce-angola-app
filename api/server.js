@@ -28,6 +28,11 @@ const initDb = async () => {
         user_id TEXT, username TEXT, text TEXT, channel TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
       CREATE TABLE IF NOT EXISTS school_requests (
         id SERIAL PRIMARY KEY,
         fullname TEXT, email TEXT, phone TEXT, country TEXT, 
@@ -433,11 +438,13 @@ export default async function handler(req, res) {
     // REGISTO DE VISITANTE
     if (req.method === 'POST' && path.endsWith('/register')) {
       const b = await getRequestBody(req);
+      const fullName = b.fullName || b.fullname || b.name || 'Visitante';
       await pool.query(
         "INSERT INTO visitors (fullname, email, phone, country, city, neighborhood) VALUES ($1, $2, $3, $4, $5, $6)",
-        [b.fullName, b.email, b.phone, b.country, b.city, b.neighborhood]
+        [fullName, b.email || '', b.phone || '', b.country || '', b.city || '', b.neighborhood || '']
       );
-      return res.status(200).json({ success: true });
+      const sessionId = Math.random().toString(36).substring(2, 15);
+      return res.status(200).json({ success: true, user: { id: 'v-' + Date.now(), fullName, email: b.email, role: 'user', sessionId } });
     }
 
     // LOGIN DE MEMBROS (Inclui Admin Master)
@@ -510,13 +517,13 @@ export default async function handler(req, res) {
         const configRes = await pool.query("SELECT * FROM system_config WHERE id = 1");
         const config = configRes.rows[0];
 
-        // Contar Espectadores (vistas nos últimos 60 segundos)
+        // Contar Espectadores (quem enviou heartbeat nos últimos 2 minutos)
         let viewerCount = 0;
         try {
-          const viewerRes = await pool.query("SELECT COUNT(DISTINCT id) FROM visitors WHERE created_at > NOW() - interval '60 seconds'");
+          const viewerRes = await pool.query("SELECT COUNT(id) FROM sessions WHERE last_seen > NOW() - interval '2 minutes'");
           viewerCount = parseInt(viewerRes.rows[0].count) || 0;
         } catch (e) {
-          // Fallback se a tabela não suportar
+          console.error("Viewer count error:", e);
         }
 
         return res.status(200).json({ ...config, viewer_count: viewerCount });
