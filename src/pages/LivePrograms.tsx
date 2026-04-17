@@ -11,6 +11,7 @@ const LivePrograms: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [activePlayer, setActivePlayer] = useState<'p1' | 'p2' | 'audio'>('p1');
+  const [quality, setQuality] = useState<'fhd' | 'hd' | 'sd' | 'auto'>('auto');
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isMounted = useRef(true);
 
