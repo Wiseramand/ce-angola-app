@@ -131,6 +131,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const init = async () => {
       await refreshSystem();
       const saved = localStorage.getItem('ce_session_user');
+      const visitorSaved = localStorage.getItem('ce_visitor_data');
+
       if (saved) {
         try {
           const parsedUser = JSON.parse(saved);
@@ -139,6 +141,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             heartbeatRef.current = window.setInterval(() => sendHeartbeat(parsedUser.id, parsedUser.sessionId), 10000);
           }
         } catch (e) { localStorage.removeItem('ce_session_user'); }
+      } else if (visitorSaved) {
+        try {
+          const visitorData = JSON.parse(visitorSaved);
+          const visitorUser: UserExtended = {
+            ...visitorData,
+            id: 'v-' + Date.now(),
+            role: 'user',
+            hasLiveAccess: false,
+            sessionId: Math.random().toString(36).substring(2, 15)
+          };
+          setUser(visitorUser);
+        } catch (e) { localStorage.removeItem('ce_visitor_data'); }
       }
       setIsLoading(false);
     };

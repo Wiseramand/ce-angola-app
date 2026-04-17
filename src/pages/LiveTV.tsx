@@ -71,36 +71,66 @@ const LiveTV: React.FC = () => {
     <div className="bg-gray-950 min-h-screen pt-4 pb-20">
       <div className="max-w-[1800px] mx-auto px-4 h-full flex flex-col lg:flex-row gap-6">
         <div className="flex-grow lg:w-[75%] flex flex-col">
-          <div className="relative aspect-video bg-black rounded-[3rem] overflow-hidden shadow-2xl border border-white/5">
+          <div className="relative aspect-video bg-black overflow-hidden shadow-2xl border border-white/5">
             <UniversalPlayer
               url={activePlayer === 'p2' ? (system.publicUrl2 || system.publicUrl) : system.publicUrl}
               title={system.publicTitle}
               isAudioOnly={activePlayer === 'audio'}
+              quality={quality}
             />
           </div>
 
-          <div className="mt-8 bg-gray-900 p-10 rounded-[3rem] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl">
-            <div className="flex items-center bg-black/40 p-2 rounded-2xl border border-white/5">
-              <button
-                onClick={() => setActivePlayer('p1')}
-                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'p1' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
-              >
-                Player 1
-              </button>
-              <button
-                onClick={() => setActivePlayer('p2')}
-                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'p2' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
-              >
-                Player 2
-              </button>
-              <button
-                onClick={() => setActivePlayer('audio')}
-                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'audio' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
-              >
-                Audio Only
-              </button>
+          <div className="mt-8 bg-gray-900 p-10 rounded-none border border-white/5 flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl">
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              <div className="flex items-center bg-black/40 p-1.5 border border-white/5">
+                <button
+                  onClick={() => setActivePlayer('p1')}
+                  className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'p1' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
+                >
+                  Player 1
+                </button>
+                <button
+                  onClick={() => setActivePlayer('p2')}
+                  className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'p2' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
+                >
+                  Player 2
+                </button>
+                <button
+                  onClick={() => setActivePlayer('audio')}
+                  className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'audio' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
+                >
+                  Áudio
+                </button>
+              </div>
+
+              <div className="flex items-center bg-black/40 p-1.5 border border-white/5">
+                <button
+                  onClick={() => setQuality('fhd')}
+                  className={`px-4 py-3 text-[9px] font-black uppercase tracking-tighter transition-all ${quality === 'fhd' ? 'text-ministry-gold underline' : 'text-gray-500 hover:text-white'}`}
+                >
+                  FHD
+                </button>
+                <button
+                  onClick={() => setQuality('hd')}
+                  className={`px-4 py-3 text-[9px] font-black uppercase tracking-tighter transition-all ${quality === 'hd' ? 'text-ministry-gold underline' : 'text-gray-500 hover:text-white'}`}
+                >
+                  HD
+                </button>
+                <button
+                  onClick={() => setQuality('sd')}
+                  className={`px-4 py-3 text-[9px] font-black uppercase tracking-tighter transition-all ${quality === 'sd' ? 'text-ministry-gold underline' : 'text-gray-500 hover:text-white'}`}
+                >
+                  SD
+                </button>
+                <button
+                  onClick={() => setQuality('auto')}
+                  className={`px-4 py-3 text-[9px] font-black uppercase tracking-tighter transition-all ${quality === 'auto' ? 'text-ministry-gold underline' : 'text-gray-500 hover:text-white'}`}
+                >
+                  Auto
+                </button>
+              </div>
             </div>
-            <Link to="/donations" className="flex items-center space-x-4 px-12 py-6 bg-ministry-gold text-white font-black text-xl rounded-2xl hover:scale-105 transition-all shadow-2xl">
+            <Link to="/donations" className="flex items-center space-x-4 px-12 py-6 bg-ministry-gold text-white font-black text-xl hover:scale-105 transition-all shadow-2xl">
               <Heart size={24} fill="white" />
               <span>SEMENTE DE FÉ</span>
             </Link>
