@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/genai": "^2.6.0",
     "clsx": "^2.1.0",
     "express": "^5.2.1",
+    "hls.js": "^1.6.16",
     "i18next": "^25.8.14",
     "i18next-browser-languagedetector": "^8.2.1",
     "lucide-react": "^0.563.0",
@@ -24,6 +26,7 @@
     "tailwind-merge": "^2.2.1"
   },
   "devDependencies": {
+    "@types/hls.js": "^0.13.3",
     "@types/node": "^25.3.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

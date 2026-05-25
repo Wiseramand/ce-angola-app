@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
-import { api } from '../services/api';
-import { User, Users, Globe, ArrowRight, CheckCircle2, ShieldCheck, Heart, Lock, Loader2, AlertCircle } from 'lucide-react';
+import { COUNTRIES } from '../constants';
+import { Users, ShieldCheck, Lock, Loader2, AlertCircle, Search, ChevronDown, Check, Phone, ArrowRight } from 'lucide-react';
 
 const Welcome: React.FC = () => {
   const { t } = useTranslation();
@@ -14,14 +14,35 @@ const Welcome: React.FC = () => {
   
   const [formData, setFormData] = useState({
     fullName: '',
-    email: '',
-    church: ''
+    phone: '',
+    country: 'Angola',
+    countryCode: '+244',
+    churchName: ''
   });
 
   const [loginData, setLoginData] = useState({
     username: '',
     password: ''
   });
+
+  const [isCountryOpen, setIsCountryOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsCountryOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredCountries = COUNTRIES.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    c.dialCode.includes(searchQuery)
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,10 +53,10 @@ const Welcome: React.FC = () => {
     
     try {
       await register(formData);
-      // Persistir dados do visitante para retorno automático
+      // Persist visitor data for automatic return
       localStorage.setItem('ce_visitor_data', JSON.stringify(formData));
     } catch (err) {
-      console.error("Erro durante o registo de visitante:", err);
+      console.error("Error during visitor registration:", err);
     } finally {
       setIsSubmitting(false);
     }
@@ -53,7 +74,6 @@ const Welcome: React.FC = () => {
         username: loginData.username.toLowerCase().trim(), 
         pass: loginData.password 
       });
-      // Navegação é tratada pelo estado do App
     } catch (err: any) {
       setError(err.message === 'INVALID' ? t('auth.error_invalid_credentials') : t('auth.error_connection_failed'));
     } finally {
@@ -71,8 +91,8 @@ const Welcome: React.FC = () => {
       <div className="relative z-10 w-full max-w-2xl animate-in fade-in zoom-in duration-700">
         <div className="text-center mb-10">
           <Logo className="h-28 w-auto mx-auto mb-8 brightness-125" />
-          <h1 className="text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-none">Portal Oficial</h1>
-          <p className="text-blue-100/60 mt-4 text-sm font-bold uppercase tracking-[0.4em] italic">Bem-vindo à Christ Embassy Angola</p>
+          <h1 className="text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-none">{t('welcome.hero_title')}</h1>
+          <p className="text-blue-100/60 mt-4 text-sm font-bold uppercase tracking-[0.4em] italic">{t('welcome.hero_subtitle')}</p>
         </div>
 
         <div className="bg-white/10 backdrop-blur-3xl p-8 md:p-14 rounded-[4rem] border border-white/10 shadow-2xl">
@@ -120,7 +140,7 @@ const Welcome: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="Username"
+                    placeholder={t('auth.user_id')}
                     value={loginData.username}
                     onChange={e => setLoginData({ ...loginData, username: e.target.value })}
                     className="w-full bg-gray-50 rounded-2xl px-6 py-4 pl-16 border-2 border-transparent focus:border-ministry-blue outline-none transition font-bold"
@@ -161,32 +181,101 @@ const Welcome: React.FC = () => {
                 <input
                   type="text"
                   required
+                  placeholder={t('welcome.form_name')}
                   value={formData.fullName}
                   onChange={e => setFormData({ ...formData, fullName: e.target.value })}
                   className="w-full bg-gray-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold"
                 />
               </div>
+
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">{t('welcome.form_email')}</label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={e => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-gray-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold"
-                />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">{t('admin.country')}</label>
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsCountryOpen(!isCountryOpen)}
+                    className="w-full bg-gray-50 rounded-2xl px-6 py-4 flex items-center justify-between border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold group"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className="text-2xl">{COUNTRIES.find(c => c.name === formData.country)?.flag || '🌍'}</span>
+                      <span className="text-gray-700">{formData.country} ({formData.countryCode})</span>
+                    </div>
+                    <ChevronDown size={20} className={`text-slate-400 transition-transform ${isCountryOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isCountryOpen && (
+                    <div className="absolute z-[100] mt-2 w-full bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                      <div className="p-4 border-b border-gray-50 sticky top-0 bg-white">
+                        <div className="relative">
+                          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder={t('welcome.search_country')}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-gray-50 rounded-xl px-4 py-3 pl-12 border-none focus:ring-2 focus:ring-ministry-gold outline-none font-bold text-sm"
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto overflow-x-hidden custom-scrollbar text-ministry-blue">
+                        {filteredCountries.map((c) => (
+                          <button
+                            key={c.code}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, country: c.name, countryCode: c.dialCode });
+                              setIsCountryOpen(false);
+                              setSearchQuery('');
+                            }}
+                            className="w-full px-6 py-4 flex items-center justify-between hover:bg-ministry-gold/5 transition group border-b border-gray-50 last:border-0"
+                          >
+                            <div className="flex items-center space-x-3 text-left">
+                              <span className="text-2xl">{c.flag}</span>
+                              <div>
+                                <p className="font-bold text-gray-700 text-sm group-hover:text-ministry-gold">{c.name}</p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{c.dialCode}</p>
+                              </div>
+                            </div>
+                            {formData.country === c.name && <Check size={18} className="text-ministry-gold" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">{t('welcome.form_church')}</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">{t('welcome.form_phone')}</label>
+                <div className="relative">
+                  <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 font-black text-sm border-r border-gray-200 pr-3 h-6 flex items-center">
+                    {formData.countryCode}
+                  </div>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="9xx xxx xxx"
+                    value={formData.phone}
+                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full bg-gray-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold"
+                    style={{ paddingLeft: `${(formData.countryCode.length * 9) + 40}px` }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">{t('admin.church')}</label>
                 <input
                   type="text"
                   required
-                  value={formData.church}
-                  onChange={e => setFormData({ ...formData, church: e.target.value })}
+                  value={formData.churchName}
+                  onChange={e => setFormData({ ...formData, churchName: e.target.value })}
                   className="w-full bg-gray-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-blue outline-none transition font-bold"
                   placeholder="ex: Belas I"
                 />
               </div>
+
               <button
                 type="submit"
                 disabled={isSubmitting}

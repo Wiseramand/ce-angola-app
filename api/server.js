@@ -14,9 +14,10 @@ const initDb = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS visitors (
         id SERIAL PRIMARY KEY,
-        fullname TEXT, email TEXT, phone TEXT, country TEXT, city TEXT, neighborhood TEXT,
+        fullname TEXT, phone TEXT, country TEXT, country_code TEXT, church_name TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      TRUNCATE TABLE visitors; -- Requisito: Começo do zero
       CREATE TABLE IF NOT EXISTS managed_users (
         id SERIAL PRIMARY KEY,
         fullname TEXT, username TEXT UNIQUE, password TEXT,
@@ -80,15 +81,19 @@ const initDb = async () => {
       );
       CREATE TABLE IF NOT EXISTS system_config (
         id INTEGER PRIMARY KEY,
-        public_url TEXT, public_url2 TEXT, public_title TEXT, public_description TEXT,
-        private_url TEXT, private_url2 TEXT, private_title TEXT, private_description TEXT,
+        public_url TEXT, public_url2 TEXT, 
+        public_title_pt TEXT, public_title_en TEXT, 
+        public_description_pt TEXT, public_description_en TEXT,
+        private_url TEXT, private_url2 TEXT, 
+        private_title_pt TEXT, private_title_en TEXT, 
+        private_description_pt TEXT, private_description_en TEXT,
         is_private_mode BOOLEAN DEFAULT FALSE,
         is_teacher_live BOOLEAN DEFAULT FALSE,
         live_teacher_name TEXT,
         live_teacher_id TEXT,
         school_live_url TEXT
       );
-      INSERT INTO system_config (id, public_title, public_url, public_url2, public_description, private_url, private_url2, private_title, private_description, is_private_mode, is_teacher_live, live_teacher_name, live_teacher_id, school_live_url) VALUES (1, 'LoveWorld TV Angola', '', '', '', '', '', '', '', FALSE, FALSE, '', '', '') ON CONFLICT (id) DO NOTHING;
+      INSERT INTO system_config (id, public_title_pt, public_title_en, public_url, public_url2, public_description_pt, public_description_en, private_url, private_url2, private_title_pt, private_title_en, private_description_pt, private_description_en, is_private_mode, is_teacher_live, live_teacher_name, live_teacher_id, school_live_url) VALUES (1, 'LoveWorld TV Angola', 'LoveWorld TV Angola', '', '', '', '', '', '', '', '', '', '', FALSE, FALSE, '', '', '') ON CONFLICT (id) DO NOTHING;
     `);
 
     // GArantir que a tabela school_users e foundation_modules têm as colunas corretas
@@ -132,6 +137,7 @@ const initDb = async () => {
 
     try { await pool.query("ALTER TABLE foundation_modules ADD COLUMN IF NOT EXISTS video_url TEXT"); } catch (e) { }
     try { await pool.query("ALTER TABLE foundation_modules ADD COLUMN IF NOT EXISTS module_order INTEGER"); } catch (e) { }
+    try { await pool.query("ALTER TABLE managed_users ADD COLUMN IF NOT EXISTS has_live_access BOOLEAN DEFAULT FALSE"); } catch (e) { }
 
     // Initialize Foundation Classes
     const modulesCount = await pool.query("SELECT COUNT(*) FROM foundation_modules");
@@ -440,11 +446,11 @@ export default async function handler(req, res) {
       const b = await getRequestBody(req);
       const fullName = b.fullName || b.fullname || b.name || 'Visitante';
       await pool.query(
-        "INSERT INTO visitors (fullname, email, phone, country, city, neighborhood) VALUES ($1, $2, $3, $4, $5, $6)",
-        [fullName, b.email || '', b.phone || '', b.country || '', b.city || '', b.neighborhood || '']
+        "INSERT INTO visitors (fullname, phone, country, country_code, church_name) VALUES ($1, $2, $3, $4, $5)",
+        [fullName, b.phone || '', b.country || '', b.countryCode || '', b.churchName || '']
       );
       const sessionId = Math.random().toString(36).substring(2, 15);
-      return res.status(200).json({ success: true, user: { id: 'v-' + Date.now(), fullName, email: b.email, role: 'user', sessionId } });
+      return res.status(200).json({ success: true, user: { id: 'v-' + Date.now(), fullName, role: 'user', sessionId } });
     }
 
     // LOGIN DE MEMBROS (Inclui Admin Master)
@@ -464,7 +470,7 @@ export default async function handler(req, res) {
             id: 'm-' + r.rows[0].id,
             fullName: r.rows[0].fullname,
             role: 'user',
-            hasLiveAccess: true,
+            hasLiveAccess: !!r.rows[0].has_live_access,
             country: 'Angola',
             sessionId: sessionId
           }
@@ -481,23 +487,23 @@ export default async function handler(req, res) {
 
     if (path.endsWith('/admin/users')) {
       if (req.method === 'GET') {
-        const r = await pool.query("SELECT id::text, fullname as name, username, password FROM managed_users ORDER BY created_at DESC");
+        const r = await pool.query("SELECT id::text, fullname as name, username, password, has_live_access FROM managed_users ORDER BY created_at DESC");
         return res.status(200).json(r.rows);
       }
       if (req.method === 'POST') {
-        const { id, fullname, username, password } = await getRequestBody(req);
+        const { id, fullname, username, password, has_live_access } = await getRequestBody(req);
         if (id) {
           // Update existing
           const numericId = id.startsWith('m-') ? id.substring(2) : id;
           await pool.query(
-            "UPDATE managed_users SET fullname = $1, username = $2, password = $3 WHERE id = $4",
-            [fullname, username.toLowerCase().trim(), password, numericId]
+            "UPDATE managed_users SET fullname = $1, username = $2, password = $3, has_live_access = $4 WHERE id = $5",
+            [fullname, username.toLowerCase().trim(), password, !!has_live_access, numericId]
           );
         } else {
           // Insert new
           await pool.query(
-            "INSERT INTO managed_users (fullname, username, password) VALUES ($1, $2, $3) ON CONFLICT (username) DO UPDATE SET password = $3, fullname = $1",
-            [fullname, username.toLowerCase().trim(), password]
+            "INSERT INTO managed_users (fullname, username, password, has_live_access) VALUES ($1, $2, $3, $4) ON CONFLICT (username) DO UPDATE SET password = $3, fullname = $1, has_live_access = $4",
+            [fullname, username.toLowerCase().trim(), password, !!has_live_access]
           );
         }
         return res.status(200).json({ success: true });
@@ -513,57 +519,62 @@ export default async function handler(req, res) {
 
     if (path.endsWith('/system')) {
       if (req.method === 'GET') {
-        // Obter Configuração
         const configRes = await pool.query("SELECT * FROM system_config WHERE id = 1");
         const config = configRes.rows[0];
 
-        // Contar Espectadores (quem enviou heartbeat nos últimos 2 minutos)
         let viewerCount = 0;
         try {
           const viewerRes = await pool.query("SELECT COUNT(id) FROM sessions WHERE last_seen > NOW() - interval '2 minutes'");
           viewerCount = parseInt(viewerRes.rows[0].count) || 0;
-        } catch (e) {
-          console.error("Viewer count error:", e);
-        }
+        } catch (e) { }
 
         return res.status(200).json({ ...config, viewer_count: viewerCount });
       }
       if (req.method === 'POST') {
         const c = await getRequestBody(req);
-        console.log("SYSTEM_CONFIG_UPDATE:", c);
-
-        // CRITICAL: Force-add the live streaming columns inline every time.
-        // This bypasses cold/warm start caching issues in Vercel.
-        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS is_teacher_live BOOLEAN DEFAULT FALSE").catch(() => { });
-        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS live_teacher_name TEXT").catch(() => { });
-        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS live_teacher_id TEXT").catch(() => { });
-        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS school_live_url TEXT").catch(() => { });
+        
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_title_pt TEXT").catch(() => {});
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_title_en TEXT").catch(() => {});
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_description_pt TEXT").catch(() => {});
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_description_en TEXT").catch(() => {});
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_title_pt TEXT").catch(() => {});
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_title_en TEXT").catch(() => {});
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_description_pt TEXT").catch(() => {});
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_description_en TEXT").catch(() => {});
 
         await pool.query(
           `UPDATE system_config SET 
             public_url = COALESCE($1, public_url),
             public_url2 = COALESCE($2, public_url2),
-            public_title = COALESCE($3, public_title),
-            public_description = COALESCE($4, public_description),
-            private_url = COALESCE($5, private_url),
-            private_url2 = COALESCE($6, private_url2),
-            private_title = COALESCE($7, private_title),
-            private_description = COALESCE($8, private_description),
-            is_private_mode = COALESCE($9, is_private_mode),
-            is_teacher_live = COALESCE($10, is_teacher_live),
-            live_teacher_name = COALESCE($11, live_teacher_name),
-            live_teacher_id = COALESCE($12, live_teacher_id),
-            school_live_url = COALESCE($13, school_live_url)
+            public_title_pt = COALESCE($3, public_title_pt),
+            public_title_en = COALESCE($4, public_title_en),
+            public_description_pt = COALESCE($5, public_description_pt),
+            public_description_en = COALESCE($6, public_description_en),
+            private_url = COALESCE($7, private_url),
+            private_url2 = COALESCE($8, private_url2),
+            private_title_pt = COALESCE($9, private_title_pt),
+            private_title_en = COALESCE($10, private_title_en),
+            private_description_pt = COALESCE($11, private_description_pt),
+            private_description_en = COALESCE($12, private_description_en),
+            is_private_mode = COALESCE($13, is_private_mode),
+            is_teacher_live = COALESCE($14, is_teacher_live),
+            live_teacher_name = COALESCE($15, live_teacher_name),
+            live_teacher_id = COALESCE($16, live_teacher_id),
+            school_live_url = COALESCE($17, school_live_url)
           WHERE id=1`,
           [
             c.public_url !== undefined ? c.public_url : null,
             c.public_url2 !== undefined ? c.public_url2 : null,
-            c.public_title !== undefined ? c.public_title : null,
-            c.public_description !== undefined ? c.public_description : null,
+            c.public_title_pt !== undefined ? c.public_title_pt : null,
+            c.public_title_en !== undefined ? c.public_title_en : null,
+            c.public_description_pt !== undefined ? c.public_description_pt : null,
+            c.public_description_en !== undefined ? c.public_description_en : null,
             c.private_url !== undefined ? c.private_url : null,
             c.private_url2 !== undefined ? c.private_url2 : null,
-            c.private_title !== undefined ? c.private_title : null,
-            c.private_description !== undefined ? c.private_description : null,
+            c.private_title_pt !== undefined ? c.private_title_pt : null,
+            c.private_title_en !== undefined ? c.private_title_en : null,
+            c.private_description_pt !== undefined ? c.private_description_pt : null,
+            c.private_description_en !== undefined ? c.private_description_en : null,
             c.is_private_mode !== undefined ? !!c.is_private_mode : null,
             c.is_teacher_live !== undefined ? !!c.is_teacher_live : null,
             c.live_teacher_name !== undefined ? c.live_teacher_name : null,

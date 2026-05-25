@@ -55,9 +55,9 @@ const Home: React.FC = () => {
               </Link>
               <Link
                 to="/register"
-                className="flex items-center justify-center space-x-3 px-10 py-5 bg-white/5 backdrop-blur-xl hover:bg-white/10 text-white font-black text-lg rounded-2xl border border-white/10 transition-all duration-500 active:scale-95"
+                className="flex items-center justify-center space-x-3 px-10 py-5 bg-white/5 backdrop-blur-xl hover:bg-white/10 text-white font-black text-lg rounded-2xl border border-white/10 transition-all duration-500 active:scale-95 uppercase"
               >
-                <span>CRIAR CONTA GRÁTIS</span>
+                <span>{t('common.register')}</span>
               </Link>
             </div>
           </div>
@@ -75,7 +75,7 @@ const Home: React.FC = () => {
       <section className="py-32 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-display font-black text-ministry-blue mb-6 uppercase tracking-tighter">Nosso Mandato Principal</h2>
+            <h2 className="text-4xl md:text-5xl font-display font-black text-ministry-blue mb-6 uppercase tracking-tighter">{t('home.mandate_title')}</h2>
             <div className="w-24 h-2 bg-ministry-gold mx-auto rounded-full shadow-[0_0_15px_rgba(197,160,89,0.5)]"></div>
           </div>
 
@@ -84,9 +84,9 @@ const Home: React.FC = () => {
               <div className="w-20 h-20 bg-blue-50 text-ministry-blue rounded-3xl flex items-center justify-center mb-8 group-hover:bg-ministry-blue group-hover:text-white group-hover:scale-110 transition-all duration-500 shadow-inner">
                 <Play size={40} />
               </div>
-              <h3 className="text-2xl font-display font-black mb-4 text-ministry-blue uppercase tracking-tight">Alcance Global</h3>
+              <h3 className="text-2xl font-display font-black mb-4 text-ministry-blue uppercase tracking-tight">{t('home.mandate_1_title')}</h3>
               <p className="text-gray-500 leading-relaxed font-medium">
-                Alcançando cada alma com o Evangelho através de todas as plataformas tecnológicas disponíveis na era digital.
+                {t('home.mandate_1_desc')}
               </p>
             </div>
 
@@ -94,9 +94,9 @@ const Home: React.FC = () => {
               <div className="w-20 h-20 bg-blue-50 text-ministry-blue rounded-3xl flex items-center justify-center mb-8 group-hover:bg-ministry-blue group-hover:text-white group-hover:scale-110 transition-all duration-500 shadow-inner">
                 <Calendar size={40} />
               </div>
-              <h3 className="text-2xl font-display font-black mb-4 text-ministry-blue uppercase tracking-tight">Sessões de Vida</h3>
+              <h3 className="text-2xl font-display font-black mb-4 text-ministry-blue uppercase tracking-tight">{t('home.mandate_2_title')}</h3>
               <p className="text-gray-500 leading-relaxed font-medium">
-                Junte-se aos nossos programas especiais e conferências projetadas para elevar o seu espírito e mudar sua realidade.
+                {t('home.mandate_2_desc')}
               </p>
             </div>
 
@@ -104,9 +104,9 @@ const Home: React.FC = () => {
               <div className="w-20 h-20 bg-blue-50 text-ministry-blue rounded-3xl flex items-center justify-center mb-8 group-hover:bg-ministry-blue group-hover:text-white group-hover:scale-110 transition-all duration-500 shadow-inner">
                 <Heart size={40} />
               </div>
-              <h3 className="text-2xl font-display font-black mb-4 text-ministry-blue uppercase tracking-tight">Parcerias</h3>
+              <h3 className="text-2xl font-display font-black mb-4 text-ministry-blue uppercase tracking-tight">{t('home.mandate_3_title')}</h3>
               <p className="text-gray-500 leading-relaxed font-medium">
-                Torne-se um parceiro no Reino através de vários braços do ministério que impactam bilhões globalmente todos os dias.
+                {t('home.mandate_3_desc')}
               </p>
             </div>
           </div>

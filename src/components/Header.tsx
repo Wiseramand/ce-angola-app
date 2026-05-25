@@ -75,6 +75,14 @@ const Header: React.FC = () => {
 
             {user ? (
               <div className="flex items-center ml-4 space-x-4">
+                <button
+                  onClick={toggleLanguage}
+                  className="p-2 text-gray-500 hover:text-ministry-gold transition flex items-center space-x-1"
+                  title={t('common.switch_lang')}
+                >
+                  <Globe size={18} />
+                  <span className="text-[10px] font-black uppercase tracking-tighter">{i18n.language === 'pt' ? 'EN' : 'PT'}</span>
+                </button>
                 <Link to="/profile" className="flex items-center space-x-2 hover:bg-gray-50 p-1.5 rounded-xl transition group">
                   <div className="w-9 h-9 rounded-full bg-gray-200 overflow-hidden border-2 border-ministry-gold group-hover:scale-105 transition">
                     {user.profilePicture ? (
@@ -90,18 +98,25 @@ const Header: React.FC = () => {
                 <button
                   onClick={handleLogout}
                   className="p-2 text-gray-500 hover:text-red-600 transition"
-                  title="Sair"
+                  title={t('common.logout')}
                 >
                   <LogOut size={20} />
                 </button>
               </div>
             ) : (
               <div className="flex items-center space-x-3 ml-4">
+                <button
+                  onClick={toggleLanguage}
+                  className="p-2 text-gray-500 hover:text-ministry-gold transition mr-2 flex items-center space-x-1"
+                >
+                  <Globe size={18} />
+                  <span className="text-[10px] font-black uppercase tracking-tighter">{i18n.language === 'pt' ? 'EN' : 'PT'}</span>
+                </button>
                 <Link to="/login" className="px-5 py-2 text-ministry-blue font-semibold hover:text-ministry-gold transition">
-                  Entrar
+                  {t('common.login')}
                 </Link>
                 <Link to="/register" className="px-5 py-2 bg-ministry-blue text-white rounded-lg font-semibold hover:bg-opacity-90 transition shadow-md shadow-blue-900/10">
-                  Registar
+                  {t('common.register')}
                 </Link>
               </div>
             )}
@@ -109,6 +124,13 @@ const Header: React.FC = () => {
 
           {/* Mobile menu button */}
           <div className="md:hidden flex items-center">
+            <button
+              onClick={toggleLanguage}
+              className="p-2 mr-2 text-gray-500 hover:text-ministry-gold transition flex items-center space-x-1"
+            >
+              <Globe size={18} />
+              <span className="text-[10px] font-black uppercase tracking-tighter">{i18n.language === 'pt' ? 'EN' : 'PT'}</span>
+            </button>
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="p-2 rounded-md text-gray-400 hover:text-ministry-blue hover:bg-gray-100 focus:outline-none"
@@ -143,13 +165,13 @@ const Header: React.FC = () => {
                 </div>
                 <button onClick={handleLogout} className="text-gray-500 flex items-center space-x-1">
                   <LogOut size={18} />
-                  <span>Sair</span>
+                  <span>{t('common.logout')}</span>
                 </button>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4">
-                <Link to="/login" className="px-4 py-2 text-center text-ministry-blue font-bold border border-gray-100 rounded-lg">Entrar</Link>
-                <Link to="/register" className="px-4 py-2 text-center bg-ministry-blue text-white rounded-lg font-bold">Registar</Link>
+                <Link to="/login" className="px-4 py-2 text-center text-ministry-blue font-bold border border-gray-100 rounded-lg">{t('common.login')}</Link>
+                <Link to="/register" className="px-4 py-2 text-center bg-ministry-blue text-white rounded-lg font-bold">{t('common.register')}</Link>
               </div>
             )}
           </div>

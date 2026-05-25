@@ -1,6 +1,7 @@
 
 import React, { useState, createContext, useContext, useEffect, useRef } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -30,12 +31,16 @@ import TeacherPortal from './pages/TeacherPortal';
 export interface StreamConfig {
   publicUrl: string;
   publicUrl2?: string;
-  publicTitle: string;
-  publicDescription: string;
+  publicTitlePt: string;
+  publicTitleEn: string;
+  publicDescriptionPt: string;
+  publicDescriptionEn: string;
   privateUrl: string;
   privateUrl2?: string;
-  privateTitle: string;
-  privateDescription: string;
+  privateTitlePt: string;
+  privateTitleEn: string;
+  privateDescriptionPt: string;
+  privateDescriptionEn: string;
   isPrivateMode: boolean;
 }
 
@@ -69,18 +74,23 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { t } = useTranslation();
   const [user, setUser] = useState<UserExtended | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const heartbeatRef = useRef<number | null>(null);
   const [system, setSystem] = useState<SystemState>({
     publicUrl: '',
     publicUrl2: '',
-    publicTitle: 'LoveWorld TV Angola',
-    publicDescription: 'Transmissão pública e gratuita.',
+    publicTitlePt: 'LoveWorld TV Angola',
+    publicTitleEn: 'LoveWorld TV Angola',
+    publicDescriptionPt: 'Transmissão pública e gratuita.',
+    publicDescriptionEn: 'Public and free broadcast.',
     privateUrl: '',
     privateUrl2: '',
-    privateTitle: 'Conferência Ministerial',
-    privateDescription: 'Acesso restrito para parceiros.',
+    privateTitlePt: 'Conferência Ministerial',
+    privateTitleEn: 'Ministerial Conference',
+    privateDescriptionPt: 'Acesso restrito para parceiros.',
+    privateDescriptionEn: 'Restricted access for partners.',
     isPrivateMode: false,
     activeSessions: [],
     viewerCount: 0
@@ -100,7 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ userId: userId.replace('m-', ''), sessionId })
       });
       if (res.status === 401) {
-        alert("Sessão Terminada: Foi detetado um novo acesso com esta conta noutro dispositivo.");
+        alert(t('common.session_terminated'));
         logout();
       }
     } catch (e) { }
@@ -114,12 +124,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...prev,
           publicUrl: data.public_url || data.publicUrl,
           publicUrl2: data.public_url2 || data.publicUrl2,
-          publicTitle: data.public_title || data.publicTitle,
-          publicDescription: data.public_description || data.publicDescription,
+          publicTitlePt: data.public_title_pt || data.publicTitlePt || '',
+          publicTitleEn: data.public_title_en || data.publicTitleEn || '',
+          publicDescriptionPt: data.public_description_pt || data.publicDescriptionPt || '',
+          publicDescriptionEn: data.public_description_en || data.publicDescriptionEn || '',
           privateUrl: data.private_url || data.privateUrl,
           privateUrl2: data.private_url2 || data.privateUrl2,
-          privateTitle: data.private_title || data.privateTitle,
-          privateDescription: data.private_description || data.privateDescription,
+          privateTitlePt: data.private_title_pt || data.privateTitlePt || '',
+          privateTitleEn: data.private_title_en || data.privateTitleEn || '',
+          privateDescriptionPt: data.private_description_pt || data.privateDescriptionPt || '',
+          privateDescriptionEn: data.private_description_en || data.privateDescriptionEn || '',
           isPrivateMode: !!(data.is_private_mode || data.isPrivateMode),
           viewerCount: data.viewer_count || 0
         }));
@@ -183,7 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const adminLogin = async (creds: { username: string; pass: string }) => {
     setIsLoading(true);
     if (creds.username === 'master_admin' && creds.pass === 'angola_faith_2025') {
-      const admin: UserExtended = { id: 'admin-1', fullName: 'Super Administrador', email: 'admin@ceangola.org', phone: '900', country: 'Angola', address: 'Luanda', gender: 'Male', hasLiveAccess: true, role: 'admin' };
+      const admin: UserExtended = { id: 'admin-1', fullName: t('common.super_admin'), email: 'admin@ceangola.org', phone: '900', country: 'Angola', address: 'Luanda', gender: 'Male', hasLiveAccess: true, role: 'admin' };
       setUser(admin);
       localStorage.setItem('ce_session_user', JSON.stringify(admin));
     } else {
@@ -199,11 +213,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (data: any) => {
     try {
-      const user = await api.auth.register(data.fullName, data.email, 'password123'); // Default password for visitor
+      const user = await api.auth.register(data.fullName, data.phone, data.country, data.countryCode, data.churchName);
       setUser(user);
       localStorage.setItem('ce_session_user', JSON.stringify(user));
       
-      // Iniciar heartbeat imediatamente após registo bem-sucedido
       if (user.sessionId) {
         if (heartbeatRef.current) clearInterval(heartbeatRef.current);
         heartbeatRef.current = window.setInterval(() => sendHeartbeat(user.id, user.sessionId!), 10000);
@@ -214,7 +227,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(visitorUser);
       localStorage.setItem('ce_session_user', JSON.stringify(visitorUser));
       
-      // Iniciar heartbeat imediatamente para visitante também
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       heartbeatRef.current = window.setInterval(() => sendHeartbeat(visitorUser.id, sessionId), 10000);
     }
@@ -234,18 +246,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean; liveOnly?: boolean }> = ({ children, adminOnly, liveOnly }) => {
   const { user, system, isLoading } = useAuth();
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   if (isLoading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><Loader2 className="text-ministry-gold animate-spin" size={48} /></div>;
   if (!user && (adminOnly || liveOnly)) return <Navigate to={adminOnly ? "/central-admin" : "/login"} replace />;
   if (adminOnly && user?.role !== 'admin') return <Navigate to="/" replace />;
 
-  if (liveOnly && system.isPrivateMode && !user?.hasLiveAccess && user?.role !== 'admin') {
+  if (liveOnly && !user?.hasLiveAccess && user?.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950 p-6">
         <div className="max-w-md w-full bg-gray-900 p-12 rounded-[4rem] border border-white/5 text-center shadow-2xl">
           <ShieldAlert size={64} className="text-ministry-gold mx-auto mb-8 animate-bounce" />
-          <h2 className="text-3xl font-display font-black text-white mb-6 uppercase tracking-tight">Zona Privada</h2>
-          <p className="text-gray-400 mb-10 text-lg font-light leading-relaxed">Este conteúdo é reservado a parceiros com credenciais ativas do sistema master.</p>
-          <button onClick={() => window.location.hash = '#/login'} className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">Introduzir Chave de Acesso</button>
+          <h2 className="text-3xl font-display font-black text-white mb-6 uppercase tracking-tight">{t('auth.private_zone')}</h2>
+          <p className="text-gray-400 mb-10 text-lg font-light leading-relaxed">{t('auth.private_zone_desc')}</p>
+          <button onClick={() => navigate('/login')} className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">{t('auth.enter_access_key')}</button>
         </div>
       </div>
     );

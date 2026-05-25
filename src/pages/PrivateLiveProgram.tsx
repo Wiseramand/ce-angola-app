@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Lock, Play, MessageCircle, Heart, Send, CreditCard, X, Users, Globe, Smartphone, LogOut, UserCheck, CheckCircle, Loader2 } from 'lucide-react';
@@ -23,6 +24,7 @@ interface PrivateLiveProgramProps {
 }
 
 export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNavigate, credentials, streams }) => {
+  const { t } = useTranslation();
   const [currentUser, setCurrentUser] = useState<ProgramCredential | null>(null);
   
   // Find the private stream
@@ -76,12 +78,12 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
         const expirationDate = new Date(foundUser.expiresAt);
 
         if (now < expirationDate) {
-            setCurrentUser(foundUser);
+          setCurrentUser(foundUser);
         } else {
-            setLoginError('Access credentials have expired. Please contact administration.');
+          setLoginError(t('private_live.error_expired', 'Access credentials have expired. Please contact administration.'));
         }
       } else {
-        setLoginError('Invalid access credentials. Please try again.');
+        setLoginError(t('private_live.error_invalid', 'Invalid access credentials. Please try again.'));
       }
       setLoading(false);
     }, 1000);
@@ -102,8 +104,8 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
 
   const handleProcessPayment = (methodName: string) => {
     if (!amount || Number(amount) <= 0) {
-        alert("Please enter a valid amount before selecting a payment method.");
-        return;
+      alert(t('private_live.error_amount', "Please enter a valid amount before selecting a payment method."));
+      return;
     }
 
     setSelectedMethod(methodName);
@@ -111,16 +113,16 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
 
     // Simulate API Transaction
     setTimeout(() => {
-        setPaymentStatus('success');
+      setPaymentStatus('success');
     }, 2000);
   };
 
   const resetPaymentModal = () => {
     setShowOfferingModal(false);
     setTimeout(() => {
-        setPaymentStatus('idle');
-        setAmount('');
-        setSelectedMethod('');
+      setPaymentStatus('idle');
+      setAmount('');
+      setSelectedMethod('');
     }, 300);
   };
 
@@ -138,28 +140,28 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
               <Lock size={32} />
             </div>
             <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
-              Private Live Program
+              {t('private_live.title', 'Private Live Program')}
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              This event is restricted. Please enter the access credentials provided by the administrator.
+              {t('private_live.restricted_desc', 'This event is restricted. Please enter the access credentials provided by the administrator.')}
             </p>
           </div>
 
           <form className="mt-8 space-y-6" onSubmit={handleLogin}>
             <div className="space-y-4">
               <Input
-                label="Access Username"
+                label={t('private_live.username_label', 'Access Username')}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username"
+                placeholder={t('private_live.username_placeholder', 'Enter username')}
                 required
               />
               <Input
-                label="Access Password"
+                label={t('private_live.password_label', 'Access Password')}
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
+                placeholder={t('private_live.password_placeholder', 'Enter password')}
                 required
               />
             </div>
@@ -171,7 +173,7 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
             )}
 
             <Button type="submit" className="w-full py-3" isLoading={loading}>
-              Enter Service
+              {t('private_live.enter_service', 'Enter Service')}
             </Button>
           </form>
         </div>
@@ -186,14 +188,14 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
         <div className="max-w-7xl mx-auto flex justify-between items-center">
             <div className="flex items-center gap-2 text-sm text-green-700 font-medium">
                 <UserCheck size={16} />
-                <span>Welcome, {currentUser.firstName} {currentUser.lastName}</span>
-                <span className="bg-green-100 px-2 py-0.5 rounded-full text-xs">Logged In</span>
+                <span>{t('private_live.welcome_user', { name: `${currentUser.firstName} ${currentUser.lastName}` })}</span>
+                <span className="bg-green-100 px-2 py-0.5 rounded-full text-xs">{t('private_live.logged_in', 'Logged In')}</span>
             </div>
             <button 
                 onClick={handleLogout}
                 className="text-xs text-gray-500 hover:text-red-600 flex items-center gap-1 transition-colors"
             >
-                <LogOut size={14} /> Exit Session
+                <LogOut size={14} /> {t('private_live.exit_session', 'Exit Session')}
             </button>
         </div>
       </div>
@@ -206,14 +208,14 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
                     <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
                     {activeStream.title}
                 </h1>
-                <p className="text-blue-200 text-sm mt-1">Live from the LoveWorld Crusade Grounds</p>
+                <p className="text-blue-200 text-sm mt-1">{t('private_live.location_note', 'Live from the LoveWorld Crusade Grounds')}</p>
             </div>
             <Button 
                 onClick={() => setShowOfferingModal(true)} 
                 className="bg-yellow-500 hover:bg-yellow-400 text-blue-900 font-bold px-6 shadow-lg shadow-yellow-500/20 animate-bounce"
             >
                 <Heart size={18} className="mr-2 fill-blue-900" />
-                Give Offering
+                {t('private_live.give_offering', 'Give Offering')}
             </Button>
          </div>
       </div>
@@ -225,7 +227,7 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
           <div className="lg:col-span-2 space-y-4">
             <div className="relative aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-gray-800">
                <VideoPlayer 
-                    streamSource={activeStream.streamSource}
+                    streamSource={activeStream.streamSource as "youtube" | "custom"}
                     streamUrl={activeStream.streamUrl}
                     thumbnailUrl={activeStream.thumbnailUrl}
                     title={activeStream.title}
@@ -241,7 +243,7 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
                         </p>
                     </div>
                     <div className="flex items-center gap-1 text-gray-500 text-sm font-medium bg-gray-100 px-3 py-1 rounded-full">
-                        <Users size={14} /> {activeStream.viewers} Viewing
+                        <Users size={14} /> {t('private_live.viewing_count', { count: activeStream.viewers })}
                     </div>
                 </div>
             </div>
@@ -251,7 +253,7 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
           <div className="lg:col-span-1 h-[600px] bg-white rounded-xl shadow-sm flex flex-col border border-gray-200">
              <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
                 <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                    <MessageCircle size={18} /> Live Interaction
+                    <MessageCircle size={18} /> {t('private_live.live_interaction', 'Live Interaction')}
                 </h3>
              </div>
              
@@ -277,7 +279,7 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
                         value={chatMessage}
                         onChange={(e) => setChatMessage(e.target.value)}
                         className="flex-grow px-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:border-blue-500 text-sm"
-                        placeholder="Share a testimony..."
+                        placeholder={t('private_live.share_testimony', 'Share a testimony...')}
                     />
                     <button type="submit" className="p-2 bg-blue-900 text-white rounded-full hover:bg-blue-800">
                         <Send size={18} className="ml-0.5" />
@@ -296,9 +298,9 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
                 <div className="bg-blue-900 p-6 flex justify-between items-center text-white">
                     <div>
                         <h3 className="text-xl font-bold flex items-center gap-2">
-                            <Heart className="fill-white" /> Give Offering
+                            <Heart className="fill-white" /> {t('private_live.give_offering', 'Give Offering')}
                         </h3>
-                        <p className="text-blue-200 text-sm">Blessed to be a blessing</p>
+                        <p className="text-blue-200 text-sm">{t('private_live.blessed_to_be_blessing', 'Blessed to be a blessing')}</p>
                     </div>
                     <button onClick={resetPaymentModal} className="text-white/80 hover:text-white">
                         <X size={24} />
@@ -309,20 +311,20 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
                     {paymentStatus === 'processing' ? (
                         <div className="py-12 flex flex-col items-center justify-center text-center">
                             <Loader2 size={48} className="text-blue-900 animate-spin mb-4" />
-                            <h4 className="text-xl font-bold text-gray-900">Processing Payment...</h4>
-                            <p className="text-gray-500 mt-2">Please check your phone for the {selectedMethod} prompt.</p>
+                            <h4 className="text-xl font-bold text-gray-900">{t('private_live.processing_payment', 'Processing Payment...')}</h4>
+                            <p className="text-gray-500 mt-2">{t('private_live.check_phone_prompt', { method: selectedMethod })}</p>
                         </div>
                     ) : paymentStatus === 'success' ? (
                         <div className="py-12 flex flex-col items-center justify-center text-center">
                              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
                                 <CheckCircle size={40} className="text-green-600" />
                             </div>
-                            <h4 className="text-2xl font-bold text-gray-900">Offering Received!</h4>
+                            <h4 className="text-2xl font-bold text-gray-900">{t('private_live.offering_received', 'Offering Received!')}</h4>
                             <p className="text-gray-600 mt-2 max-w-xs">
-                                Thank you for your seed of <span className="font-bold">{paymentTab === 'ANGOLA' ? 'Kz' : '$'}{Number(amount).toLocaleString()}</span> via {selectedMethod}.
+                                {t('private_live.thank_you_seed', { amount: `${paymentTab === 'ANGOLA' ? 'Kz' : '$'}${Number(amount).toLocaleString()}`, method: selectedMethod })}
                             </p>
                             <Button onClick={resetPaymentModal} className="mt-8 bg-green-600 hover:bg-green-700 border-none">
-                                Return to Service
+                                {t('private_live.return_to_service', 'Return to Service')}
                             </Button>
                         </div>
                     ) : (
@@ -338,7 +340,7 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
                                     }`}
                                 >
                                 <span className="flex items-center justify-center gap-2">
-                                    <Smartphone size={16} /> Angola Payment Methods
+                                    <Smartphone size={16} /> {t('private_live.national_methods', 'Angola Payment Methods')}
                                 </span>
                                 </button>
                                 <button 
@@ -350,14 +352,14 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
                                     }`}
                                 >
                                 <span className="flex items-center justify-center gap-2">
-                                    <Globe size={16} /> International Cards
+                                    <Globe size={16} /> {t('private_live.intl_methods', 'International Cards')}
                                 </span>
                                 </button>
                             </div>
 
                             <div className="space-y-6">
                                 <div>
-                                    <label className="text-sm font-medium text-gray-700 mb-2 block">Amount</label>
+                                    <label className="text-sm font-medium text-gray-700 mb-2 block">{t('private_live.amount_label', 'Amount')}</label>
                                     <div className="relative">
                                         <span className="absolute left-3 top-2.5 text-gray-500 font-bold">
                                             {paymentTab === 'ANGOLA' ? 'Kz' : '$'}
@@ -388,7 +390,7 @@ export const PrivateLiveProgram: React.FC<PrivateLiveProgramProps> = ({ onNaviga
                                 )}
 
                                 <p className="text-xs text-center text-gray-500 mt-4">
-                                    By giving, you are partnering with us to take the gospel to the ends of the earth.
+                                    {t('private_live.partner_gospel_note', 'By giving, you are partnering with us to take the gospel to the ends of the earth.')}
                                 </p>
                             </div>
                         </>

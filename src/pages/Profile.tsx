@@ -1,10 +1,14 @@
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { User, Mail, Phone, MapPin, Globe, Award, ShieldCheck, Heart } from 'lucide-react';
 
 const Profile: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   if (!user) return null;
 
@@ -15,7 +19,7 @@ const Profile: React.FC = () => {
       </div>
       <div>
         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{label}</p>
-        <p className="text-gray-700 font-semibold mt-0.5">{value || 'Not provided'}</p>
+        <p className="text-gray-700 font-semibold mt-0.5">{value || t('profile.not_provided')}</p>
       </div>
     </div>
   );
@@ -44,7 +48,7 @@ const Profile: React.FC = () => {
                  <div className="pb-4">
                    <h1 className="text-3xl font-display font-bold text-gray-900 drop-shadow-sm">{user.fullName}</h1>
                    <div className="flex items-center space-x-2 mt-1">
-                      <span className="px-2 py-0.5 bg-ministry-gold/10 text-ministry-gold text-[10px] font-bold uppercase rounded-full">Member</span>
+                      <span className="px-2 py-0.5 bg-ministry-gold/10 text-ministry-gold text-[10px] font-bold uppercase rounded-full">{t('profile.member')}</span>
                       <span className="text-gray-400 text-xs flex items-center">
                         <Globe size={12} className="mr-1" />
                         {user.country}
@@ -60,59 +64,59 @@ const Profile: React.FC = () => {
               {/* Personal Details */}
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-display font-bold text-ministry-blue">Personal Information</h2>
-                  <ShieldCheck size={20} className="text-green-500" />
+                   <h2 className="text-xl font-display font-bold text-ministry-blue">{t('profile.personal_info')}</h2>
+                   <ShieldCheck size={20} className="text-green-500" />
                 </div>
                 <div className="grid grid-cols-1 gap-4">
-                  <InfoItem icon={Mail} label="Email Address" value={user.email} />
-                  <InfoItem icon={Phone} label="Phone Number" value={user.phone} />
-                  <InfoItem icon={Globe} label="Country" value={user.country} />
-                  <InfoItem icon={User} label="Gender" value={user.gender} />
-                  <div className="md:col-span-1">
-                    <InfoItem icon={MapPin} label="Residential Address" value={user.address} />
-                  </div>
+                   <InfoItem icon={Mail} label={t('profile.email')} value={user.email || ''} />
+                   <InfoItem icon={Phone} label={t('profile.phone')} value={user.phone || ''} />
+                   <InfoItem icon={Globe} label={t('profile.country')} value={user.country || ''} />
+                   <InfoItem icon={User} label={t('profile.gender')} value={user.gender || ''} />
+                   <div className="md:col-span-1">
+                     <InfoItem icon={MapPin} label={t('profile.address')} value={user.address || ''} />
+                   </div>
                 </div>
               </div>
 
               {/* Ministry Impact */}
               <div className="space-y-6">
-                <h2 className="text-xl font-display font-bold text-ministry-blue">Ministry Interaction</h2>
-                <div className="bg-ministry-blue/5 border border-ministry-blue/10 rounded-3xl p-8 text-center space-y-4">
-                  <div className="w-16 h-16 bg-ministry-blue text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg">
-                    <Award size={32} />
-                  </div>
-                  <h3 className="text-lg font-bold text-ministry-blue">Welcome to the Family</h3>
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    Thank you for registering with Christ Embassy Angola. We are excited to have you as a part of this global vision.
-                  </p>
-                  <div className="pt-4 flex justify-center space-x-3">
-                    <button className="flex items-center space-x-2 px-4 py-2 bg-ministry-gold text-white text-sm font-bold rounded-xl hover:bg-opacity-90 transition">
-                      <Heart size={16} fill="currentColor" />
-                      <span>Partner Now</span>
-                    </button>
-                    <button className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 transition">
-                      <span>Live Programs</span>
-                    </button>
-                  </div>
-                </div>
+                 <h2 className="text-xl font-display font-bold text-ministry-blue">{t('profile.ministry_interaction')}</h2>
+                 <div className="bg-ministry-blue/5 border border-ministry-blue/10 rounded-3xl p-8 text-center space-y-4">
+                   <div className="w-16 h-16 bg-ministry-blue text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                     <Award size={32} />
+                   </div>
+                   <h3 className="text-lg font-bold text-ministry-blue">{t('profile.welcome_title')}</h3>
+                   <p className="text-sm text-gray-600 leading-relaxed">
+                     {t('profile.welcome_desc')}
+                   </p>
+                   <div className="pt-4 flex justify-center space-x-3">
+                     <button onClick={() => navigate('/partnerships', { state: { showForm: true } })} className="flex items-center space-x-2 px-4 py-2 bg-ministry-gold text-white text-sm font-bold rounded-xl hover:bg-opacity-90 transition">
+                       <Heart size={16} fill="currentColor" />
+                       <span>{t('profile.partner_now')}</span>
+                     </button>
+                     <button onClick={() => navigate('/live-tv')} className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 transition">
+                       <span>{t('profile.live_programs')}</span>
+                     </button>
+                   </div>
+                 </div>
 
-                <div className="bg-gray-900 text-white rounded-3xl p-6 relative overflow-hidden group">
-                  <div className="relative z-10">
-                    <p className="text-xs font-bold text-ministry-gold uppercase tracking-widest mb-2">Member Quote</p>
-                    <p className="italic text-blue-100/80 text-sm">"Christ in me, the hope of glory. I am living the victorious life every day."</p>
-                  </div>
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition duration-500">
-                    <User size={60} />
-                  </div>
-                </div>
+                 <div className="bg-gray-900 text-white rounded-3xl p-6 relative overflow-hidden group">
+                   <div className="relative z-10">
+                     <p className="text-xs font-bold text-ministry-gold uppercase tracking-widest mb-2">{t('profile.quote_title')}</p>
+                     <p className="italic text-blue-100/80 text-sm">"{t('profile.quote_text')}"</p>
+                   </div>
+                   <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition duration-500">
+                     <User size={60} />
+                   </div>
+                 </div>
               </div>
             </div>
           </div>
 
           <div className="bg-gray-50 p-8 border-t border-gray-100 text-center">
             <p className="text-xs text-gray-400">
-              Your profile information is used for ministry administrative purposes only. 
-              <br/>© {new Date().getFullYear()} Christ Embassy Angola.
+               {t('profile.footer_note')} 
+               <br/>© {new Date().getFullYear()} Christ Embassy Angola.
             </p>
           </div>
         </div>

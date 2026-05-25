@@ -71,15 +71,15 @@ const ContactUs: React.FC = () => {
                             <h3 className="text-xl font-black uppercase mb-6 text-ministry-blue">{t('contact.worship_times')}</h3>
                             <div className="space-y-4 text-sm font-bold text-slate-500">
                                 <div className="flex justify-between border-b border-gray-50 pb-2 uppercase text-[10px]">
-                                    <span>Domingo</span>
+                                    <span>{t('contact.sunday')}</span>
                                     <span className="text-ministry-gold">08:00 & 10:30</span>
                                 </div>
                                 <div className="flex justify-between border-b border-gray-50 pb-2 uppercase text-[10px]">
-                                    <span>Quarta-feira</span>
+                                    <span>{t('contact.wednesday')}</span>
                                     <span className="text-ministry-gold">18:00</span>
                                 </div>
                                 <div className="flex justify-between uppercase text-[10px]">
-                                    <span>Vigília (6ª)</span>
+                                    <span>{t('contact.friday_vigil')}</span>
                                     <span className="text-ministry-gold">22:00</span>
                                 </div>
                             </div>
@@ -108,7 +108,7 @@ const ContactUs: React.FC = () => {
                                                 value={formData.name}
                                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                                                 className="w-full bg-gray-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold"
-                                                placeholder="Nome Completo"
+                                                placeholder={t('contact.placeholder_name')}
                                                 required
                                             />
                                         </div>
@@ -119,7 +119,7 @@ const ContactUs: React.FC = () => {
                                                 value={formData.email}
                                                 onChange={e => setFormData({ ...formData, email: e.target.value })}
                                                 className="w-full bg-gray-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold"
-                                                placeholder="exemplo@email.com"
+                                                placeholder={t('contact.placeholder_email')}
                                                 required
                                             />
                                         </div>
@@ -131,7 +131,7 @@ const ContactUs: React.FC = () => {
                                             value={formData.subject}
                                             onChange={e => setFormData({ ...formData, subject: e.target.value })}
                                             className="w-full bg-gray-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold"
-                                            placeholder="Como podemos ajudar?"
+                                            placeholder={t('contact.placeholder_subject')}
                                             required
                                         />
                                     </div>
@@ -142,7 +142,7 @@ const ContactUs: React.FC = () => {
                                             value={formData.message}
                                             onChange={e => setFormData({ ...formData, message: e.target.value })}
                                             className="w-full bg-gray-50 rounded-2xl px-6 py-6 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold resize-none"
-                                            placeholder="Escreva sua mensagem aqui..."
+                                            placeholder={t('contact.placeholder_message')}
                                             required
                                         ></textarea>
                                     </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Send, MessageSquare, Heart } from 'lucide-react';
 import { useAuth } from '../App';
@@ -7,6 +8,7 @@ import UniversalPlayer from '../components/UniversalPlayer';
 import { api } from '../services/api';
 
 const LiveTV: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const { user, system } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -75,7 +77,7 @@ const LiveTV: React.FC = () => {
           <div className="relative aspect-video bg-black overflow-hidden shadow-2xl border border-white/5">
             <UniversalPlayer
               url={activePlayer === 'p2' ? (system.publicUrl2 || system.publicUrl) : system.publicUrl}
-              title={system.publicTitle}
+              title={i18n.language === 'en' ? system.publicTitleEn : system.publicTitlePt}
               isAudioOnly={activePlayer === 'audio'}
               quality={quality}
             />
@@ -88,19 +90,19 @@ const LiveTV: React.FC = () => {
                   onClick={() => setActivePlayer('p1')}
                   className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'p1' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
                 >
-                  Player 1
+                  {t('live.player')} 1
                 </button>
                 <button
                   onClick={() => setActivePlayer('p2')}
                   className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'p2' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
                 >
-                  Player 2
+                  {t('live.player')} 2
                 </button>
                 <button
                   onClick={() => setActivePlayer('audio')}
                   className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'audio' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
                 >
-                  Áudio
+                  {t('live.audio')}
                 </button>
               </div>
 
@@ -133,7 +135,7 @@ const LiveTV: React.FC = () => {
             </div>
             <Link to="/donations" className="flex items-center space-x-4 px-12 py-6 bg-ministry-gold text-white font-black text-xl hover:scale-105 transition-all shadow-2xl">
               <Heart size={24} fill="white" />
-              <span>SEMENTE DE FÉ</span>
+              <span>{t('live.faith_seed')}</span>
             </Link>
           </div>
         </div>
@@ -142,18 +144,18 @@ const LiveTV: React.FC = () => {
           <div className="p-8 border-b border-white/5 bg-black/40 flex items-center justify-between text-white">
             <div className="flex items-center space-x-3">
               <MessageSquare size={20} className="text-ministry-gold" />
-              <h2 className="font-black font-display uppercase tracking-[0.2em] text-xs">Comunidade</h2>
+              <h2 className="font-black font-display uppercase tracking-[0.2em] text-xs">{t('live.community')}</h2>
             </div>
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2 bg-green-500/10 px-3 py-1.5 rounded-full border border-green-500/20">
                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                <span className="text-[10px] text-green-400 font-black">{system.viewerCount} Online</span>
+                <span className="text-[10px] text-green-400 font-black">{system.viewerCount} {t('live.online')}</span>
               </div>
             </div>
           </div>
           <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 bg-black/20 scrollbar-hide">
             {messages.length === 0 && (
-              <div className="text-center py-10 text-slate-500 text-xs font-bold uppercase tracking-widest">Inicie a conversa...</div>
+              <div className="text-center py-10 text-slate-500 text-xs font-bold uppercase tracking-widest">{t('live.start_chat')}</div>
             )}
             {messages.map((msg) => {
               const isAdmin = msg.user_id === 'admin-1' || msg.user_id?.startsWith('admin');
@@ -169,7 +171,7 @@ const LiveTV: React.FC = () => {
                           {msg.username}
                         </p>
                         {isAdmin && (
-                          <span className="bg-ministry-gold/20 text-ministry-gold text-[8px] px-2 py-0.5 rounded-full font-black border border-ministry-gold/30">ADMIN</span>
+                          <span className="bg-ministry-gold/20 text-ministry-gold text-[8px] px-2 py-0.5 rounded-full font-black border border-ministry-gold/30">{t('common.admin_badge')}</span>
                         )}
                       </div>
                       <div className={`text-sm p-4 rounded-2xl rounded-tl-none border shadow-sm ${isAdmin ? 'bg-ministry-gold/10 border-ministry-gold/20 text-white' : 'bg-white/5 border-white/5 text-slate-300'}`}>
@@ -186,7 +188,7 @@ const LiveTV: React.FC = () => {
               <form onSubmit={handleSendMessage} className="relative">
                 <input
                   type="text"
-                  placeholder="Escreva sua mensagem aqui..."
+                  placeholder={t('live.chat_placeholder')}
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   className="w-full bg-slate-800/50 text-white text-sm rounded-2xl pl-6 pr-16 py-5 focus:ring-2 focus:ring-ministry-gold border-0 outline-none transition shadow-inner"
@@ -199,7 +201,7 @@ const LiveTV: React.FC = () => {
                 </button>
               </form>
             ) : (
-              <div className="text-center text-slate-500 text-[10px] font-bold uppercase tracking-widest py-2">Identifique-se para falar</div>
+              <div className="text-center text-slate-500 text-[10px] font-bold uppercase tracking-widest py-2">{t('live.login_to_chat')}</div>
             )}
           </div>
         </div>

@@ -21,7 +21,7 @@ const Footer: React.FC = () => {
               <h3 className="font-display font-bold text-xl border-b-2 border-ministry-gold pb-2 inline-block">CE Angola</h3>
             </div>
             <p className="text-gray-300 text-sm leading-relaxed">
-              Spreading the gospel of our Lord Jesus Christ in the city of Luanda and across all the provinces of Angola. Bringing hope to millions.
+              {t('footer.desc')}
             </p>
             <div className="flex space-x-4">
               <a href="web.facebook.com/Christ-Embassy-Angola-Group-Pastors-Brief-102305119055634" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-ministry-gold hover:text-white transition"><Facebook size={20} /></a>
@@ -35,8 +35,8 @@ const Footer: React.FC = () => {
             <h3 className="font-display font-bold text-lg mb-6 text-ministry-gold">{t('footer.quick_links')}</h3>
             <ul className="space-y-3 text-gray-300 text-sm">
               <li><a href="#/live-tv" className="hover:text-white hover:translate-x-1 transition-transform inline-block">{t('nav.live_tv')}</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Healing School</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">InnerCity Mission</a></li>
+              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">{t('footer.healing_school')}</a></li>
+              <li><a href="#" className="hover:text-white hover:translate-x-1 transition-transform inline-block">{t('footer.innercity_mission')}</a></li>
               <li><a href="#/partnerships" className="hover:text-white hover:translate-x-1 transition-transform inline-block">{t('nav.partnerships')}</a></li>
             </ul>
           </div>
@@ -45,8 +45,8 @@ const Footer: React.FC = () => {
             <h3 className="font-display font-bold text-lg mb-6 text-ministry-gold">{t('footer.support')}</h3>
             <ul className="space-y-3 text-gray-300 text-sm">
               <li><a href="#/online-giving" className="hover:text-white hover:translate-x-1 transition-transform inline-block">{t('nav.online_giving')}</a></li>
-              <li><a href="#/terms" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Terms of Service</a></li>
-              <li><a href="#/privacy" className="hover:text-white hover:translate-x-1 transition-transform inline-block">Privacy Policy</a></li>
+              <li><a href="#/terms" className="hover:text-white hover:translate-x-1 transition-transform inline-block">{t('footer.terms')}</a></li>
+              <li><a href="#/privacy" className="hover:text-white hover:translate-x-1 transition-transform inline-block">{t('footer.privacy')}</a></li>
               <li><a href="#/contact" className="hover:text-white hover:translate-x-1 transition-transform inline-block">{t('contact.title')}</a></li>
             </ul>
           </div>
@@ -71,7 +71,6 @@ const Footer: React.FC = () => {
           <p>© {new Date().getFullYear()} Christ Embassy Angola. {t('footer.all_rights')}</p>
 
           <div className="flex items-center space-x-8">
-            {/* Language Toggle in Footer */}
             <button
               onClick={toggleLanguage}
               className="flex items-center space-x-2 text-white/50 hover:text-ministry-gold transition-colors"
@@ -80,8 +79,8 @@ const Footer: React.FC = () => {
               <span>{i18n.language.toUpperCase()}</span>
             </button>
             <div className="flex items-center space-x-6">
-              <a href="#" className="hover:text-white transition">Admin</a>
-              <a href="#" className="hover:text-white transition">Webmail</a>
+              <a href="#/central-admin" className="hover:text-white transition">{t('footer.admin')}</a>
+              <a href="#" className="hover:text-white transition">{t('footer.webmail')}</a>
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { User, StreamEvent } from '../types';
 import { MessageCircle, Heart, Share2, Users, Send } from 'lucide-react';
@@ -11,6 +12,7 @@ interface LiveStreamProps {
 }
 
 export const LiveStream: React.FC<LiveStreamProps> = ({ user, onNavigate, streams }) => {
+  const { t } = useTranslation();
   // Find the first public active stream, or fallback to the first public one
   const activeStream = streams.find(s => s.type === 'public' && s.isLive) || streams.find(s => s.type === 'public');
   
@@ -35,9 +37,9 @@ export const LiveStream: React.FC<LiveStreamProps> = ({ user, onNavigate, stream
   if (!activeStream) {
       return (
           <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-              <h2 className="text-2xl font-bold text-gray-700">No Public Broadcasts Available</h2>
-              <p className="text-gray-500 mt-2">Please check back later for our next service.</p>
-              <Button onClick={() => onNavigate('home')} className="mt-6">Return Home</Button>
+              <h2 className="text-2xl font-bold text-gray-700">{t('live.no_broadcasts', 'No Public Broadcasts Available')}</h2>
+              <p className="text-gray-500 mt-2">{t('live.check_back_later', 'Please check back later for our next service.')}</p>
+              <Button onClick={() => onNavigate('home')} className="mt-6">{t('common.home', 'Return Home')}</Button>
           </div>
       )
   }
@@ -49,7 +51,7 @@ export const LiveStream: React.FC<LiveStreamProps> = ({ user, onNavigate, stream
         <div className="lg:col-span-2 space-y-6">
           <div className="relative aspect-video bg-black rounded-xl overflow-hidden shadow-2xl group border border-gray-800">
              <VideoPlayer 
-                streamSource={activeStream.streamSource}
+                streamSource={activeStream.streamSource as "youtube" | "custom"}
                 streamUrl={activeStream.streamUrl}
                 thumbnailUrl={activeStream.thumbnailUrl}
                 title={activeStream.title}
@@ -64,13 +66,13 @@ export const LiveStream: React.FC<LiveStreamProps> = ({ user, onNavigate, stream
                    {activeStream.isLive ? (
                        <span className="flex items-center gap-1 text-red-600 font-semibold bg-red-50 px-2 py-1 rounded">
                          <span className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>
-                         LIVE
+                         {t('live.live_status', 'LIVE')}
                        </span>
                    ) : (
-                       <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium text-xs">OFFLINE</span>
+                       <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium text-xs">{t('live.offline_status', 'OFFLINE')}</span>
                    )}
                    <span className="flex items-center gap-1">
-                     <Users size={16} /> {activeStream.viewers.toLocaleString()} watching
+                     <Users size={16} /> {t('live.watching_count', { count: activeStream.viewers })}
                    </span>
                 </div>
               </div>
@@ -93,9 +95,9 @@ export const LiveStream: React.FC<LiveStreamProps> = ({ user, onNavigate, stream
         <div className="lg:col-span-1 h-[600px] flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
             <h3 className="font-bold text-gray-700 flex items-center gap-2">
-              <MessageCircle size={18} /> Live Chat
+              <MessageCircle size={18} /> {t('live.community_chat', 'Live Chat')}
             </h3>
-            <span className="text-xs text-gray-400">Top Chat</span>
+            <span className="text-xs text-gray-400">{t('live.top_chat', 'Top Chat')}</span>
           </div>
           
           <div className="flex-grow overflow-y-auto p-4 space-y-4">
@@ -121,7 +123,7 @@ export const LiveStream: React.FC<LiveStreamProps> = ({ user, onNavigate, stream
                   type="text"
                   value={chatMessage}
                   onChange={(e) => setChatMessage(e.target.value)}
-                  placeholder="Say something..."
+                  placeholder={t('live.chat_placeholder', 'Say something...')}
                   className="flex-grow px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500 text-sm"
                 />
                 <button 
@@ -137,7 +139,7 @@ export const LiveStream: React.FC<LiveStreamProps> = ({ user, onNavigate, stream
                 className="w-full text-sm" 
                 onClick={() => onNavigate('login')}
               >
-                Sign in to chat
+                {t('live.login_to_chat_btn', 'Sign in to chat')}
               </Button>
             )}
           </div>

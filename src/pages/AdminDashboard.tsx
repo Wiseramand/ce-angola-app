@@ -14,16 +14,16 @@ interface ManagedUser {
   name: string;
   username: string;
   password?: string;
+  has_live_access?: boolean;
 }
 
 interface Visitor {
   id: string;
   fullname: string;
-  email: string;
   phone: string;
   country: string;
-  city: string;
-  neighborhood: string;
+  country_code: string;
+  church_name: string;
   created_at: string;
 }
 
@@ -99,20 +99,25 @@ const AdminDashboard: React.FC = () => {
   const [filterEnd, setFilterEnd] = useState('');
 
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
-  const [newUser, setNewUser] = useState({ fullname: '', username: '', password: '' });
+  const [newUser, setNewUser] = useState({ fullname: '', username: '', password: '', has_live_access: false });
   const [streamForm, setStreamForm] = useState({
     public_url: '',
     public_url2: '',
-    public_title: '',
-    public_description: '',
+    public_title_pt: '',
+    public_title_en: '',
+    public_description_pt: '',
+    public_description_en: '',
     private_url: '',
     private_url2: '',
-    private_title: '',
-    private_description: '',
+    private_title_pt: '',
+    private_title_en: '',
+    private_description_pt: '',
+    private_description_en: '',
     is_private_mode: false,
     is_teacher_live: false,
     live_teacher_name: ''
   });
+  const [settingsLang, setSettingsLang] = useState<'pt' | 'en'>('pt');
 
   const loadData = async () => {
     setIsRefreshing(true);
@@ -129,12 +134,16 @@ const AdminDashboard: React.FC = () => {
         setStreamForm({
           public_url: sData.public_url || '',
           public_url2: sData.public_url2 || '',
-          public_title: sData.public_title || '',
-          public_description: sData.public_description || '',
+          public_title_pt: sData.public_title_pt || '',
+          public_title_en: sData.public_title_en || '',
+          public_description_pt: sData.public_description_pt || '',
+          public_description_en: sData.public_description_en || '',
           private_url: sData.private_url || '',
           private_url2: sData.private_url2 || '',
-          private_title: sData.private_title || '',
-          private_description: sData.private_description || '',
+          private_title_pt: sData.private_title_pt || '',
+          private_title_en: sData.private_title_en || '',
+          private_description_pt: sData.private_description_pt || '',
+          private_description_en: sData.private_description_en || '',
           is_private_mode: !!sData.is_private_mode,
           is_teacher_live: !!sData.is_teacher_live,
           live_teacher_name: sData.live_teacher_name || ''
@@ -155,9 +164,9 @@ const AdminDashboard: React.FC = () => {
   const filteredVisitors = visitors.filter(v => {
     const matchesSearch = !visitorSearch ||
       (v.fullname || '').toLowerCase().includes(visitorSearch.toLowerCase()) ||
-      (v.email || '').toLowerCase().includes(visitorSearch.toLowerCase()) ||
       (v.phone || '').toLowerCase().includes(visitorSearch.toLowerCase()) ||
-      (v.city || '').toLowerCase().includes(visitorSearch.toLowerCase());
+      (v.country || '').toLowerCase().includes(visitorSearch.toLowerCase()) ||
+      (v.church_name || '').toLowerCase().includes(visitorSearch.toLowerCase());
 
     if (!filterStart && !filterEnd) return matchesSearch;
     const vDate = new Date(v.created_at).getTime();
@@ -179,7 +188,7 @@ const AdminDashboard: React.FC = () => {
       }
       setShowUserModal(false);
       setEditingUser(null);
-      setNewUser({ fullname: '', username: '', password: '' });
+      setNewUser({ fullname: '', username: '', password: '', has_live_access: false });
       loadData();
     } catch (e) {
       alert("Erro ao salvar membro.");
@@ -203,7 +212,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleEditUser = (u: ManagedUser) => {
     setEditingUser(u);
-    setNewUser({ fullname: u.name, username: u.username, password: u.password || '' });
+    setNewUser({ fullname: u.name, username: u.username, password: u.password || '', has_live_access: !!u.has_live_access });
     setShowUserModal(true);
   };
 
@@ -255,10 +264,10 @@ const AdminDashboard: React.FC = () => {
 
   const exportVisitors = () => {
     if (filteredVisitors.length === 0) return;
-    const headers = "Nome,Email,Telefone,Pais,Cidade,Bairro,Data,Hora\n";
+    const headers = "Nome,Telefone,Pais,Codigo Pais,Igreja,Data,Hora\n";
     const rows = filteredVisitors.map(v => {
       const d = new Date(v.created_at);
-      return `"${v.fullname}","${v.email}","${v.phone}","${v.country}","${v.city}","${v.neighborhood}","${d.toLocaleDateString()}","${d.toLocaleTimeString()}"`;
+      return `"${v.fullname}","${v.phone}","${v.country}","${v.country_code}","${v.church_name}","${d.toLocaleDateString()}","${d.toLocaleTimeString()}"`;
     }).join("\n");
 
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
@@ -510,25 +519,25 @@ const AdminDashboard: React.FC = () => {
         <nav className="flex-grow p-6 space-y-3">
           <button onClick={() => setActiveTab('members')} className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${activeTab === 'members' ? 'bg-ministry-gold text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>
             <Shield size={20} />
-            <span>Gestão Membros</span>
+            <span>{t('admin.member_management')}</span>
           </button>
           <button onClick={() => setActiveTab('visitors')} className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${activeTab === 'visitors' ? 'bg-ministry-gold text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>
             <Users size={20} />
-            <span>Visitantes</span>
+            <span>{t('admin.visitors')}</span>
           </button>
           <button onClick={() => setActiveTab('streams')} className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${activeTab === 'streams' ? 'bg-ministry-gold text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>
             <Video size={20} />
-            <span>Canais TV</span>
+            <span>{t('admin.channels')}</span>
           </button>
           <button onClick={() => setActiveTab('school')} className={`w-full flex items-center space-x-4 px-6 py-5 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest ${activeTab === 'school' ? 'bg-ministry-gold text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>
             <GraduationCap size={20} />
-            <span>Escola de Fundação</span>
+            <span>{t('admin.foundation_school')}</span>
           </button>
 
           <div className="pt-10 border-t border-white/5 mt-10">
             <button onClick={() => navigate('/')} className="w-full flex items-center space-x-4 px-6 py-4 text-slate-400 hover:text-white transition font-bold text-xs uppercase">
               <ArrowLeft size={18} />
-              <span>Sair do Painel</span>
+              <span>{t('admin.exit_panel')}</span>
             </button>
           </div>
         </nav>
@@ -537,19 +546,19 @@ const AdminDashboard: React.FC = () => {
       <main className="flex-grow p-12 overflow-y-auto">
         <header className="flex justify-between items-center mb-12 print:hidden">
           <div>
-            <h1 className="text-4xl font-display font-black text-ministry-blue uppercase tracking-tighter">Administração</h1>
-            <p className="text-slate-400 font-bold uppercase text-[10px] mt-2 tracking-widest">Controlo Central Christ Embassy Angola</p>
+            <h1 className="text-4xl font-display font-black text-ministry-blue uppercase tracking-tighter">{t('admin.administration')}</h1>
+            <p className="text-slate-400 font-bold uppercase text-[10px] mt-2 tracking-widest">{t('admin.central_control')}</p>
           </div>
           <div className="flex space-x-4">
             {activeTab === 'visitors' && (
               <>
                 <button onClick={exportVisitors} className="flex items-center space-x-2 px-6 py-4 bg-green-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-green-700 transition shadow-lg">
                   <FileSpreadsheet size={18} />
-                  <span>Exportar CSV</span>
+                  <span>{t('admin.export_csv')}</span>
                 </button>
                 <button onClick={() => window.print()} className="flex items-center space-x-2 px-6 py-4 bg-slate-800 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition shadow-lg">
                   <Printer size={18} />
-                  <span>PDF / Imprimir</span>
+                  <span>{t('admin.pdf_print')}</span>
                 </button>
               </>
             )}
@@ -567,7 +576,7 @@ const AdminDashboard: React.FC = () => {
                 <input
                   type="text" value={visitorSearch}
                   onChange={e => { setVisitorSearch(e.target.value); setVisitorPage(0); }}
-                  placeholder="Buscar visitante..."
+                  placeholder={t('admin.search_visitor')}
                   className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold"
                 />
               </div>
@@ -576,11 +585,11 @@ const AdminDashboard: React.FC = () => {
             <div className="mb-8 p-8 bg-white rounded-[2.5rem] shadow-sm border border-slate-100 print:hidden">
               <div className="flex items-center space-x-4 mb-6">
                 <Filter size={18} className="text-ministry-gold" />
-                <h3 className="font-black text-ministry-blue uppercase text-xs tracking-widest">Filtrar por Período (Dia/Mês/Ano e Hora)</h3>
+                <h3 className="font-black text-ministry-blue uppercase text-xs tracking-widest">{t('admin.filter_period')}</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
                 <div>
-                  <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">Início do Período</label>
+                  <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">{t('admin.start_period')}</label>
                   <input
                     type="datetime-local"
                     value={filterStart}
@@ -589,7 +598,7 @@ const AdminDashboard: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">Fim do Período</label>
+                  <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-2 tracking-widest">{t('admin.end_period')}</label>
                   <input
                     type="datetime-local"
                     value={filterEnd}
@@ -601,7 +610,7 @@ const AdminDashboard: React.FC = () => {
                   onClick={() => { setFilterStart(''); setFilterEnd(''); }}
                   className="px-6 py-3.5 text-[9px] font-black uppercase text-slate-400 hover:text-red-500 transition tracking-widest"
                 >
-                  Limpar Filtros
+                  {t('admin.clear_filters')}
                 </button>
               </div>
             </div>
@@ -609,7 +618,7 @@ const AdminDashboard: React.FC = () => {
             <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
               <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 print:hidden">
                 <h3 className="font-black text-ministry-blue uppercase text-sm tracking-widest">
-                  Visitantes Listados: {filteredVisitors.length}
+                  {t('admin.visitors_listed')}: {filteredVisitors.length}
                 </h3>
               </div>
               <div className="overflow-x-auto">
@@ -618,7 +627,8 @@ const AdminDashboard: React.FC = () => {
                     <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase text-left border-b">
                       <th className="px-8 py-5">{t('admin.visitor')}</th>
                       <th className="px-8 py-5">{t('admin.contact')}</th>
-                      <th className="px-8 py-5">{t('admin.location')}</th>
+                      <th className="px-8 py-5">{t('admin.country')}</th>
+                      <th className="px-8 py-5">{t('admin.church')}</th>
                       <th className="px-8 py-5 text-right">{t('admin.date_time')}</th>
                     </tr>
                   </thead>
@@ -636,12 +646,14 @@ const AdminDashboard: React.FC = () => {
                         <tr key={v.id} className="hover:bg-slate-50/30 transition">
                           <td className="px-8 py-6">
                             <div className="font-bold text-ministry-blue uppercase text-xs">{v.fullname}</div>
-                            <div className="text-[10px] text-slate-400 font-bold">{v.email || 'SEM EMAIL'}</div>
                           </td>
                           <td className="px-8 py-6 text-slate-500 text-xs font-bold">{v.phone}</td>
                           <td className="px-8 py-6">
-                            <div className="text-xs font-black text-slate-600 uppercase">{v.city || 'Angola'}</div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase">{v.neighborhood || v.country}</div>
+                            <div className="text-xs font-black text-slate-600 uppercase">{v.country}</div>
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">{v.country_code}</div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="text-xs font-black text-ministry-gold uppercase">{v.church_name}</div>
                           </td>
                           <td className="px-8 py-6 text-right">
                             <div className="text-[10px] text-slate-600 font-black">{new Date(v.created_at).toLocaleDateString()}</div>
@@ -658,10 +670,10 @@ const AdminDashboard: React.FC = () => {
                 if (totalPages <= 1) return null;
                 return (
                   <div className="flex justify-between items-center px-8 py-6 bg-slate-50 border-t border-slate-100">
-                    <span className="text-[10px] font-black text-slate-400 uppercase">{filteredVisitors.length} visitantes · Pág. {visitorPage + 1}/{totalPages}</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase">{filteredVisitors.length} {t('nav.visitors')} · Pág. {visitorPage + 1}/{totalPages}</span>
                     <div className="flex gap-3">
-                      <button disabled={visitorPage === 0} onClick={() => setVisitorPage(p => p - 1)} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:border-ministry-gold transition">Anterior</button>
-                      <button disabled={visitorPage >= totalPages - 1} onClick={() => setVisitorPage(p => p + 1)} className="px-5 py-2.5 bg-ministry-blue text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:bg-ministry-gold transition">Próxima</button>
+                      <button disabled={visitorPage === 0} onClick={() => setVisitorPage(p => p - 1)} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:border-ministry-gold transition">{t('admin.prev')}</button>
+                      <button disabled={visitorPage >= totalPages - 1} onClick={() => setVisitorPage(p => p + 1)} className="px-5 py-2.5 bg-ministry-blue text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:bg-ministry-gold transition">{t('admin.next')}</button>
                     </div>
                   </div>
                 );
@@ -680,7 +692,7 @@ const AdminDashboard: React.FC = () => {
                   <input
                     type="text" value={memberSearch}
                     onChange={e => { setMemberSearch(e.target.value); setMemberPage(0); }}
-                    placeholder="Buscar membro..."
+                    placeholder={t('admin.search')}
                     className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold transition w-64"
                   />
                 </div>
@@ -698,6 +710,7 @@ const AdminDashboard: React.FC = () => {
                     <th className="px-8 py-5">{t('admin.full_name')}</th>
                     <th className="px-8 py-5">{t('admin.username')}</th>
                     <th className="px-8 py-5">{t('admin.password')}</th>
+                    <th className="px-8 py-5">{t('common.exclusive_access')}</th>
                     <th className="px-8 py-5">{t('admin.actions')}</th>
                     <th className="px-8 py-5 text-right">{t('admin.share')}</th>
                   </tr>
@@ -713,7 +726,7 @@ const AdminDashboard: React.FC = () => {
                     const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
                     if (paged.length === 0) {
-                      return <tr><td colSpan={5} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_members')}</td></tr>;
+                      return <tr><td colSpan={6} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_members')}</td></tr>;
                     }
 
                     return paged.map(u => (
@@ -721,6 +734,17 @@ const AdminDashboard: React.FC = () => {
                         <td className="px-8 py-6 font-bold text-ministry-blue uppercase text-xs">{u.name}</td>
                         <td className="px-8 py-6 font-mono text-sm text-slate-500">{u.username}</td>
                         <td className="px-8 py-6 font-mono text-sm text-slate-500">{u.password}</td>
+                        <td className="px-8 py-6 text-xs font-bold">
+                          {u.has_live_access ? (
+                            <span className="text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">
+                              {t('common.yes') || 'Sim'}
+                            </span>
+                          ) : (
+                            <span className="text-red-500 bg-red-50 px-3 py-1 rounded-full border border-red-200">
+                              {t('common.no') || 'Não'}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-8 py-6">
                           <div className="flex space-x-2">
                             <button onClick={() => handleEditUser(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar">
@@ -773,35 +797,73 @@ const AdminDashboard: React.FC = () => {
 
         {
           activeTab === 'streams' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-500">
-              <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
-                <div className="flex items-center space-x-4 mb-8">
-                  <div className="w-12 h-12 bg-blue-50 text-ministry-blue rounded-2xl flex items-center justify-center">
-                    <Video size={24} />
-                  </div>
-                  <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Canal TV Público</h3>
-                </div>
-                <InputField label="URL Transmissão (Principal)" value={streamForm.public_url} onChange={v => setStreamForm({ ...streamForm, public_url: v })} />
-                <InputField label="URL Transmissão (Suporte/Player 2)" value={streamForm.public_url2} onChange={v => setStreamForm({ ...streamForm, public_url2: v })} />
-                <InputField label="Título da Emissão" value={streamForm.public_title} onChange={v => setStreamForm({ ...streamForm, public_title: v })} />
-                <InputField label="Descrição" value={streamForm.public_description} onChange={v => setStreamForm({ ...streamForm, public_description: v })} />
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="flex space-x-4 mb-4">
+                <button 
+                  onClick={() => setSettingsLang('pt')}
+                  className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${settingsLang === 'pt' ? 'bg-ministry-gold text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100'}`}
+                >
+                  Português
+                </button>
+                <button 
+                  onClick={() => setSettingsLang('en')}
+                  className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${settingsLang === 'en' ? 'bg-ministry-gold text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100'}`}
+                >
+                  English
+                </button>
               </div>
 
-              <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
-                <div className="flex items-center space-x-4 mb-8">
-                  <div className="w-12 h-12 bg-ministry-gold/10 text-ministry-gold rounded-2xl flex items-center justify-center">
-                    <Shield size={24} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
+                  <div className="flex items-center space-x-4 mb-8">
+                    <div className="w-12 h-12 bg-blue-50 text-ministry-blue rounded-2xl flex items-center justify-center">
+                      <Video size={24} />
+                    </div>
+                    <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">{t('admin.streams.public_channel')}</h3>
                   </div>
-                  <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Canal de Parceiros</h3>
+                  <InputField label={t('admin.streams.url_main')} value={streamForm.public_url} onChange={v => setStreamForm({ ...streamForm, public_url: v })} />
+                  <InputField label={t('admin.streams.url_support')} value={streamForm.public_url2} onChange={v => setStreamForm({ ...streamForm, public_url2: v })} />
+                  
+                  {settingsLang === 'pt' ? (
+                    <>
+                      <InputField label={t('admin.streams.title_pt')} value={streamForm.public_title_pt} onChange={v => setStreamForm({ ...streamForm, public_title_pt: v })} />
+                      <InputField label={t('admin.streams.desc_pt')} value={streamForm.public_description_pt} onChange={v => setStreamForm({ ...streamForm, public_description_pt: v })} />
+                    </>
+                  ) : (
+                    <>
+                      <InputField label={t('admin.streams.title_en')} value={streamForm.public_title_en} onChange={v => setStreamForm({ ...streamForm, public_title_en: v })} />
+                      <InputField label={t('admin.streams.desc_en')} value={streamForm.public_description_en} onChange={v => setStreamForm({ ...streamForm, public_description_en: v })} />
+                    </>
+                  )}
                 </div>
-                <InputField label="URL Transmissão (Principal)" value={streamForm.private_url} onChange={v => setStreamForm({ ...streamForm, private_url: v })} />
-                <InputField label="URL Transmissão (Suporte/Player 2)" value={streamForm.private_url2} onChange={v => setStreamForm({ ...streamForm, private_url2: v })} />
-                <InputField label="Título Privado" value={streamForm.private_title} onChange={v => setStreamForm({ ...streamForm, private_title: v })} />
+
+                <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
+                  <div className="flex items-center space-x-4 mb-8">
+                    <div className="w-12 h-12 bg-ministry-gold/10 text-ministry-gold rounded-2xl flex items-center justify-center">
+                      <Shield size={24} />
+                    </div>
+                    <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">{t('admin.streams.partner_channel')}</h3>
+                  </div>
+                  <InputField label={t('admin.streams.url_main')} value={streamForm.private_url} onChange={v => setStreamForm({ ...streamForm, private_url: v })} />
+                  <InputField label={t('admin.streams.url_support')} value={streamForm.private_url2} onChange={v => setStreamForm({ ...streamForm, private_url2: v })} />
+                  
+                  {settingsLang === 'pt' ? (
+                    <>
+                      <InputField label={t('admin.streams.title_pt')} value={streamForm.private_title_pt} onChange={v => setStreamForm({ ...streamForm, private_title_pt: v })} />
+                      <InputField label={t('admin.streams.desc_pt')} value={streamForm.private_description_pt} onChange={v => setStreamForm({ ...streamForm, private_description_pt: v })} />
+                    </>
+                  ) : (
+                    <>
+                      <InputField label={t('admin.streams.title_en')} value={streamForm.private_title_en} onChange={v => setStreamForm({ ...streamForm, private_title_en: v })} />
+                      <InputField label={t('admin.streams.desc_en')} value={streamForm.private_description_en} onChange={v => setStreamForm({ ...streamForm, private_description_en: v })} />
+                    </>
+                  )}
+                </div>
 
                 <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border border-slate-100 mt-6">
                   <div>
-                    <span className="text-[11px] font-black text-ministry-blue uppercase tracking-widest block">Restringir Área Exclusiva</span>
-                    <span className="text-[9px] text-slate-400 font-bold uppercase mt-1">Visitantes normais não poderão ver este sinal.</span>
+                    <span className="text-[11px] font-black text-ministry-blue uppercase tracking-widest block">{t('admin.streams.restrict_area')}</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase mt-1">{t('admin.streams.restrict_desc')}</span>
                   </div>
                   <button onClick={() => setStreamForm({ ...streamForm, is_private_mode: !streamForm.is_private_mode })} className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_private_mode ? 'bg-ministry-gold shadow-[0_0_15px_rgba(197,160,89,0.5)]' : 'bg-slate-300'}`}>
                     <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${streamForm.is_private_mode ? 'left-7' : 'left-1'}`} />
@@ -811,21 +873,21 @@ const AdminDashboard: React.FC = () => {
                 <div className="mt-8 pt-8 border-t border-slate-100">
                   <div className="flex items-center space-x-3 mb-6">
                     <Radio size={18} className={streamForm.is_teacher_live ? 'text-red-500 animate-pulse' : 'text-slate-400'} />
-                    <h4 className="text-[11px] font-black text-ministry-blue uppercase tracking-widest">Status da Escola de Fundação</h4>
+                    <h4 className="text-[11px] font-black text-ministry-blue uppercase tracking-widest">{t('admin.school.status')}</h4>
                   </div>
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-6 bg-red-50/30 rounded-2xl border border-red-100">
                       <div>
-                        <span className="text-[11px] font-black text-red-600 uppercase tracking-widest block">Professor está AO VIVO</span>
-                        <span className="text-[9px] text-red-400 font-bold uppercase mt-1">Ativa a notificação no Portal do Aluno.</span>
+                        <span className="text-[11px] font-black text-red-600 uppercase tracking-widest block">{t('admin.school.teacher_live')}</span>
+                        <span className="text-[9px] text-red-400 font-bold uppercase mt-1">{t('admin.school.teacher_live_desc')}</span>
                       </div>
                       <button onClick={() => setStreamForm({ ...streamForm, is_teacher_live: !streamForm.is_teacher_live })} className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_teacher_live ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-slate-300'}`}>
                         <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${streamForm.is_teacher_live ? 'left-7' : 'left-1'}`} />
                       </button>
                     </div>
                     {streamForm.is_teacher_live && (
-                      <InputField label="Nome do Professor (que está live)" value={streamForm.live_teacher_name} onChange={v => setStreamForm({ ...streamForm, live_teacher_name: v })} placeholder="Ex: Pr. Lucas" />
+                      <InputField label={t('admin.school.teacher_name_label')} value={streamForm.live_teacher_name} onChange={v => setStreamForm({ ...streamForm, live_teacher_name: v })} placeholder="Ex: Pr. Lucas" />
                     )}
                   </div>
                 </div>
@@ -848,24 +910,37 @@ const AdminDashboard: React.FC = () => {
                 <button onClick={() => { setShowUserModal(false); setEditingUser(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
                   <X size={28} />
                 </button>
-                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingUser ? 'Editar' : 'Criar'} Acesso de Membro</h2>
+                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingUser ? t('admin.edit_member_access') : t('admin.create_member_access')}</h2>
                 <form onSubmit={handleAddUser} className="space-y-6">
-                  <InputField label="Nome do Membro" value={newUser.fullname} onChange={v => setNewUser({ ...newUser, fullname: v })} placeholder="Ex: Diácono Silva" />
+                  <InputField label={t('admin.full_name')} value={newUser.fullname} onChange={v => setNewUser({ ...newUser, fullname: v })} placeholder="Ex: Diácono Silva" />
 
                   <div className="relative">
-                    <InputField label="ID de Utilizador" value={newUser.username} onChange={v => setNewUser({ ...newUser, username: v })} placeholder="ex: silva_2025" />
+                    <InputField label={t('admin.username')} value={newUser.username} onChange={v => setNewUser({ ...newUser, username: v })} placeholder="ex: silva_2025" />
                     {!editingUser && (
                       <button type="button" onClick={generateCredentials} className="absolute right-4 top-[38px] text-[9px] font-black uppercase text-ministry-gold hover:text-ministry-blue transition tracking-widest bg-white px-2">
-                        Gerar Automático
+                        {t('admin.generate_auto')}
                       </button>
                     )}
                   </div>
 
-                  <InputField label="Senha Secreta" value={newUser.password} onChange={v => setNewUser({ ...newUser, password: v })} placeholder="Mínimo 6 caracteres" />
+                  <InputField label={t('auth.password')} value={newUser.password} onChange={v => setNewUser({ ...newUser, password: v })} placeholder={t('admin.min_6_chars')} />
+
+                  <div className="flex items-center space-x-3 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                    <input
+                      type="checkbox"
+                      id="has_live_access"
+                      checked={newUser.has_live_access}
+                      onChange={e => setNewUser({ ...newUser, has_live_access: e.target.checked })}
+                      className="w-5 h-5 text-ministry-gold border-slate-300 rounded focus:ring-ministry-gold"
+                    />
+                    <label htmlFor="has_live_access" className="text-xs font-black text-slate-700 select-none uppercase tracking-widest cursor-pointer">
+                      {t('common.exclusive_access')}
+                    </label>
+                  </div>
 
                   <div className="pt-6">
                     <button type="submit" className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-blue transition-all">
-                      {editingUser ? 'Guardar Alterações' : 'Ativar Credenciais'}
+                      {editingUser ? t('admin.save_changes') : t('admin.activate_creds')}
                     </button>
                   </div>
                 </form>
@@ -878,14 +953,14 @@ const AdminDashboard: React.FC = () => {
             <div className="space-y-8 animate-in fade-in duration-500">
               <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
                 <div>
-                  <h3 className="font-black text-ministry-blue uppercase text-lg tracking-tight">Escola de Fundação</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Gestão de Alunos, Professores e Conteúdo</p>
+                  <h3 className="font-black text-ministry-blue uppercase text-lg tracking-tight">{t('nav.foundation_school')}</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{t('admin.foundation_school_desc')}</p>
                 </div>
                 <nav className="flex bg-slate-100 p-1.5 rounded-2xl">
-                  <button onClick={() => setSchoolSubTab('requests')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'requests' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Solicitações</button>
-                  <button onClick={() => setSchoolSubTab('students')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'students' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Alunos</button>
-                  <button onClick={() => setSchoolSubTab('teachers')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'teachers' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Professores</button>
-                  <button onClick={() => setSchoolSubTab('media')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'media' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Área Média</button>
+                  <button onClick={() => setSchoolSubTab('requests')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'requests' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{t('admin.school.requests')}</button>
+                  <button onClick={() => setSchoolSubTab('students')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'students' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{t('admin.school.students')}</button>
+                  <button onClick={() => setSchoolSubTab('teachers')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'teachers' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{t('admin.school.teachers')}</button>
+                  <button onClick={() => setSchoolSubTab('media')} className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${schoolSubTab === 'media' ? 'bg-white text-ministry-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{t('admin.school.media')}</button>
                 </nav>
               </header>
 
@@ -909,7 +984,7 @@ const AdminDashboard: React.FC = () => {
                         <input
                           type="text" value={requestSearch}
                           onChange={e => { setRequestSearch(e.target.value); setRequestPage(0); }}
-                          placeholder="Buscar solicitação..."
+                          placeholder={t('admin.search')}
                           className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold"
                         />
                       </div>
@@ -918,10 +993,10 @@ const AdminDashboard: React.FC = () => {
                       <table className="w-full">
                         <thead>
                           <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
-                            <th className="px-8 py-5">Aluno</th>
-                            <th className="px-8 py-5">Localização</th>
-                            <th className="px-8 py-5">Membro?</th>
-                            <th className="px-8 py-5 text-right">Ações</th>
+                            <th className="px-8 py-5">{t('admin.school.student_label')}</th>
+                            <th className="px-8 py-5">{t('admin.location')}</th>
+                            <th className="px-8 py-5">{t('admin.school.is_member_q')}</th>
+                            <th className="px-8 py-5 text-right">{t('admin.actions')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -940,18 +1015,18 @@ const AdminDashboard: React.FC = () => {
                               <td className="px-8 py-6">
                                 {r.is_member ? (
                                   <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-green-600 uppercase">Sim</span>
+                                    <span className="text-[10px] font-black text-green-600 uppercase">{t('common.yes')}</span>
                                     <span className="text-[9px] text-slate-400 font-bold truncate max-w-[150px]">{r.church_name}</span>
                                   </div>
                                 ) : (
-                                  <span className="text-[10px] font-black text-slate-400 uppercase">Não</span>
+                                  <span className="text-[10px] font-black text-slate-400 uppercase">{t('common.no')}</span>
                                 )}
                               </td>
                               <td className="px-8 py-6 text-right">
                                 <div className="flex justify-end space-x-2">
-                                  <button onClick={() => setSelectedRequest(r)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition" title="Ver Detalhes">Ver Detalhes</button>
-                                  <button onClick={() => handleApproveSchool(r.id)} className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition">Aprovar</button>
-                                  <button onClick={() => handleRejectSchool(r.id)} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition">Rejeitar</button>
+                                  <button onClick={() => setSelectedRequest(r)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition" title={t('admin.view_details')}>{t('admin.view_details')}</button>
+                                  <button onClick={() => handleApproveSchool(r.id)} className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition">{t('admin.school.approve')}</button>
+                                  <button onClick={() => handleRejectSchool(r.id)} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition">{t('admin.school.reject')}</button>
                                 </div>
                               </td>
                             </tr>
@@ -990,23 +1065,23 @@ const AdminDashboard: React.FC = () => {
                         <input
                           type="text" value={studentSearch}
                           onChange={e => { setStudentSearch(e.target.value); setStudentPage(0); }}
-                          placeholder="Buscar aluno..."
+                          placeholder={t('admin.search')}
                           className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold"
                         />
                       </div>
                       <button onClick={() => { setEditingStudent(null); setNewStudent({ fullname: '', username: '', password: '', email: '', phone: '', access_expiry: '', teacher_id: '', class_id: '' }); setShowStudentModal(true); }} className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md">
-                        <UserPlus size={14} /><span>Novo Aluno</span>
+                        <UserPlus size={14} /><span>{t('admin.school.add_student')}</span>
                       </button>
                     </div>
                     <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
                       <table className="w-full">
                         <thead>
                           <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
-                            <th className="px-8 py-5">Aluno</th>
-                            <th className="px-8 py-5">Credenciais</th>
-                            <th className="px-8 py-5">Professor / Turma</th>
-                            <th className="px-8 py-5">Data / Validade</th>
-                            <th className="px-8 py-5 text-right">Ações</th>
+                            <th className="px-8 py-5">{t('admin.school.student_label')}</th>
+                            <th className="px-8 py-5">{t('admin.school.creds_label')}</th>
+                            <th className="px-8 py-5">{t('admin.school.teacher_class_label')}</th>
+                            <th className="px-8 py-5">{t('admin.school.date_expiry_label')}</th>
+                            <th className="px-8 py-5 text-right">{t('admin.actions')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -1022,7 +1097,7 @@ const AdminDashboard: React.FC = () => {
                                 {u.is_credentials_generated ? (
                                   <span className="text-green-600 font-black">● {u.username}</span>
                                 ) : (
-                                  <span className="text-orange-500 italic">Pendente</span>
+                                  <span className="text-orange-500 italic">{t('admin.school.pending')}</span>
                                 )}
                               </td>
                               <td className="px-8 py-6 text-[10px] text-slate-500">
@@ -1036,7 +1111,7 @@ const AdminDashboard: React.FC = () => {
                               <td className="px-8 py-6 text-right">
                                 <div className="flex justify-end space-x-2">
                                   {!u.is_credentials_generated && (
-                                    <button onClick={() => handleGenerateSchoolCredentials(u.id)} className="px-4 py-2 bg-ministry-gold text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:translate-y-[-1px] transition-all">Gerar</button>
+                                    <button onClick={() => handleGenerateSchoolCredentials(u.id)} className="px-4 py-2 bg-ministry-gold text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:translate-y-[-1px] transition-all">{t('admin.school.generate_creds')}</button>
                                   )}
                                   <button onClick={() => shareSchoolUserViaWhatsApp(u)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition" title="WhatsApp"><MessageCircle size={14} /></button>
                                   <button onClick={() => shareSchoolUserViaEmail(u)} className="p-2 text-ministry-gold hover:bg-ministry-gold/10 rounded-lg transition" title="Email"><Mail size={14} /></button>
@@ -1082,7 +1157,7 @@ const AdminDashboard: React.FC = () => {
                         <input
                           type="text" value={teacherSearch}
                           onChange={e => { setTeacherSearch(e.target.value); setTeacherPage(0); }}
-                          placeholder="Buscar professor..."
+                          placeholder={t('admin.search')}
                           className="pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:ring-2 focus:ring-ministry-gold"
                         />
                       </div>
@@ -1094,15 +1169,15 @@ const AdminDashboard: React.FC = () => {
                       <table className="w-full">
                         <thead>
                           <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
-                            <th className="px-8 py-5">Professor</th>
-                            <th className="px-8 py-5">Login</th>
-                            <th className="px-8 py-5">Status</th>
-                            <th className="px-8 py-5 text-right">Ações</th>
+                            <th className="px-8 py-5">{t('admin.school.teachers')}</th>
+                            <th className="px-8 py-5">{t('admin.username')}</th>
+                            <th className="px-8 py-5">{t('admin.role')}</th>
+                            <th className="px-8 py-5 text-right">{t('admin.actions')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {paged.length === 0 ? (
-                            <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">Nenhum professor encontrado.</td></tr>
+                            <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('common.no_teachers_found')}</td></tr>
                           ) : paged.map(u => (
                             <tr key={u.id} className="hover:bg-slate-50 transition">
                               <td className="px-8 py-6">
@@ -1112,11 +1187,11 @@ const AdminDashboard: React.FC = () => {
                               <td className="px-8 py-6 font-mono text-xs text-slate-500">{u.username}</td>
                               <td className="px-8 py-6">
                                 {u.access_expiry && new Date(u.access_expiry) < new Date() ? (
-                                  <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-[9px] font-black uppercase tracking-widest">Expirado</span>
+                                  <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-[9px] font-black uppercase tracking-widest">{t('admin.school.expired')}</span>
                                 ) : (
-                                  <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">Ativo</span>
+                                  <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">{t('admin.school.active')}</span>
                                 )}
-                                {u.access_expiry && <div className="text-[9px] text-slate-400 font-bold mt-2">Val.: {new Date(u.access_expiry).toLocaleDateString()}</div>}
+                                {u.access_expiry && <div className="text-[9px] text-slate-400 font-bold mt-2">{t('common.validity')} {new Date(u.access_expiry).toLocaleDateString()}</div>}
                               </td>
                               <td className="px-8 py-6 text-right">
                                 <div className="flex justify-end space-x-2">
@@ -1134,10 +1209,10 @@ const AdminDashboard: React.FC = () => {
                       </table>
                       {totalPages > 1 && (
                         <div className="flex justify-between items-center px-8 py-4 border-t border-slate-100 bg-slate-50">
-                          <span className="text-[10px] font-black text-slate-400 uppercase">{filtered.length} professores · Pág. {page + 1}/{totalPages}</span>
+                          <span className="text-[10px] font-black text-slate-400 uppercase">{filtered.length} {t('admin.school.teachers').toLowerCase()} · {t('admin.page')} {page + 1}/{totalPages}</span>
                           <div className="flex gap-2">
-                            <button disabled={page === 0} onClick={() => setTeacherPage(p => p - 1)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:border-ministry-gold transition">Anterior</button>
-                            <button disabled={page >= totalPages - 1} onClick={() => setTeacherPage(p => p + 1)} className="px-4 py-2 bg-ministry-blue text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:bg-ministry-gold transition">Próxima</button>
+                            <button disabled={page === 0} onClick={() => setTeacherPage(p => p - 1)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:border-ministry-gold transition">{t('admin.prev')}</button>
+                            <button disabled={page >= totalPages - 1} onClick={() => setTeacherPage(p => p + 1)} className="px-4 py-2 bg-ministry-blue text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-40 hover:bg-ministry-gold transition">{t('admin.next')}</button>
                           </div>
                         </div>
                       )}
@@ -1149,7 +1224,7 @@ const AdminDashboard: React.FC = () => {
               {schoolSubTab === 'media' && (
                 <div className="space-y-6">
                   <div className="flex justify-between items-center px-4">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Currículo da Escola</h4>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('admin.school.curriculum')}</h4>
                     <button onClick={() => {
                       setEditingModule(null);
                       setModuleForm({ title: '', description: '', video_url: '', module_order: schoolModules.length + 1 });
@@ -1158,7 +1233,7 @@ const AdminDashboard: React.FC = () => {
                       className="flex items-center space-x-2 px-6 py-3 bg-ministry-blue text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-ministry-gold transition shadow-md"
                     >
                       <Video size={14} />
-                      <span>Adicionar Classe</span>
+                      <span>{t('admin.school.add_class')}</span>
                     </button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1185,9 +1260,9 @@ const AdminDashboard: React.FC = () => {
                           <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest">
                             <div className={`flex items-center space-x-2 ${m.video_url ? 'text-green-500' : 'text-slate-300'}`}>
                               <Play size={14} />
-                              <span>{m.video_url ? 'Vídeo OK' : 'Sem Vídeo'}</span>
+                              <span>{m.video_url ? t('common.video_status_ok') : t('common.video_status_none')}</span>
                             </div>
-                            <span className="text-slate-400 font-bold">Classe {m.module_order}</span>
+                            <span className="text-slate-400 font-bold">{t('admin.school.edit_class').split(' ')[0]} {m.module_order}</span>
                           </div>
                         </div>
                       </div>
@@ -1206,8 +1281,8 @@ const AdminDashboard: React.FC = () => {
               <div className="bg-gray-900 border border-white/10 rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl">
                 <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
                   <div>
-                    <h3 className="text-xl font-black text-white uppercase tracking-tight">Detalhes da Inscrição</h3>
-                    <p className="text-xs text-blue-400 font-bold uppercase tracking-widest mt-1">Verificação de Candidato</p>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight">{t('admin.reg_details')}</h3>
+                    <p className="text-xs text-blue-400 font-bold uppercase tracking-widest mt-1">{t('admin.candidate_verification')}</p>
                   </div>
                   <button onClick={() => setSelectedRequest(null)} className="p-3 hover:bg-white/5 rounded-2xl transition-colors">
                     <X className="text-gray-500" />
@@ -1217,19 +1292,19 @@ const AdminDashboard: React.FC = () => {
                 <div className="p-8 max-h-[70vh] overflow-y-auto space-y-8">
                   <div className="grid grid-cols-2 gap-8">
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Nome Completo</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">{t('admin.full_name')}</label>
                       <p className="text-white font-bold">{selectedRequest.fullname}</p>
                     </div>
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Email</label>
-                      <p className="text-white font-bold">{selectedRequest.email || 'Não informado'}</p>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">{t('contact.email')}</label>
+                      <p className="text-white font-bold">{selectedRequest.email || t('common.not_provided')}</p>
                     </div>
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Telefone</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">{t('contact.phone')}</label>
                       <p className="text-white font-bold">{selectedRequest.phone}</p>
                     </div>
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">Localização</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-2">{t('admin.location')}</label>
                       <p className="text-white font-bold">{selectedRequest.neighborhood}, {selectedRequest.city}</p>
                       <p className="text-xs text-gray-400">{selectedRequest.state}, {selectedRequest.country}</p>
                     </div>
@@ -1237,24 +1312,24 @@ const AdminDashboard: React.FC = () => {
 
                   <div className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-4">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-400">Dados Eclesiásticos</h4>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-400">{t('admin.ecclesiastical_data')}</h4>
                       <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${selectedRequest.is_member ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500'}`}>
-                        {selectedRequest.is_member ? 'Membro' : 'Não Membro'}
+                        {selectedRequest.is_member ? t('common.yes') : t('common.no')}
                       </span>
                     </div>
 
                     {selectedRequest.is_member && (
                       <div className="grid grid-cols-2 gap-6 pt-4 border-t border-white/5">
                         <div>
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">Igreja</label>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">{t('welcome.form_church')}</label>
                           <p className="text-white font-bold">{selectedRequest.church_name}</p>
                         </div>
                         <div>
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">Endereço da Igreja</label>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">{t('admin.church_address')}</label>
                           <p className="text-white font-bold">{selectedRequest.church_address}</p>
                         </div>
                         <div>
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">Telefone da Igreja</label>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">{t('admin.church_phone')}</label>
                           <p className="text-white font-bold">{selectedRequest.church_phone}</p>
                         </div>
                       </div>
@@ -1265,26 +1340,26 @@ const AdminDashboard: React.FC = () => {
                 <div className="p-8 border-t border-white/5 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-2">Atribuir Professor</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-2">{t('admin.assign_teacher')}</label>
                       <select
                         value={approvalTeacherId}
                         onChange={e => setApprovalTeacherId(e.target.value)}
                         className="w-full bg-white/10 text-white border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-ministry-gold"
                       >
-                        <option value="">Sem professor</option>
+                        <option value="">{t('admin.no_teacher')}</option>
                         {schoolUsers.filter(u => u.role === 'teacher').map(t => (
                           <option key={t.id} value={t.id}>{t.fullname}</option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-2">Atribuir Turma/Classe</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-2">{t('admin.assign_class')}</label>
                       <select
                         value={approvalClassId}
                         onChange={e => setApprovalClassId(e.target.value)}
                         className="w-full bg-white/10 text-white border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-ministry-gold"
                       >
-                        <option value="">Sem turma</option>
+                        <option value="">{t('admin.no_class')}</option>
                         {schoolModules.map(m => (
                           <option key={m.id} value={m.id}>{m.title}</option>
                         ))}
@@ -1296,7 +1371,7 @@ const AdminDashboard: React.FC = () => {
                       onClick={() => handleApproveSchool(selectedRequest.id)}
                       className="flex-grow py-4 bg-green-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-green-500/20 active:scale-95 transition-all"
                     >
-                      Aprovar Agora
+                      {t('admin.approve_now')}
                     </button>
                     <button
                       onClick={() => {
@@ -1305,7 +1380,7 @@ const AdminDashboard: React.FC = () => {
                       }}
                       className="flex-grow py-4 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all"
                     >
-                      Rejeitar
+                      {t('admin.school.reject')}
                     </button>
                   </div>
                 </div>
@@ -1321,19 +1396,19 @@ const AdminDashboard: React.FC = () => {
                 <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Check size={40} />
                 </div>
-                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-2">Acesso Gerado!</h2>
-                <p className="text-gray-500 text-sm font-medium mb-8">Envie as credenciais para o aluno iniciar o curso.</p>
+                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-2">{t('admin.access_generated')}</h2>
+                <p className="text-gray-500 text-sm font-medium mb-8">{t('admin.send_creds_desc')}</p>
 
                 <div className="bg-slate-50 rounded-2xl p-6 mb-8 text-left space-y-3 cursor-pointer hover:bg-slate-100 transition" onClick={() => {
-                  navigator.clipboard.writeText(`Usuário: ${credentials.username}\nSenha: ${credentials.password}`);
-                  alert("Copiado!");
+                  navigator.clipboard.writeText(`${t('admin.clipboard_username')}: ${credentials.username}\n${t('admin.clipboard_password')}: ${credentials.password}`);
+                  alert(t('admin.credentials_copied'));
                 }}>
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black text-slate-400 uppercase">Usuário</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase">{t('admin.username')}</span>
                     <span className="text-sm font-black text-ministry-blue">{credentials.username}</span>
                   </div>
                   <div className="flex justify-between items-center border-t border-gray-100 pt-3">
-                    <span className="text-[10px] font-black text-slate-400 uppercase">Senha</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase">{t('auth.password')}</span>
                     <span className="text-sm font-black text-ministry-blue">{credentials.password}</span>
                   </div>
                 </div>
@@ -1349,7 +1424,7 @@ const AdminDashboard: React.FC = () => {
                   </button>
                 </div>
 
-                <button onClick={() => setShowSchoolModal(false)} className="mt-8 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:text-ministry-gold transition">Fechar Janela</button>
+                <button onClick={() => setShowSchoolModal(false)} className="mt-8 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:text-ministry-gold transition">{t('admin.close_window')}</button>
               </div>
             </div>
           )
@@ -1362,24 +1437,24 @@ const AdminDashboard: React.FC = () => {
                 <button onClick={() => { setShowTeacherModal(false); setEditingTeacher(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
                   <X size={28} />
                 </button>
-                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingTeacher ? 'Editar' : 'Criar'} Acesso Professor</h2>
+                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingTeacher ? t('admin.school.edit_teacher_access') : t('admin.school.create_teacher_access')}</h2>
                 <form onSubmit={handleSaveTeacher} className="space-y-6">
-                  <InputField label="Nome Completo" value={newTeacher.fullname} onChange={(v: string) => setNewTeacher({ ...newTeacher, fullname: v })} placeholder="Ex: Pr. Antunes" />
+                  <InputField label={t('admin.full_name')} value={newTeacher.fullname} onChange={(v: string) => setNewTeacher({ ...newTeacher, fullname: v })} placeholder={t('admin.full_name')} />
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField label="Email" value={newTeacher.email} onChange={(v: string) => setNewTeacher({ ...newTeacher, email: v })} />
-                    <InputField label="ID de Utilizador" value={newTeacher.username} onChange={(v: string) => setNewTeacher({ ...newTeacher, username: v.toLowerCase() })} placeholder="ex: pr_antunes"
+                    <InputField label={t('contact.email')} value={newTeacher.email} onChange={(v: string) => setNewTeacher({ ...newTeacher, email: v })} />
+                    <InputField label={t('admin.username')} value={newTeacher.username} onChange={(v: string) => setNewTeacher({ ...newTeacher, username: v.toLowerCase() })} placeholder="ex: pr_antunes"
                       action={<button type="button" onClick={() => generateUserCredentials('teacher')} className="text-ministry-gold hover:text-ministry-blue transition"><RefreshCw size={14} /></button>}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField label="Senha Secreta" value={newTeacher.password} onChange={(v: string) => setNewTeacher({ ...newTeacher, password: v })} placeholder={editingTeacher ? "Deixe vazio para manter" : "Mínimo 6 caracteres"} type={editingTeacher ? "text" : "password"}
+                    <InputField label={t('auth.password')} value={newTeacher.password} onChange={(v: string) => setNewTeacher({ ...newTeacher, password: v })} placeholder={editingTeacher ? t('admin.min_6_chars') : t('admin.min_6_chars')} type={editingTeacher ? "text" : "password"}
                       action={<button type="button" onClick={() => generateUserCredentials('teacher')} className="text-ministry-gold hover:text-ministry-blue transition"><RefreshCw size={14} /></button>}
                     />
-                    <InputField label="Validade do Acesso" value={newTeacher.access_expiry || ''} onChange={(v: string) => setNewTeacher({ ...newTeacher, access_expiry: v })} placeholder="" type="date" />
+                    <InputField label={t('admin.school.date_expiry_label')} value={newTeacher.access_expiry || ''} onChange={(v: string) => setNewTeacher({ ...newTeacher, access_expiry: v })} placeholder="" type="date" />
                   </div>
                   <div className="pt-6">
                     <button type="submit" className="w-full py-6 bg-ministry-gold text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-blue transition-all">
-                      {editingTeacher ? 'Atualizar Conta Professor' : 'Ativar Conta Professor'}
+                      {editingTeacher ? t('admin.save_changes') : t('admin.activate_creds')}
                     </button>
                   </div>
                 </form>
@@ -1395,27 +1470,27 @@ const AdminDashboard: React.FC = () => {
                 <button onClick={() => { setShowModuleModal(false); setEditingModule(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
                   <X size={28} />
                 </button>
-                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingModule ? 'Editar' : 'Novo'} Classe</h2>
+                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingModule ? t('admin.school.edit_class') : t('admin.school.new_class')}</h2>
                 <form onSubmit={handleSaveModule} className="space-y-6">
                   <div className="grid grid-cols-4 gap-4 items-end">
                     <div className="col-span-3">
-                      <InputField label="Título do Classe" value={moduleForm.title} onChange={(v: string) => setModuleForm({ ...moduleForm, title: v })} placeholder="Ex: Classe 1" />
+                      <InputField label={t('admin.school.title_label')} value={moduleForm.title} onChange={(v: string) => setModuleForm({ ...moduleForm, title: v })} placeholder={t('admin.school.title_label')} />
                     </div>
                     <div className="col-span-1">
-                      <InputField label="Ordem" value={String(moduleForm.module_order)} onChange={(v: string) => setModuleForm({ ...moduleForm, module_order: parseInt(v) || 1 })} />
+                      <InputField label={t('admin.order')} value={String(moduleForm.module_order)} onChange={(v: string) => setModuleForm({ ...moduleForm, module_order: parseInt(v) || 1 })} />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase block ml-2 tracking-widest">Descrição do Conteúdo</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase block ml-2 tracking-widest">{t('admin.school.desc_label')}</label>
                     <textarea
                       value={moduleForm.description}
                       onChange={e => setModuleForm({ ...moduleForm, description: e.target.value })}
                       className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm min-h-[100px]"
-                      placeholder="O que os alunos vão aprender?"
+                      placeholder={t('admin.school.desc_placeholder')}
                     />
                   </div>
                   <div className="space-y-6">
-                    <InputField label="URL do Vídeo (YouTube/Drive)" value={moduleForm.video_url} onChange={(v: string) => setModuleForm({ ...moduleForm, video_url: v })} placeholder="Link ou ID" />
+                    <InputField label={t('admin.school.video_url_label_alt')} value={moduleForm.video_url} onChange={(v: string) => setModuleForm({ ...moduleForm, video_url: v })} placeholder="Link or ID" />
 
                     <div className="relative group">
                       <input
@@ -1432,14 +1507,14 @@ const AdminDashboard: React.FC = () => {
                           <Video className="text-slate-300 mb-2" size={24} />
                         )}
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center leading-relaxed">
-                          {isUploadingVideo ? 'A Enviar Vídeo...' : 'Ou carregar do computador (MP4, MKV...)'}
+                          {isUploadingVideo ? t('admin.school.uploading') : t('admin.school.upload_label')}
                         </span>
                       </div>
                     </div>
                   </div>
                   <div className="pt-6">
                     <button type="submit" disabled={isRefreshing || isUploadingVideo} className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-gold transition-all disabled:opacity-50">
-                      {editingModule ? 'Atualizar Classe' : 'Publicar Classe'}
+                      {editingModule ? t('admin.school.update_class') : t('admin.school.publish_class')}
                     </button>
                   </div>
                 </form>
@@ -1447,7 +1522,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           )
         }
-        {/* Modal Novo Aluno */}
+
         {
           showStudentModal && (
             <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-ministry-blue/90 backdrop-blur-sm animate-in fade-in duration-300">
@@ -1455,37 +1530,37 @@ const AdminDashboard: React.FC = () => {
                 <button onClick={() => { setShowStudentModal(false); setEditingStudent(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-ministry-blue transition">
                   <X size={28} />
                 </button>
-                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingStudent ? 'Editar' : 'Registar'} Aluno (Manual)</h2>
+                <h2 className="text-2xl font-black text-ministry-blue uppercase tracking-tighter mb-8">{editingStudent ? t('admin.school.edit_student') : t('admin.school.register_student_manual')}</h2>
                 <form onSubmit={handleSaveStudent} className="space-y-6">
-                  <InputField label="Nome Completo" value={newStudent.fullname} onChange={(v: string) => setNewStudent({ ...newStudent, fullname: v })} placeholder="Nome Completo" />
+                  <InputField label={t('admin.full_name')} value={newStudent.fullname} onChange={(v: string) => setNewStudent({ ...newStudent, fullname: v })} placeholder={t('admin.full_name')} />
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField label="Email" value={newStudent.email} onChange={(v: string) => setNewStudent({ ...newStudent, email: v })} required={false} />
-                    <InputField label="ID de Utilizador" value={newStudent.username} onChange={(v: string) => setNewStudent({ ...newStudent, username: v.toLowerCase() })} placeholder="Ex: joao123"
+                    <InputField label={t('contact.email')} value={newStudent.email} onChange={(v: string) => setNewStudent({ ...newStudent, email: v })} required={false} />
+                    <InputField label={t('admin.username')} value={newStudent.username} onChange={(v: string) => setNewStudent({ ...newStudent, username: v.toLowerCase() })} placeholder="Ex: joao123"
                       action={<button type="button" onClick={() => generateUserCredentials('student')} className="text-ministry-gold hover:text-ministry-blue transition"><RefreshCw size={14} /></button>}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField label="Senha Secreta" value={newStudent.password} onChange={(v: string) => setNewStudent({ ...newStudent, password: v })} placeholder={editingStudent ? "Deixe vazio para manter" : "Mínimo 6 caracteres"} type={editingStudent ? "text" : "password"} required={!editingStudent}
+                    <InputField label={t('auth.password')} value={newStudent.password} onChange={(v: string) => setNewStudent({ ...newStudent, password: v })} placeholder={editingStudent ? t('profile.leave_empty') : t('admin.min_6_chars')} type={editingStudent ? "text" : "password"} required={!editingStudent}
                       action={<button type="button" onClick={() => generateUserCredentials('student')} className="text-ministry-gold hover:text-ministry-blue transition"><RefreshCw size={14} /></button>}
                     />
-                    <InputField label="Validade do Acesso" value={newStudent.access_expiry || ''} onChange={(v: string) => setNewStudent({ ...newStudent, access_expiry: v })} placeholder="" type="date" required={false} />
+                    <InputField label={t('admin.school.date_expiry_label')} value={newStudent.access_expiry || ''} onChange={(v: string) => setNewStudent({ ...newStudent, access_expiry: v })} placeholder="" type="date" required={false} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="mb-6">
-                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">Atribuir Professor</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">{t('admin.assign_teacher')}</label>
                       <select value={newStudent.teacher_id || ''} onChange={e => setNewStudent({ ...newStudent, teacher_id: e.target.value })}
                         className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm">
-                        <option value="">Sem professor</option>
+                        <option value="">{t('admin.no_teacher')}</option>
                         {schoolUsers.filter(u => u.role === 'teacher').map(t => (
                           <option key={t.id} value={t.id}>{t.fullname}</option>
                         ))}
                       </select>
                     </div>
                     <div className="mb-6">
-                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">Turma/Classe</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-2 ml-2 tracking-widest">{t('admin.assign_class')}</label>
                       <select value={newStudent.class_id || ''} onChange={e => setNewStudent({ ...newStudent, class_id: e.target.value })}
                         className="w-full bg-slate-50 rounded-2xl px-6 py-4 border-2 border-transparent focus:border-ministry-gold outline-none transition font-bold text-sm">
-                        <option value="">Sem turma</option>
+                        <option value="">{t('admin.no_class')}</option>
                         {schoolModules.map(m => (
                           <option key={m.id} value={m.id}>{m.title}</option>
                         ))}
@@ -1494,7 +1569,7 @@ const AdminDashboard: React.FC = () => {
                   </div>
                   <div className="pt-6">
                     <button type="submit" disabled={isRefreshing} className="w-full py-6 bg-ministry-blue text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-ministry-gold transition-all disabled:opacity-50">
-                      {isRefreshing ? 'A Processar...' : (editingStudent ? 'Atualizar Conta de Aluno' : 'Criar Conta de Aluno')}
+                      {isRefreshing ? t('common.processing') : (editingStudent ? t('admin.school.update_student_account') : t('admin.school.create_student_account'))}
                     </button>
                   </div>
                 </form>

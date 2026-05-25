@@ -1,8 +1,10 @@
 
 import React from 'react';
 import { Shield } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const TermsOfService: React.FC = () => {
+    const { t } = useTranslation();
     return (
         <div className="bg-gray-50 min-h-screen py-20">
             <div className="max-w-4xl mx-auto px-6">
@@ -14,36 +16,36 @@ const TermsOfService: React.FC = () => {
                             <Shield size={32} />
                         </div>
                         <div>
-                            <h1 className="text-4xl font-display font-black text-ministry-blue uppercase tracking-tighter">Termos de Serviço</h1>
-                            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-1">Christ Embassy Angola • Última atualização: Março 2025</p>
+                            <h1 className="text-4xl font-display font-black text-ministry-blue uppercase tracking-tighter">{t('legal.terms_title')}</h1>
+                            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-1">{t('legal.terms_update')}</p>
                         </div>
                     </div>
 
                     <div className="prose prose-slate max-w-none space-y-8 text-gray-600 leading-relaxed font-medium">
                         <section>
-                            <h2 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-4 border-l-4 border-ministry-gold pl-4">1. Aceitação dos Termos</h2>
-                            <p>Ao aceder e utilizar a plataforma da Christ Embassy Angola, concorda em cumprir e estar vinculado aos seguintes Termos de Serviço. Se não concordar com qualquer parte destes termos, por favor, não utilize os nossos serviços online.</p>
+                            <h2 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-4 border-l-4 border-ministry-gold pl-4">{t('legal.t1_accept_title')}</h2>
+                            <p>{t('legal.t1_accept_desc')}</p>
                         </section>
 
                         <section>
-                            <h2 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-4 border-l-4 border-ministry-gold pl-4">2. Uso do Conteúdo</h2>
-                            <p>Todo o conteúdo disponível nesta plataforma, incluindo transmissões ao vivo, vídeos, textos e gráficos, é propriedade da Christ Embassy Angola ou dos seus licenciadores e está protegido por leis de direitos de autor internacionais.</p>
-                            <p>É estritamente proibida a reprodução, distribuição ou modificação do conteúdo sem autorização prévia por escrito.</p>
+                            <h2 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-4 border-l-4 border-ministry-gold pl-4">{t('legal.t2_content_title')}</h2>
+                            <p>{t('legal.t2_content_desc')}</p>
+                            <p>{t('legal.t2_content_extra')}</p>
                         </section>
 
                         <section>
-                            <h2 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-4 border-l-4 border-ministry-gold pl-4">3. Conduta do Utilizador</h2>
-                            <p>Os utilizadores comprometem-se a utilizar a plataforma apenas para fins lícitos e de uma forma que não infrinja os direitos de terceiros ou restrinja o uso e usufruto da plataforma por parte de outros utilizadores.</p>
+                            <h2 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-4 border-l-4 border-ministry-gold pl-4">{t('legal.t3_conduct_title')}</h2>
+                            <p>{t('legal.t3_conduct_desc')}</p>
                         </section>
 
                         <section>
-                            <h2 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-4 border-l-4 border-ministry-gold pl-4">4. Doações e Ofertas</h2>
-                            <p>Todas as doações e ofertas feitas através da plataforma são voluntárias. A Christ Embassy Angola reserva-se o direito de utilizar os fundos para os seus fins ministeriais e projetos caritativos conforme julgar apropriado.</p>
+                            <h2 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-4 border-l-4 border-ministry-gold pl-4">{t('legal.t4_donations_title')}</h2>
+                            <p>{t('legal.t4_donations_desc')}</p>
                         </section>
 
                         <section>
-                            <h2 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-4 border-l-4 border-ministry-gold pl-4">5. Modificações dos Termos</h2>
-                            <p>Reservamo-nos o direito de modificar estes termos a qualquer momento. As alterações entrarão em vigor imediatamente após a sua publicação na plataforma. O seu uso continuado da plataforma após tais alterações constitui a sua aceitação dos novos Termos de Serviço.</p>
+                            <h2 className="text-xl font-black text-ministry-blue uppercase tracking-tight mb-4 border-l-4 border-ministry-gold pl-4">{t('legal.t5_modify_title')}</h2>
+                            <p>{t('legal.t5_modify_desc')}</p>
                         </section>
                     </div>
                 </div>

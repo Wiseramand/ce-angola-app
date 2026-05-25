@@ -112,13 +112,13 @@ export const api = {
       }
     },
 
-    register: async (name: string, email: string, password: string): Promise<User> => {
-      if (!USE_BACKEND) return { id: `new-${Date.now()}`, fullName: name, email, role: UserRole.USER, phone: '', country: '', address: '', gender: 'Male', hasLiveAccess: false };
+    register: async (name: string, phone: string, country: string, countryCode: string, churchName: string): Promise<User> => {
+      if (!USE_BACKEND) return { id: `new-${Date.now()}`, fullName: name, email: '', role: UserRole.USER, phone, country, address: '', gender: 'Male', hasLiveAccess: false };
 
       const res = await fetch(`${CURRENT_API_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ fullName: name, email, password })
+        body: JSON.stringify({ fullName: name, phone, country, countryCode, churchName })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Registration failed');

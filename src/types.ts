@@ -9,6 +9,7 @@ export enum UserRole {
 export interface User {
   id: string;
   fullName: string;
+  name?: string;
   email: string;
   phone: string;
   country: string;
@@ -17,6 +18,8 @@ export interface User {
   address: string;
   gender: Gender;
   profilePicture?: string;
+  avatarUrl?: string;
+  sessionId?: string;
   hasLiveAccess: boolean;
   role: UserRole | string;
 }
@@ -38,6 +41,8 @@ export interface ProgramCredential {
   id: string;
   firstName?: string;
   lastName?: string;
+  username?: string;
+  password?: string;
   email: string;
   expiresAt?: string;
   createdAt?: string;
@@ -79,4 +84,10 @@ export interface DonationRecord {
   method: string;
   date: Date;
   type: 'Donation' | 'Sponsorship';
+}
+
+export interface Devotional {
+  title: string;
+  scripture: string;
+  content: string;
 }

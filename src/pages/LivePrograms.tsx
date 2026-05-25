@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Send, Heart, Shield, MessageSquare } from 'lucide-react';
 import { useAuth } from '../App';
@@ -7,6 +8,7 @@ import UniversalPlayer from '../components/UniversalPlayer';
 import { api } from '../services/api';
 
 const LivePrograms: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const { user, system } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -71,7 +73,7 @@ const LivePrograms: React.FC = () => {
           <div className="relative aspect-video bg-black overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/10">
             <UniversalPlayer
               url={activePlayer === 'p2' ? (system.privateUrl2 || system.privateUrl) : system.privateUrl}
-              title={system.privateTitle}
+              title={i18n.language === 'en' ? system.privateTitleEn : system.privateTitlePt}
               isAudioOnly={activePlayer === 'audio'}
               quality={quality}
             />
@@ -84,19 +86,19 @@ const LivePrograms: React.FC = () => {
                   onClick={() => setActivePlayer('p1')}
                   className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'p1' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
                 >
-                  Player 1
+                  {t('live.player')} 1
                 </button>
                 <button
                   onClick={() => setActivePlayer('p2')}
                   className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'p2' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
                 >
-                  Player 2
+                  {t('live.player')} 2
                 </button>
                 <button
                   onClick={() => setActivePlayer('audio')}
                   className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activePlayer === 'audio' ? 'bg-ministry-gold text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
                 >
-                  Áudio
+                  {t('live.audio')}
                 </button>
               </div>
 
@@ -129,7 +131,7 @@ const LivePrograms: React.FC = () => {
             </div>
             <Link to="/donations" className="flex items-center space-x-4 px-12 py-7 bg-ministry-gold text-white font-black text-2xl shadow-2xl hover:bg-white hover:text-ministry-blue transition-all">
               <Heart size={28} fill="currentColor" />
-              <span>SOU PARCEIRO</span>
+              <span>{t('live.partner_button')}</span>
             </Link>
           </div>
         </div>
@@ -138,11 +140,11 @@ const LivePrograms: React.FC = () => {
           <div className="p-8 border-b border-white/5 bg-black/40 flex items-center justify-between text-white">
             <div className="flex items-center space-x-4">
               <MessageSquare size={20} className="text-ministry-gold" />
-              <h2 className="font-black font-display uppercase tracking-widest text-[11px]">Chat de Comunhão</h2>
+              <h2 className="font-black font-display uppercase tracking-widest text-[11px]">{t('live.communion_chat')}</h2>
             </div>
             <div className="flex items-center space-x-3 bg-green-500/10 px-3 py-1.5 rounded-full border border-green-500/20">
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_green]"></span>
-              <span className="text-[9px] text-green-400 font-black uppercase tracking-widest">{system.viewerCount} Online</span>
+              <span className="text-[9px] text-green-400 font-black uppercase tracking-widest">{system.viewerCount} {t('live.online')}</span>
             </div>
           </div>
           <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 bg-black/30 scrollbar-hide">
@@ -158,7 +160,7 @@ const LivePrograms: React.FC = () => {
                       <div className="flex items-center space-x-2 mb-1">
                         <p className={`text-[10px] font-black uppercase tracking-wider ${isAdmin ? 'text-ministry-gold' : 'text-slate-300'}`}>{msg.username}</p>
                         {isAdmin && (
-                          <span className="bg-ministry-gold/20 text-ministry-gold text-[8px] px-2 py-0.5 rounded-full font-black border border-ministry-gold/30">ADMIN</span>
+                          <span className="bg-ministry-gold/20 text-ministry-gold text-[8px] px-2 py-0.5 rounded-full font-black border border-ministry-gold/30">{t('common.admin_badge')}</span>
                         )}
                       </div>
                       <div className={`text-sm p-4 rounded-2xl rounded-tl-none border shadow-md ${isAdmin ? 'bg-ministry-gold/10 border-ministry-gold/20 text-white' : 'bg-white/5 border-white/10 text-gray-300'}`}>
@@ -171,21 +173,23 @@ const LivePrograms: React.FC = () => {
             })}
           </div>
           <div className="p-8 bg-black/70 border-t border-white/10">
-            <form onSubmit={handleSendMessage} className="relative">
-              <input
-                type="text"
-                placeholder="Declare sua vitória..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                className="w-full bg-slate-800 text-white text-sm rounded-2xl pl-6 pr-16 py-5 border-0 outline-none focus:ring-2 focus:ring-ministry-gold shadow-inner"
-              />
-              <button
-                type="submit"
-                className="absolute right-3 top-3 bottom-3 px-5 bg-ministry-gold text-white rounded-xl hover:scale-105 transition-all shadow-lg active:scale-90"
-              >
-                <Send size={18} />
-              </button>
-            </form>
+              <div className="flex-grow">
+                <form onSubmit={handleSendMessage} className="relative">
+                  <input
+                    type="text"
+                    placeholder={t('live.victory_placeholder')}
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    className="w-full bg-slate-800 text-white text-sm rounded-2xl pl-6 pr-16 py-5 border-0 outline-none focus:ring-2 focus:ring-ministry-gold shadow-inner"
+                  />
+                  <button
+                    type="submit"
+                    className="absolute right-3 top-3 bottom-3 px-5 bg-ministry-gold text-white rounded-xl hover:scale-105 transition-all shadow-lg active:scale-90"
+                  >
+                    <Send size={18} />
+                  </button>
+                </form>
+              </div>
           </div>
         </div>
       </div>

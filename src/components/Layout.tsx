@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { User, UserRole } from '../types';
 import { Button } from './Button';
 import { Menu, X, LogOut, Shield, Video, User as UserIcon, Heart, UserCog, Lock } from 'lucide-react';
-import { Logo } from './Logo';
+import Logo from './Logo';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavigate, currentPage }) => {
+  const { t } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const NavLink = ({ page, label, icon: Icon }: { page: string; label: string; icon?: any }) => (
@@ -48,17 +50,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
 
             {/* Desktop Nav */}
             <div className="hidden md:flex items-center gap-6">
-              <NavLink page="home" label="Home" />
-              <NavLink page="live" label="Live Stream" icon={Video} />
-              <NavLink page="private-live" label="Live Programs" icon={Lock} />
-              <NavLink page="partnership" label="Partnership" icon={Heart} />
+              <NavLink page="home" label={t('common.home', 'Home')} />
+              <NavLink page="live" label={t('live.player', 'Live Stream')} icon={Video} />
+              <NavLink page="private-live" label={t('nav.live', 'Live Programs')} icon={Lock} />
+              <NavLink page="partnership" label={t('nav.partnerships', 'Partnership')} icon={Heart} />
               
               {/* Admin Quick Link (Icon only) */}
               {!user && (
                  <button 
                     onClick={() => onNavigate('admin-login')} 
                     className="text-gray-400 hover:text-blue-900 p-2 rounded-full hover:bg-gray-100 transition-all"
-                    title="Admin Portal"
+                    title={t('admin.administration', 'Admin Portal')}
                  >
                     <Shield size={18} />
                  </button>
@@ -82,17 +84,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
 
                   {user.role === UserRole.ADMIN && (
                     <Button variant="outline" onClick={() => onNavigate('admin-dashboard')} className="px-3 py-1 text-sm h-8">
-                      <Shield size={14} className="mr-1" /> Dashboard
+                      <Shield size={14} className="mr-1" /> {t('admin.dashboard', 'Dashboard')}
                     </Button>
                   )}
-                  <button onClick={onLogout} className="text-gray-400 hover:text-red-500 transition-colors" title="Logout">
+                  <button onClick={onLogout} className="text-gray-400 hover:text-red-500 transition-colors" title={t('common.logout', 'Logout')}>
                     <LogOut size={20} />
                   </button>
                 </div>
               ) : (
                 <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
-                  <NavLink page="login" label="Login" />
-                  <Button onClick={() => onNavigate('register')} className="px-5 py-2 text-sm">Join Us</Button>
+                  <NavLink page="login" label={t('common.login', 'Login')} />
+                  <Button onClick={() => onNavigate('register')} className="px-5 py-2 text-sm">{t('auth.register_subtitle', 'Join Us')}</Button>
                 </div>
               )}
             </div>
@@ -112,28 +114,28 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
         {/* Mobile Nav */}
         {isMobileMenuOpen && (
           <div className="md:hidden bg-white border-t border-gray-100 p-4 space-y-3 shadow-xl">
-            <NavLink page="home" label="Home" />
-            <NavLink page="live" label="Live Stream" icon={Video} />
-            <NavLink page="private-live" label="Live Programs" icon={Lock} />
-            <NavLink page="partnership" label="Partnership" icon={Heart} />
+            <NavLink page="home" label={t('common.home', 'Home')} />
+            <NavLink page="live" label={t('live.player', 'Live Stream')} icon={Video} />
+            <NavLink page="private-live" label={t('nav.live', 'Live Programs')} icon={Lock} />
+            <NavLink page="partnership" label={t('nav.partnerships', 'Partnership')} icon={Heart} />
             {user ? (
               <>
                 <div className="h-px bg-gray-100 my-2"></div>
-                <NavLink page="profile" label="My Profile" icon={UserCog} />
-                {user.role === UserRole.ADMIN && <NavLink page="admin-dashboard" label="Admin Dashboard" icon={Shield} />}
+                <NavLink page="profile" label={t('profile.title', 'My Profile')} icon={UserCog} />
+                {user.role === UserRole.ADMIN && <NavLink page="admin-dashboard" label={t('admin.dashboard', 'Admin Dashboard')} icon={Shield} />}
                 <button 
                   onClick={onLogout}
                   className="w-full flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-md"
                 >
-                  <LogOut size={18} /> Logout
+                  <LogOut size={18} /> {t('common.logout', 'Logout')}
                 </button>
               </>
             ) : (
               <>
-                <NavLink page="login" label="Login" />
-                <NavLink page="admin-login" label="Admin Portal" icon={Shield} />
+                <NavLink page="login" label={t('common.login', 'Login')} />
+                <NavLink page="admin-login" label={t('admin.administration', 'Admin Portal')} icon={Shield} />
                 <Button onClick={() => { onNavigate('register'); setIsMobileMenuOpen(false); }} className="w-full mt-2">
-                  Join Us
+                  {t('auth.register_subtitle', 'Join Us')}
                 </Button>
               </>
             )}
@@ -155,28 +157,28 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
               <h3 className="text-xl font-bold">Christ Embassy</h3>
             </div>
             <p className="text-blue-200 text-sm leading-relaxed">
-              Taking the divine presence of God to the nations of the world and demonstrating the character of the Holy Spirit.
+              {t('footer.desc', 'Taking the divine presence of God to the nations of the world and demonstrating the character of the Holy Spirit.')}
             </p>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Quick Links</h4>
+            <h4 className="font-semibold mb-4">{t('footer.quick_links', 'Quick Links')}</h4>
             <ul className="space-y-2 text-sm text-blue-200">
-              <li><button onClick={() => onNavigate('home')} className="hover:text-white">Home</button></li>
-              <li><button onClick={() => onNavigate('live')} className="hover:text-white">Live Service</button></li>
-              <li><button onClick={() => onNavigate('partnership')} className="hover:text-white">Partnership</button></li>
+              <li><button onClick={() => onNavigate('home')} className="hover:text-white">{t('common.home', 'Home')}</button></li>
+              <li><button onClick={() => onNavigate('live')} className="hover:text-white">{t('live.player', 'Live Service')}</button></li>
+              <li><button onClick={() => onNavigate('partnership')} className="hover:text-white">{t('nav.partnerships', 'Partnership')}</button></li>
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Contact</h4>
+            <h4 className="font-semibold mb-4">{t('contact.info', 'Contact')}</h4>
             <p className="text-sm text-blue-200">Luanda, Angola</p>
             <p className="text-sm text-blue-200 mt-2">info@christembassyangola.org</p>
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-4 mt-12 pt-8 border-t border-blue-900 flex flex-col md:flex-row justify-between items-center text-xs text-blue-400">
-          <p>© 2024 Christ Embassy Angola. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Christ Embassy Angola. {t('footer.all_rights', 'All rights reserved.')}</p>
           <div className="mt-4 md:mt-0">
             <button onClick={() => onNavigate('admin-login')} className="hover:text-white flex items-center gap-1 transition-colors">
-               <Shield size={12} /> Admin Access
+               <Shield size={12} /> {t('admin.administration', 'Admin Access')}
             </button>
           </div>
         </div>

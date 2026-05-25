@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { User } from '../types';
@@ -12,6 +13,7 @@ interface AuthProps {
 }
 
 export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -30,11 +32,11 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
       if (type === 'login') {
         user = await api.auth.login(formData.email, formData.password);
       } else {
-        user = await api.auth.register(formData.name, formData.email, formData.password);
+        user = await api.auth.register(formData.name, '', '', '', '');
       }
       onLogin(user);
     } catch (err: any) {
-      setError(err.message || 'Authentication failed. Please check your credentials.');
+      setError(err.message || t('auth.error_generic', 'Authentication failed. Please check your credentials.'));
     } finally {
       setLoading(false);
     }
@@ -48,10 +50,10 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
             <Logo className="h-20 w-20 drop-shadow-md" />
           </div>
           <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
-            {type === 'login' ? 'Welcome Back' : 'Create Account'}
+            {type === 'login' ? t('auth.login_title', 'Welcome Back') : t('auth.register_title', 'Create Account')}
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            {type === 'login' ? 'Sign in to access premium content' : 'Join our digital church family today'}
+            {type === 'login' ? t('auth.login_subtitle', 'Sign in to access premium content') : t('auth.register_subtitle', 'Join our digital church family today')}
           </p>
         </div>
 
@@ -65,7 +67,7 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
           <div className="space-y-4">
             {type === 'register' && (
               <Input
-                label="Full Name"
+                label={t('auth.full_name', 'Full Name')}
                 type="text"
                 placeholder="John Doe"
                 required
@@ -74,7 +76,7 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
               />
             )}
             <Input
-              label="Email Address"
+              label={t('auth.email', 'Email Address')}
               type="email"
               placeholder="you@example.com"
               required
@@ -82,7 +84,7 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
             <Input
-              label="Password"
+              label={t('auth.password', 'Password')}
               type="password"
               placeholder="••••••••"
               required
@@ -92,7 +94,7 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
           </div>
 
           <Button type="submit" className="w-full" isLoading={loading}>
-            {type === 'login' ? 'Sign In' : 'Sign Up'}
+            {type === 'login' ? t('auth.sign_in', 'Sign In') : t('auth.sign_up', 'Sign Up')}
           </Button>
 
           <div className="text-center">
@@ -101,7 +103,7 @@ export const UserAuth: React.FC<AuthProps> = ({ type, onLogin, onNavigate }) => 
               onClick={() => onNavigate(type === 'login' ? 'register' : 'login')}
               className="text-sm text-blue-900 hover:text-blue-700 font-medium transition-colors"
             >
-              {type === 'login' ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+              {type === 'login' ? t('auth.no_account_link', "Don't have an account? Sign up") : t('auth.has_account_link', "Already have an account? Sign in")}
             </button>
           </div>
         </form>

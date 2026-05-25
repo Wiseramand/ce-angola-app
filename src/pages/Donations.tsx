@@ -1,11 +1,13 @@
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PAYMENT_METHODS } from '../constants';
 import { Heart, Coins, Gift, Sparkles, Check, Loader2 } from 'lucide-react';
 import { useAuth } from '../App';
 import { api } from '../services/api';
 
 const Donations: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [selectedType, setSelectedType] = useState('offering');
   const [amount, setAmount] = useState('');
@@ -14,22 +16,16 @@ const Donations: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const donationTypes = [
-    { id: 'offering', name: 'Oferta Geral', icon: <Coins size={20} /> },
-    { id: 'tithe', name: 'Dízimo', icon: <Gift size={20} /> },
-    { id: 'seeds', name: 'Semente Especial', icon: <Sparkles size={20} /> },
-    { id: 'project', name: 'Projeto de Igreja', icon: <Heart size={20} /> },
+    { id: 'offering', name: t('donations.type_offering'), icon: <Coins size={20} /> },
+    { id: 'tithe', name: t('donations.type_tithe'), icon: <Gift size={20} /> },
+    { id: 'seeds', name: t('donations.type_seeds'), icon: <Sparkles size={20} /> },
+    { id: 'project', name: t('donations.type_project'), icon: <Heart size={20} /> },
   ];
 
-  /**
-   * FLUXO DE PAGAMENTO:
-   * 1. Utilizador preenche Valor e Método.
-   * 2. O Frontend envia para /api/payments/process.
-   * 3. O Servidor chama a operadora (PayPay/Unitel) e devolve a confirmação.
-   */
   const handleGive = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !method) {
-      alert("Por favor, preencha o valor e escolha um método de pagamento.");
+      alert(t('donations.error_fill_form'));
       return;
     }
 
@@ -38,17 +34,16 @@ const Donations: React.FC = () => {
     try {
       await api.payments.process({
         userId: user?.id || 'public-user',
-        userName: user?.fullName || 'Visitante Anónimo',
+        userName: user?.fullName || t('common.anonymous_visitor'),
         amount: parseFloat(amount),
         method: method,
         type: 'donation',
-        description: `Doação: ${selectedType}`
+        description: t('common.donation_desc', { type: selectedType })
       });
 
-      // Se a API retornou sucesso, mostramos a mensagem de gratidão
       setIsSuccess(true);
     } catch (err: any) {
-      alert(err.message || "Falha no processamento.");
+      alert(err.message || t('common.error_connection'));
     } finally {
       setIsProcessing(false);
     }
@@ -61,16 +56,16 @@ const Donations: React.FC = () => {
           <div className="w-24 h-24 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
             <Check size={48} strokeWidth={3} />
           </div>
-          <h1 className="text-3xl font-display font-bold text-ministry-blue mb-4 uppercase">Recebemos sua Oferta!</h1>
+          <h1 className="text-3xl font-display font-bold text-ministry-blue mb-4 uppercase">{t('donations.success_title')}</h1>
           <p className="text-gray-600 mb-10 leading-relaxed font-medium">
-            Deus abençoe abundantemente a sua vida e a sua semente no Reino.
-            <br /><strong className="text-ministry-blue block mt-4">— Lucas 6:38</strong>
+            {t('donations.success_desc')}
+            <br /><strong className="text-ministry-blue block mt-4">— {t('donations.verse')}</strong>
           </p>
           <button
             onClick={() => { setIsSuccess(false); setAmount(''); setMethod(''); }}
             className="w-full py-5 bg-ministry-blue text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-ministry-gold transition shadow-xl"
           >
-            FAZER OUTRA CONTRIBUIÇÃO
+            {t('donations.btn_another')}
           </button>
         </div>
       </div>
@@ -85,20 +80,20 @@ const Donations: React.FC = () => {
           <div className="md:w-1/3 bg-ministry-blue p-10 text-white flex flex-col justify-between relative overflow-hidden">
             <div className="relative z-10">
               <div className="w-16 h-1 bg-ministry-gold mb-8"></div>
-              <h1 className="text-4xl font-display font-bold mb-6 leading-tight">Adoração com Bens</h1>
+              <h1 className="text-4xl font-display font-bold mb-6 leading-tight">{t('donations.panel_title')}</h1>
               <p className="text-blue-100/70 font-light leading-relaxed mb-10 text-sm">
-                As suas ofertas permitem que a mensagem do Pastor Chris alcance todos os cantos de Angola.
+                {t('donations.panel_desc')}
               </p>
             </div>
 
             <div className="space-y-6 relative z-10">
               <div className="flex items-center space-x-4 text-[10px] font-black uppercase tracking-widest">
                 <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center border border-white/5">1</div>
-                <span>Propósito</span>
+                <span>{t('donations.step_purpose')}</span>
               </div>
               <div className="flex items-center space-x-4 text-[10px] font-black uppercase tracking-widest">
                 <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center border border-white/5">2</div>
-                <span>Pagamento</span>
+                <span>{t('donations.step_payment')}</span>
               </div>
             </div>
 
@@ -110,7 +105,7 @@ const Donations: React.FC = () => {
             <form onSubmit={handleGive} className="space-y-8">
               {/* Seleção do Tipo */}
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">Escolha o Destino</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">{t('donations.select_destination')}</label>
                 <div className="grid grid-cols-2 gap-3">
                   {donationTypes.map(type => (
                     <button
@@ -131,7 +126,7 @@ const Donations: React.FC = () => {
 
               {/* Valor */}
               <div className="relative">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">Valor da Semente</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">{t('donations.seed_value')}</label>
                 <div className="relative">
                   <span className="absolute left-6 top-1/2 -translate-y-1/2 text-ministry-gold font-black text-xl">Kz</span>
                   <input
@@ -147,10 +142,10 @@ const Donations: React.FC = () => {
 
               {/* Métodos de Pagamento */}
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">Método de Pagamento</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">{t('donations.step_payment')}</label>
                 <div className="space-y-6">
                   <div className="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 ml-2">Pagamento Nacional (Angola)</p>
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 ml-2">{t('donations.national_payment')}</p>
                     <div className="grid grid-cols-3 gap-2">
                       {PAYMENT_METHODS.angolan.map(pm => (
                         <button
@@ -177,7 +172,7 @@ const Donations: React.FC = () => {
                   : 'bg-ministry-gold text-white hover:bg-ministry-blue shadow-ministry-gold/20'
                   }`}
               >
-                {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <span>ENVIAR OFERTA AGORA</span>}
+                {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <span>{t('donations.btn_give_now')}</span>}
               </button>
             </form>
           </div>
