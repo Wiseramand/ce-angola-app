@@ -17,7 +17,7 @@ const initDb = async () => {
         fullname TEXT, phone TEXT, country TEXT, country_code TEXT, church_name TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      TRUNCATE TABLE visitors; -- Requisito: Começo do zero
+      -- TRUNCATE TABLE visitors; -- Requisito: Começo do zero (desativado para não perder dados)
       CREATE TABLE IF NOT EXISTS managed_users (
         id SERIAL PRIMARY KEY,
         fullname TEXT, username TEXT UNIQUE, password TEXT,
