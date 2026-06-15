@@ -93,8 +93,30 @@ const initDb = async () => {
         live_teacher_id TEXT,
         school_live_url TEXT
       );
-      INSERT INTO system_config (id, public_title_pt, public_title_en, public_url, public_url2, public_description_pt, public_description_en, private_url, private_url2, private_title_pt, private_title_en, private_description_pt, private_description_en, is_private_mode, is_teacher_live, live_teacher_name, live_teacher_id, school_live_url) VALUES (1, 'LoveWorld TV Angola', 'LoveWorld TV Angola', '', '', '', '', '', '', '', '', '', '', FALSE, FALSE, '', '', '') ON CONFLICT (id) DO NOTHING;
     `);
+
+    // Migrations for i18n columns
+    const i18nMigrations = [
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_title_pt TEXT",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_title_en TEXT",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_description_pt TEXT",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_description_en TEXT",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_title_pt TEXT",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_title_en TEXT",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_description_pt TEXT",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_description_en TEXT"
+    ];
+    for (const mig of i18nMigrations) {
+      try { await pool.query(mig); } catch (e) {}
+    }
+
+    try {
+      await pool.query(`
+        INSERT INTO system_config (id, public_title_pt, public_title_en, public_url, public_url2, public_description_pt, public_description_en, private_url, private_url2, private_title_pt, private_title_en, private_description_pt, private_description_en, is_private_mode, is_teacher_live, live_teacher_name, live_teacher_id, school_live_url) 
+        VALUES (1, 'LoveWorld TV Angola', 'LoveWorld TV Angola', '', '', '', '', '', '', '', '', '', '', FALSE, FALSE, '', '', '') ON CONFLICT (id) DO NOTHING;
+      `);
+    } catch(e) {}
+
 
     // GArantir que a tabela school_users e foundation_modules têm as colunas corretas
     const userColumns = [
