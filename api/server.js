@@ -2,12 +2,31 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL,
-  ssl: { rejectUnauthorized: false },
-  max: 10,
-  connectionTimeoutMillis: 10000,
-});
+const connectionString = 
+  process.env.DATABASE_URL || 
+  process.env.POSTGRES_URL || 
+  process.env.POSTGRES_PRISMA_URL || 
+  process.env.POSTGRES_URL_NON_POOLING;
+
+const pool = new Pool(
+  connectionString
+    ? {
+        connectionString,
+        ssl: { rejectUnauthorized: false },
+        max: 10,
+        connectionTimeoutMillis: 10000,
+      }
+    : {
+        host: process.env.POSTGRES_HOST || process.env.PGHOST,
+        user: process.env.POSTGRES_USER || process.env.PGUSER,
+        password: process.env.POSTGRES_PASSWORD || process.env.PGPASSWORD,
+        database: process.env.POSTGRES_DATABASE || process.env.PGDATABASE,
+        port: process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432,
+        ssl: { rejectUnauthorized: false },
+        max: 10,
+        connectionTimeoutMillis: 10000,
+      }
+);
 
 let dbInitPromise = null;
 const initDb = async () => {
