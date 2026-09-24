@@ -45,7 +45,22 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOn
           const hls = new Hls({ 
             enableWorker: true,
             autoStartLoad: true,
-            startLevel: -1 // auto
+            startLevel: -1, // auto bitrate
+            lowLatencyMode: false, // Desativar para garantir buffer consistente sem paradas
+            backBufferLength: 60,
+            maxBufferLength: 60, // Buffer até 60 segundos adiante
+            maxMaxBufferLength: 120, // Expansão do buffer para até 2 minutos
+            maxBufferSize: 60 * 1000 * 1000, // Limite de 60 MB de memória de cache
+            maxBufferHole: 0.8, // Ignora micro-lacunas na stream sem interromper o playback
+            highBufferWatchdogPeriod: 2, // Destrava automaticamente se o buffer empacar
+            nudgeOffset: 0.2, // Pulo milimétrico suave para destravar frames presos
+            nudgeMaxRetry: 5,
+            liveSyncDurationCount: 6, // Margem de segurança de 6 segmentos para conexões com variação
+            liveMaxLatencyDurationCount: 16,
+            startFragPrefetch: true, // Pré-busca o próximo fragmento antes do atual terminar
+            abrBandWidthFactor: 0.85, // Reserva 15% de margem contra quedas de velocidade de internet
+            abrBandWidthUpFactor: 0.7,
+            abrEwmaDefaultEstimate: 1000000,
           });
           
           hlsRef.current = hls;
@@ -60,8 +75,26 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOn
 
           hls.on(Hls.Events.ERROR, (event: any, data: any) => {
             if (data.fatal) {
-              setError("Sinal de Satélite instável ou inválido.");
-              setLoading(false);
+              switch (data.type) {
+                case Hls.ErrorTypes.NETWORK_ERROR:
+                  console.warn("HLS Network Error, tentando recuperar conexão...", data);
+                  hls.startLoad();
+                  break;
+                case Hls.ErrorTypes.MEDIA_ERROR:
+                  console.warn("HLS Media Error, recuperando codec/buffer...", data);
+                  hls.recoverMediaError();
+                  break;
+                default:
+                  console.warn("HLS Fatal Error, reiniciando fluxo...", data);
+                  try {
+                    hls.destroy();
+                    loadHls();
+                  } catch (e) {
+                    setError("Sinal de transmissão instável.");
+                    setLoading(false);
+                  }
+                  break;
+              }
             }
           });
         } else if (videoRef.current?.canPlayType('application/vnd.apple.mpegurl')) {

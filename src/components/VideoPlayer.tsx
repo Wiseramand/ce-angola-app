@@ -37,14 +37,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ streamSource, streamUr
       if (Hls.isSupported()) {
         hls = new Hls({
           debug: false,
-          enableWorker: true, // Improves performance by using web workers
-          lowLatencyMode: true, // Prioritize lower latency
-          backBufferLength: 90, // Keep 90s of back buffer
-          // Tweak these for "Low Latency" vs "Stability" tradeoff
-          // Trying to keep it close to live edge (~3 segments)
-          liveSyncDurationCount: 3, 
-          liveMaxLatencyDurationCount: 10,
-          maxMaxBufferLength: 30,
+          enableWorker: true,
+          lowLatencyMode: false, // Desativado para evitar paragens constantes
+          backBufferLength: 60,
+          maxBufferLength: 60, // 60 segundos de buffer adiante
+          maxMaxBufferLength: 120, // Expansão do buffer para até 120 segundos
+          maxBufferSize: 60 * 1000 * 1000,
+          maxBufferHole: 0.8,
+          highBufferWatchdogPeriod: 2,
+          nudgeOffset: 0.2,
+          nudgeMaxRetry: 5,
+          liveSyncDurationCount: 6, // 6 segmentos de segurança
+          liveMaxLatencyDurationCount: 16,
+          startFragPrefetch: true,
+          abrBandWidthFactor: 0.85,
+          abrBandWidthUpFactor: 0.7,
+          abrEwmaDefaultEstimate: 1000000,
         });
         
         hls.loadSource(streamUrl);
