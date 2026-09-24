@@ -6,10 +6,13 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL,
   ssl: { rejectUnauthorized: false },
   max: 10,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000,
 });
 
+let dbInitPromise = null;
 const initDb = async () => {
+  if (dbInitPromise) return dbInitPromise;
+  dbInitPromise = (async () => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS visitors (
@@ -95,8 +98,10 @@ const initDb = async () => {
       );
     `);
 
-    // Migrations for i18n columns
-    const i18nMigrations = [
+    // Migrations for stream and i18n columns
+    const systemConfigMigrations = [
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_url2 TEXT",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_url2 TEXT",
       "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_title_pt TEXT",
       "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_title_en TEXT",
       "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_description_pt TEXT",
@@ -104,9 +109,13 @@ const initDb = async () => {
       "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_title_pt TEXT",
       "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_title_en TEXT",
       "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_description_pt TEXT",
-      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_description_en TEXT"
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_description_en TEXT",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS is_teacher_live BOOLEAN DEFAULT FALSE",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS live_teacher_name TEXT",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS live_teacher_id TEXT",
+      "ALTER TABLE system_config ADD COLUMN IF NOT EXISTS school_live_url TEXT"
     ];
-    for (const mig of i18nMigrations) {
+    for (const mig of systemConfigMigrations) {
       try { await pool.query(mig); } catch (e) {}
     }
 
@@ -191,14 +200,25 @@ const initDb = async () => {
       ON CONFLICT (username) DO UPDATE SET password = 'faith2025', role = 'teacher'
     `);
   } catch (e) { console.error("DB Init Error:", e); }
+  })();
+  return dbInitPromise;
 };
 
 async function getRequestBody(req) {
   // 1. Se o body já foi parseado (Vercel/Connect/Express)
-  if (req.body && typeof req.body === 'object') return req.body;
+  if (req.body) {
+    if (typeof req.body === 'object') return req.body;
+    if (typeof req.body === 'string') {
+      try {
+        return JSON.parse(req.body);
+      } catch (e) {
+        return {};
+      }
+    }
+  }
 
-  // 2. Se for um GET ou HEAD, não há body
-  if (req.method === 'GET' || req.method === 'HEAD') return {};
+  // 2. Se for um GET ou HEAD, ou stream já consumido, não há body
+  if (req.method === 'GET' || req.method === 'HEAD' || req.readableEnded) return {};
 
   // 3. Lê o stream manualmente com timeout para evitar hangs
   return new Promise((resolve, reject) => {
@@ -541,8 +561,12 @@ export default async function handler(req, res) {
 
     if (path.endsWith('/system')) {
       if (req.method === 'GET') {
-        const configRes = await pool.query("SELECT * FROM system_config WHERE id = 1");
-        const config = configRes.rows[0];
+        let configRes = await pool.query("SELECT * FROM system_config WHERE id = 1");
+        if (configRes.rows.length === 0) {
+          await pool.query("INSERT INTO system_config (id, public_title_pt, public_title_en) VALUES (1, 'LoveWorld TV Angola', 'LoveWorld TV Angola') ON CONFLICT (id) DO NOTHING");
+          configRes = await pool.query("SELECT * FROM system_config WHERE id = 1");
+        }
+        const config = configRes.rows[0] || {};
 
         let viewerCount = 0;
         try {
@@ -555,6 +579,8 @@ export default async function handler(req, res) {
       if (req.method === 'POST') {
         const c = await getRequestBody(req);
         
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_url2 TEXT").catch(() => {});
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_url2 TEXT").catch(() => {});
         await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_title_pt TEXT").catch(() => {});
         await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_title_en TEXT").catch(() => {});
         await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS public_description_pt TEXT").catch(() => {});
@@ -563,27 +589,37 @@ export default async function handler(req, res) {
         await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_title_en TEXT").catch(() => {});
         await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_description_pt TEXT").catch(() => {});
         await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS private_description_en TEXT").catch(() => {});
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS is_teacher_live BOOLEAN DEFAULT FALSE").catch(() => {});
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS live_teacher_name TEXT").catch(() => {});
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS live_teacher_id TEXT").catch(() => {});
+        await pool.query("ALTER TABLE system_config ADD COLUMN IF NOT EXISTS school_live_url TEXT").catch(() => {});
 
         await pool.query(
-          `UPDATE system_config SET 
-            public_url = COALESCE($1, public_url),
-            public_url2 = COALESCE($2, public_url2),
-            public_title_pt = COALESCE($3, public_title_pt),
-            public_title_en = COALESCE($4, public_title_en),
-            public_description_pt = COALESCE($5, public_description_pt),
-            public_description_en = COALESCE($6, public_description_en),
-            private_url = COALESCE($7, private_url),
-            private_url2 = COALESCE($8, private_url2),
-            private_title_pt = COALESCE($9, private_title_pt),
-            private_title_en = COALESCE($10, private_title_en),
-            private_description_pt = COALESCE($11, private_description_pt),
-            private_description_en = COALESCE($12, private_description_en),
-            is_private_mode = COALESCE($13, is_private_mode),
-            is_teacher_live = COALESCE($14, is_teacher_live),
-            live_teacher_name = COALESCE($15, live_teacher_name),
-            live_teacher_id = COALESCE($16, live_teacher_id),
-            school_live_url = COALESCE($17, school_live_url)
-          WHERE id=1`,
+          `INSERT INTO system_config (
+            id, public_url, public_url2, public_title_pt, public_title_en,
+            public_description_pt, public_description_en, private_url, private_url2,
+            private_title_pt, private_title_en, private_description_pt, private_description_en,
+            is_private_mode, is_teacher_live, live_teacher_name, live_teacher_id, school_live_url
+          ) VALUES (
+            1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+          ) ON CONFLICT (id) DO UPDATE SET 
+            public_url = COALESCE($1, system_config.public_url),
+            public_url2 = COALESCE($2, system_config.public_url2),
+            public_title_pt = COALESCE($3, system_config.public_title_pt),
+            public_title_en = COALESCE($4, system_config.public_title_en),
+            public_description_pt = COALESCE($5, system_config.public_description_pt),
+            public_description_en = COALESCE($6, system_config.public_description_en),
+            private_url = COALESCE($7, system_config.private_url),
+            private_url2 = COALESCE($8, system_config.private_url2),
+            private_title_pt = COALESCE($9, system_config.private_title_pt),
+            private_title_en = COALESCE($10, system_config.private_title_en),
+            private_description_pt = COALESCE($11, system_config.private_description_pt),
+            private_description_en = COALESCE($12, system_config.private_description_en),
+            is_private_mode = COALESCE($13, system_config.is_private_mode),
+            is_teacher_live = COALESCE($14, system_config.is_teacher_live),
+            live_teacher_name = COALESCE($15, system_config.live_teacher_name),
+            live_teacher_id = COALESCE($16, system_config.live_teacher_id),
+            school_live_url = COALESCE($17, system_config.school_live_url)`,
           [
             c.public_url !== undefined ? c.public_url : null,
             c.public_url2 !== undefined ? c.public_url2 : null,
