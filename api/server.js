@@ -49,7 +49,7 @@ const initDb = async () => {
       CREATE TABLE IF NOT EXISTS chat_messages (
         id SERIAL PRIMARY KEY,
         user_id TEXT, username TEXT, text TEXT, channel TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
@@ -479,11 +479,18 @@ export default async function handler(req, res) {
     if (path.endsWith('/chat')) {
       if (req.method === 'GET') {
         const channel = queryParams.get('channel') || 'public';
-        const r = await pool.query(
-          "SELECT id::text, user_id, username, text, channel, created_at as timestamp FROM chat_messages WHERE channel = $1 ORDER BY created_at ASC LIMIT 100",
-          [channel]
-        );
-        return res.status(200).json(r.rows);
+        try {
+          // Garantir que a coluna timestamp existe (compatibilidade com ambas as versões da tabela)
+          await pool.query("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP").catch(() => {});
+          const r = await pool.query(
+            "SELECT id::text, user_id, username, text, channel, COALESCE(timestamp, CURRENT_TIMESTAMP) as timestamp FROM chat_messages WHERE channel = $1 ORDER BY COALESCE(timestamp, CURRENT_TIMESTAMP) ASC LIMIT 100",
+            [channel]
+          );
+          return res.status(200).json(r.rows);
+        } catch (e: any) {
+          console.error("Chat GET error:", e.message);
+          return res.status(500).json({ error: e.message });
+        }
       }
 
       if (req.method === 'POST') {
@@ -494,11 +501,16 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Dados insuficientes para enviar mensagem' });
         }
 
-        await pool.query(
-          "INSERT INTO chat_messages (user_id, username, text, channel) VALUES ($1, $2, $3, $4)",
-          [String(userId), String(username), String(text), String(channel || 'public')]
-        );
-        return res.status(200).json({ success: true });
+        try {
+          await pool.query(
+            "INSERT INTO chat_messages (user_id, username, text, channel, timestamp) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)",
+            [String(userId), String(username || 'Anónimo'), String(text), String(channel || 'public')]
+          );
+          return res.status(200).json({ success: true });
+        } catch (e: any) {
+          console.error("Chat POST error:", e.message);
+          return res.status(500).json({ error: e.message });
+        }
       }
     }
 
