@@ -201,7 +201,15 @@ const LiveTV: React.FC = () => {
                 </button>
               </form>
             ) : (
-              <div className="text-center text-slate-500 text-[10px] font-bold uppercase tracking-widest py-2">{t('live.login_to_chat')}</div>
+              <div className="flex flex-col items-center justify-center py-2 space-y-2 text-center">
+                <p className="text-slate-400 text-xs font-bold">{t('live.login_to_chat')}</p>
+                <Link
+                  to="/register"
+                  className="px-5 py-2.5 bg-ministry-gold hover:bg-yellow-500 text-ministry-blue font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg inline-block"
+                >
+                  {t('common.register')}
+                </Link>
+              </div>
             )}
           </div>
         </div>

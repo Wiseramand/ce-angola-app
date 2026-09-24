@@ -212,13 +212,45 @@ const initDb = async () => {
       }
     }
 
+    // Garantir colunas da tabela visitors
+    const visitorMigrations = [
+      "ALTER TABLE visitors ADD COLUMN IF NOT EXISTS country_code TEXT",
+      "ALTER TABLE visitors ADD COLUMN IF NOT EXISTS church_name TEXT",
+      "ALTER TABLE visitors ADD COLUMN IF NOT EXISTS city TEXT",
+      "ALTER TABLE visitors ADD COLUMN IF NOT EXISTS neighborhood TEXT"
+    ];
+    for (const mig of visitorMigrations) {
+      try { await pool.query(mig); } catch (e) { }
+    }
+
+    // Garantir colunas da tabela chat_messages
+    const chatMigrations = [
+      "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+      "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+    ];
+    for (const mig of chatMigrations) {
+      try { await pool.query(mig); } catch (e) { }
+    }
+
+    // Garantir utilizador Master Admin na tabela managed_users
+    try {
+      await pool.query(`
+        INSERT INTO managed_users (fullname, username, password, role, status, has_live_access)
+        VALUES ('Administrador Master', 'master_admin', 'angola_faith_2025', 'admin', 'active', TRUE)
+        ON CONFLICT (username) DO UPDATE SET password = 'angola_faith_2025', has_live_access = TRUE
+      `);
+    } catch (e) { }
+
     // Garantir que o professor padrão existe
     await pool.query(`
       INSERT INTO school_users (fullname, username, password, role, status, is_credentials_generated)
       VALUES ('Professor Lucas', 'prof_lucas', 'faith2025', 'teacher', 'active', TRUE)
       ON CONFLICT (username) DO UPDATE SET password = 'faith2025', role = 'teacher'
     `);
-  } catch (e) { console.error("DB Init Error:", e); }
+  } catch (e) {
+    console.error("DB Init Error:", e);
+    dbInitPromise = null;
+  }
   })();
   return dbInitPromise;
 };
@@ -483,11 +515,11 @@ export default async function handler(req, res) {
           // Garantir que a coluna timestamp existe (compatibilidade com ambas as versões da tabela)
           await pool.query("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP").catch(() => {});
           const r = await pool.query(
-            "SELECT id::text, user_id, username, text, channel, COALESCE(timestamp, CURRENT_TIMESTAMP) as timestamp FROM chat_messages WHERE channel = $1 ORDER BY COALESCE(timestamp, CURRENT_TIMESTAMP) ASC LIMIT 100",
+            "SELECT id::text, user_id, username, text, channel, COALESCE(timestamp, created_at, CURRENT_TIMESTAMP) as timestamp, COALESCE(created_at, timestamp, CURRENT_TIMESTAMP) as created_at FROM chat_messages WHERE channel = $1 ORDER BY COALESCE(timestamp, created_at, CURRENT_TIMESTAMP) ASC LIMIT 100",
             [channel]
           );
           return res.status(200).json(r.rows);
-        } catch (e: any) {
+        } catch (e) {
           console.error("Chat GET error:", e.message);
           return res.status(500).json({ error: e.message });
         }
@@ -503,11 +535,11 @@ export default async function handler(req, res) {
 
         try {
           await pool.query(
-            "INSERT INTO chat_messages (user_id, username, text, channel, timestamp) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)",
+            "INSERT INTO chat_messages (user_id, username, text, channel, timestamp, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
             [String(userId), String(username || 'Anónimo'), String(text), String(channel || 'public')]
           );
           return res.status(200).json({ success: true });
-        } catch (e: any) {
+        } catch (e) {
           console.error("Chat POST error:", e.message);
           return res.status(500).json({ error: e.message });
         }
