@@ -15,6 +15,8 @@ interface ManagedUser {
   username: string;
   password?: string;
   has_live_access?: boolean;
+  is_online?: boolean;
+  last_seen?: string;
 }
 
 interface Visitor {
@@ -25,6 +27,8 @@ interface Visitor {
   country_code: string;
   church_name: string;
   created_at: string;
+  is_online?: boolean;
+  last_seen?: string;
 }
 
 interface SchoolRequest {
@@ -506,7 +510,13 @@ const AdminDashboard: React.FC = () => {
     } catch (e) { console.error(e); } finally { setIsRefreshing(false); }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { 
+    loadData(); 
+    const interval = setInterval(() => {
+      loadData();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="bg-[#f8fafc] min-h-screen flex relative">
@@ -629,6 +639,7 @@ const AdminDashboard: React.FC = () => {
                       <th className="px-8 py-5">{t('admin.contact')}</th>
                       <th className="px-8 py-5">{t('admin.country')}</th>
                       <th className="px-8 py-5">{t('admin.church')}</th>
+                      <th className="px-8 py-5">Estado na Live</th>
                       <th className="px-8 py-5 text-right">{t('admin.date_time')}</th>
                     </tr>
                   </thead>
@@ -639,7 +650,7 @@ const AdminDashboard: React.FC = () => {
                       const paged = filteredVisitors.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
                       if (paged.length === 0) {
-                        return <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_visitors')}</td></tr>;
+                        return <tr><td colSpan={6} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_visitors')}</td></tr>;
                       }
 
                       return paged.map(v => (
@@ -654,6 +665,19 @@ const AdminDashboard: React.FC = () => {
                           </td>
                           <td className="px-8 py-6">
                             <div className="text-xs font-black text-ministry-gold uppercase">{v.church_name}</div>
+                          </td>
+                          <td className="px-8 py-6">
+                            {v.is_online ? (
+                              <span className="inline-flex items-center space-x-1.5 px-3 py-1 bg-green-50 text-green-600 rounded-full border border-green-200 text-[10px] font-black uppercase tracking-wider shadow-sm">
+                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                                <span>Conectado</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center space-x-1.5 px-3 py-1 bg-slate-50 text-slate-400 rounded-full text-[10px] font-black uppercase tracking-wider">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                                <span>Desconectado</span>
+                              </span>
+                            )}
                           </td>
                           <td className="px-8 py-6 text-right">
                             <div className="text-[10px] text-slate-600 font-black">{new Date(v.created_at).toLocaleDateString()}</div>
@@ -711,6 +735,7 @@ const AdminDashboard: React.FC = () => {
                     <th className="px-8 py-5">{t('admin.username')}</th>
                     <th className="px-8 py-5">{t('admin.password')}</th>
                     <th className="px-8 py-5">{t('common.exclusive_access')}</th>
+                    <th className="px-8 py-5">Estado na Live</th>
                     <th className="px-8 py-5">{t('admin.actions')}</th>
                     <th className="px-8 py-5 text-right">{t('admin.share')}</th>
                   </tr>
@@ -726,7 +751,7 @@ const AdminDashboard: React.FC = () => {
                     const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
                     if (paged.length === 0) {
-                      return <tr><td colSpan={6} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_members')}</td></tr>;
+                      return <tr><td colSpan={7} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_members')}</td></tr>;
                     }
 
                     return paged.map(u => (
@@ -742,6 +767,19 @@ const AdminDashboard: React.FC = () => {
                           ) : (
                             <span className="text-red-500 bg-red-50 px-3 py-1 rounded-full border border-red-200">
                               {t('common.no') || 'Não'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-8 py-6">
+                          {u.is_online ? (
+                            <span className="inline-flex items-center space-x-2 px-3 py-1 bg-green-50 text-green-600 rounded-full border border-green-200 text-[10px] font-black uppercase tracking-wider shadow-sm">
+                              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                              <span>Conectado (Ao Vivo)</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center space-x-2 px-3 py-1 bg-slate-50 text-slate-400 rounded-full text-[10px] font-black uppercase tracking-wider">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                              <span>Desconectado</span>
                             </span>
                           )}
                         </td>

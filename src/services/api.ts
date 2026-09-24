@@ -99,16 +99,16 @@ export const api = {
         let res = await fetch(`${CURRENT_API_URL}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email, username: email, password })
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Login failed');
+        if (!res.ok) throw new Error(data.error || data.message || 'INVALID');
         if (data.user) data.user.id = String(data.user.id);
         return data.user;
       } catch (error: any) {
         console.error("Login Error:", error);
-        throw new Error("Erro de conexão.");
+        throw error;
       }
     },
 
@@ -268,13 +268,13 @@ export const api = {
   admin: {
     getVisitors: async (): Promise<any[]> => {
       if (!USE_BACKEND) return [];
-      const res = await fetch(`${CURRENT_API_URL}/admin/visitors`);
+      const res = await fetch(`${CURRENT_API_URL}/admin/visitors?t=${Date.now()}`);
       if (res.ok) return await res.json();
       return [];
     },
     getUsers: async (): Promise<any[]> => {
       if (!USE_BACKEND) return [];
-      const res = await fetch(`${CURRENT_API_URL}/admin/users`);
+      const res = await fetch(`${CURRENT_API_URL}/admin/users?t=${Date.now()}`);
       if (res.ok) return await res.json();
       return [];
     },

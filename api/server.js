@@ -492,14 +492,29 @@ export default async function handler(req, res) {
       }
     }
 
-    // HEARTBEAT (Sessões Ativas)
+    // HEARTBEAT (Sessões Ativas e Desconexão)
+    if (path.endsWith('/heartbeat/leave') || path.endsWith('/leave')) {
+      if (req.method === 'POST') {
+        const { userId, sessionId } = await getRequestBody(req);
+        if (sessionId) {
+          await pool.query("DELETE FROM sessions WHERE id = $1", [sessionId]).catch(() => {});
+        }
+        if (userId) {
+          const rawId = String(userId).replace('m-', '');
+          await pool.query("DELETE FROM sessions WHERE user_id = $1 OR user_id = $2", [rawId, 'm-' + rawId]).catch(() => {});
+        }
+        return res.status(200).json({ success: true });
+      }
+    }
+
     if (path.endsWith('/heartbeat')) {
       if (req.method === 'POST') {
         const { userId, sessionId } = await getRequestBody(req);
         if (sessionId) {
+          const rawId = String(userId || 'visitor').replace('m-', '');
           await pool.query(
-            "INSERT INTO sessions (id, user_id, last_seen) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET last_seen = CURRENT_TIMESTAMP",
-            [sessionId, String(userId || 'visitor')]
+            "INSERT INTO sessions (id, user_id, last_seen) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET last_seen = CURRENT_TIMESTAMP, user_id = $2",
+            [sessionId, rawId]
           );
           return res.status(200).json({ success: true });
         }
@@ -547,52 +562,121 @@ export default async function handler(req, res) {
     }
 
     // REGISTO DE VISITANTE
-    if (req.method === 'POST' && path.endsWith('/register')) {
+    if (req.method === 'POST' && path.endsWith('/register') && !path.endsWith('/school/register')) {
       const b = await getRequestBody(req);
       const fullName = b.fullName || b.fullname || b.name || 'Visitante';
-      await pool.query(
-        "INSERT INTO visitors (fullname, phone, country, country_code, church_name) VALUES ($1, $2, $3, $4, $5)",
-        [fullName, b.phone || '', b.country || '', b.countryCode || '', b.churchName || '']
+      const r = await pool.query(
+        "INSERT INTO visitors (fullname, phone, country, country_code, church_name) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        [fullName, b.phone || '', b.country || 'Angola', b.countryCode || '+244', b.churchName || '']
       );
+      const visitorDbId = r.rows[0]?.id;
       const sessionId = Math.random().toString(36).substring(2, 15);
-      return res.status(200).json({ success: true, user: { id: 'v-' + Date.now(), fullName, role: 'user', sessionId } });
+      const userId = 'v-' + (visitorDbId || Date.now());
+
+      await pool.query(
+        "INSERT INTO sessions (id, user_id, last_seen) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET last_seen = CURRENT_TIMESTAMP, user_id = $2",
+        [sessionId, userId]
+      ).catch(() => {});
+
+      return res.status(200).json({ success: true, user: { id: userId, fullName, role: 'user', sessionId } });
     }
 
     // LOGIN DE MEMBROS (Inclui Admin Master)
-    if (req.method === 'POST' && path.endsWith('/login')) {
-      const { email, password } = await getRequestBody(req);
-      const normalized = email?.toLowerCase().trim();
+    if (req.method === 'POST' && path.endsWith('/login') && !path.endsWith('/school/login') && !path.endsWith('/school/teacher/login')) {
+      const b = await getRequestBody(req);
+      const identifier = (b.email || b.username || '').toLowerCase().trim();
+      const password = (b.password || b.pass || '').trim();
 
-      if (normalized === 'master_admin' && password === 'angola_faith_2025') {
-        return res.status(200).json({ user: { id: 'admin-1', role: 'admin', fullName: 'Administrador Master', hasLiveAccess: true } });
+      if (!identifier || !password) {
+        return res.status(400).json({ error: 'Por favor, insira o ID de Utilizador e a Senha.' });
       }
 
-      const r = await pool.query("SELECT * FROM managed_users WHERE username = $1 AND password = $2", [normalized, password]);
+      if (identifier === 'master_admin' && password === 'angola_faith_2025') {
+        return res.status(200).json({ 
+          success: true,
+          user: { id: 'admin-1', role: 'admin', fullName: 'Administrador Master', hasLiveAccess: true } 
+        });
+      }
+
+      const r = await pool.query(
+        "SELECT * FROM managed_users WHERE LOWER(TRIM(username)) = $1 AND TRIM(password) = $2", 
+        [identifier, password]
+      );
       if (r.rows.length > 0) {
+        const u = r.rows[0];
         const sessionId = Math.random().toString(36).substring(2, 15);
+
+        // 1. Regista sessão ativa em sessions
+        await pool.query(
+          "INSERT INTO sessions (id, user_id, last_seen) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET last_seen = CURRENT_TIMESTAMP, user_id = $2",
+          [sessionId, String(u.id)]
+        ).catch(() => {});
+
+        // 2. Regista o acesso na tabela visitors para que o parceiro apareça na lista de visitantes
+        await pool.query(
+          "INSERT INTO visitors (fullname, phone, country, country_code, church_name) VALUES ($1, $2, $3, $4, $5)",
+          [u.fullname || u.username, u.phone || '', u.country || 'Angola', '+244', 'Membro / Parceiro Registado']
+        ).catch(() => {});
+
         return res.status(200).json({
+          success: true,
           user: {
-            id: 'm-' + r.rows[0].id,
-            fullName: r.rows[0].fullname,
-            role: 'user',
-            hasLiveAccess: !!r.rows[0].has_live_access,
+            id: 'm-' + u.id,
+            fullName: u.fullname,
+            role: u.role || 'user',
+            hasLiveAccess: !!u.has_live_access,
             country: 'Angola',
             sessionId: sessionId
           }
         });
       }
-      return res.status(401).json({ error: 'ID ou Senha incorretos' });
+      return res.status(401).json({ error: 'ID de Utilizador ou Senha incorretos' });
     }
 
     // OUTROS ENDPOINTS (Admin & System)
     if (req.method === 'GET' && path.endsWith('/admin/visitors')) {
-      const r = await pool.query("SELECT * FROM visitors ORDER BY created_at DESC");
+      const r = await pool.query(`
+        SELECT 
+          v.id::text,
+          v.fullname,
+          v.phone,
+          v.country,
+          v.country_code,
+          v.church_name,
+          v.created_at,
+          MAX(s.last_seen) as last_seen,
+          CASE 
+            WHEN MAX(s.last_seen) > NOW() - interval '35 seconds' THEN TRUE 
+            ELSE FALSE 
+          END as is_online
+        FROM visitors v
+        LEFT JOIN sessions s ON (s.user_id = ('v-' || v.id::text) OR s.user_id = v.id::text)
+        GROUP BY v.id, v.fullname, v.phone, v.country, v.country_code, v.church_name, v.created_at
+        ORDER BY is_online DESC, v.created_at DESC
+      `);
       return res.status(200).json(r.rows);
     }
 
     if (path.endsWith('/admin/users')) {
       if (req.method === 'GET') {
-        const r = await pool.query("SELECT id::text, fullname as name, username, password, has_live_access FROM managed_users ORDER BY created_at DESC");
+        const r = await pool.query(`
+          SELECT 
+            u.id::text, 
+            u.fullname as name, 
+            u.username, 
+            u.password, 
+            u.has_live_access,
+            u.created_at,
+            MAX(s.last_seen) as last_seen,
+            CASE 
+              WHEN MAX(s.last_seen) > NOW() - interval '35 seconds' THEN TRUE 
+              ELSE FALSE 
+            END as is_online
+          FROM managed_users u
+          LEFT JOIN sessions s ON (s.user_id = u.id::text OR s.user_id = ('m-' || u.id::text))
+          GROUP BY u.id, u.fullname, u.username, u.password, u.has_live_access, u.created_at
+          ORDER BY is_online DESC, u.created_at DESC
+        `);
         return res.status(200).json(r.rows);
       }
       if (req.method === 'POST') {

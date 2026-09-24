@@ -45,22 +45,32 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOn
           const hls = new Hls({ 
             enableWorker: true,
             autoStartLoad: true,
-            startLevel: -1, // auto bitrate
-            lowLatencyMode: false, // Desativar para garantir buffer consistente sem paradas
-            backBufferLength: 60,
-            maxBufferLength: 60, // Buffer até 60 segundos adiante
-            maxMaxBufferLength: 120, // Expansão do buffer para até 2 minutos
-            maxBufferSize: 60 * 1000 * 1000, // Limite de 60 MB de memória de cache
-            maxBufferHole: 0.8, // Ignora micro-lacunas na stream sem interromper o playback
-            highBufferWatchdogPeriod: 2, // Destrava automaticamente se o buffer empacar
-            nudgeOffset: 0.2, // Pulo milimétrico suave para destravar frames presos
+            startLevel: -1, // Seleção automática e dinâmica da melhor qualidade
+            capLevelToPlayerSize: true, // Economiza banda não baixando resolução maior que a tela
+            lowLatencyMode: false, // Máxima fluidez e estabilidade
+            backBufferLength: 30, // 30s de buffer passado para liberar memória
+            maxBufferLength: 45, // 45s de buffer futuro: ideal para conexões móveis não esgotarem o cache
+            maxMaxBufferLength: 90,
+            maxBufferSize: 60 * 1000 * 1000,
+            maxBufferHole: 0.5,
+            highBufferWatchdogPeriod: 2,
+            nudgeOffset: 0.15,
             nudgeMaxRetry: 5,
-            liveSyncDurationCount: 6, // Margem de segurança de 6 segmentos para conexões com variação
-            liveMaxLatencyDurationCount: 16,
-            startFragPrefetch: true, // Pré-busca o próximo fragmento antes do atual terminar
-            abrBandWidthFactor: 0.85, // Reserva 15% de margem contra quedas de velocidade de internet
-            abrBandWidthUpFactor: 0.7,
-            abrEwmaDefaultEstimate: 1000000,
+            liveSyncDurationCount: 4, // 4 segmentos de margem segura (evita colisão com encoder e previne travamento)
+            liveMaxLatencyDurationCount: 10, // Mantém latência baixa sem correr risco de buffer vazio
+            liveDurationInfinity: true,
+            startFragPrefetch: true, // Pré-carrega o próximo fragmento
+            manifestLoadingTimeOut: 15000,
+            manifestLoadingMaxRetry: 6,
+            levelLoadingTimeOut: 15000,
+            levelLoadingMaxRetry: 6,
+            fragLoadingTimeOut: 20000,
+            fragLoadingMaxRetry: 8,
+            fragLoadingRetryDelay: 1000,
+            fragLoadingMaxRetryTimeout: 64000,
+            abrBandWidthFactor: 0.75, // Margem de segurança de 25% contra oscilações de 4G/Wi-Fi
+            abrBandWidthUpFactor: 0.6,
+            abrEwmaDefaultEstimate: 600000 // Início rápido a 600 kbps
           });
           
           hlsRef.current = hls;
@@ -70,7 +80,16 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOn
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
             setLoading(false);
             applyQuality(hls);
-            videoRef.current?.play().catch(() => { });
+            const playPromise = videoRef.current?.play();
+            if (playPromise !== undefined) {
+              playPromise.catch(() => {
+                // Se o navegador bloquear autoplay com som, ativa mudo para iniciar direto sem travar
+                if (videoRef.current) {
+                  videoRef.current.muted = true;
+                  videoRef.current.play().catch(() => {});
+                }
+              });
+            }
           });
 
           hls.on(Hls.Events.ERROR, (event: any, data: any) => {
@@ -88,12 +107,26 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOn
                   console.warn("HLS Fatal Error, reiniciando fluxo...", data);
                   try {
                     hls.destroy();
-                    loadHls();
+                    setTimeout(loadHls, 1000);
                   } catch (e) {
                     setError("Sinal de transmissão instável.");
                     setLoading(false);
                   }
                   break;
+              }
+            } else if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+              // Destrava frames congelados saltando lacunas apenas quando houver dados carregados à frente
+              const video = videoRef.current;
+              if (video && !video.paused && video.buffered && video.buffered.length > 0) {
+                const cur = video.currentTime;
+                for (let i = 0; i < video.buffered.length; i++) {
+                  const start = video.buffered.start(i);
+                  const end = video.buffered.end(i);
+                  if (cur < start && (start - cur) <= 0.8) {
+                    video.currentTime = start + 0.05;
+                    break;
+                  }
+                }
               }
             }
           });

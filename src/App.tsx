@@ -98,6 +98,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+    if (user) {
+      try {
+        fetch(`/api/heartbeat/leave`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, sessionId: user.sessionId }),
+          keepalive: true
+        });
+      } catch (e) { }
+    }
     setUser(null);
     localStorage.removeItem('ce_session_user');
   };
@@ -171,7 +181,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     };
     init();
-    return () => { if (heartbeatRef.current) clearInterval(heartbeatRef.current); };
+
+    const handleBeforeUnload = () => {
+      const saved = localStorage.getItem('ce_session_user');
+      if (saved) {
+        try {
+          const u = JSON.parse(saved);
+          if (u.sessionId) {
+            navigator.sendBeacon('/api/heartbeat/leave', JSON.stringify({ userId: u.id, sessionId: u.sessionId }));
+          }
+        } catch (e) { }
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => { 
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, []);
 
   const login = async (creds: { username: string; pass: string }) => {
@@ -279,6 +306,7 @@ const AppContent: React.FC = () => {
 
   const isAdminPath = location.pathname === '/central-admin' || location.pathname === '/admin';
   const isSchoolPath = location.pathname.startsWith('/school');
+  const isAuthPath = location.pathname === '/login' || location.pathname === '/register';
   const hideGlobalNav = isAdminPath || isSchoolPath;
 
   if (isLoading) {
@@ -289,8 +317,8 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Se não houver utilizador e não for a rota de admin ou escola, obriga a identificação (Welcome)
-  if (!user && !isAdminPath && !isSchoolPath) {
+  // Se não houver utilizador e não for a rota de login/registo, admin ou escola, obriga a identificação (Welcome)
+  if (!user && !isAdminPath && !isSchoolPath && !isAuthPath) {
     return <Welcome />;
   }
 
