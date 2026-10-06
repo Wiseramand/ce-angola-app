@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <base href="/convencaodefe/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conexão de Fé – Confirme a Sua Presença</title>
+  <meta name="description" content="Conexão de Fé – Adicione a sua foto ao cartaz oficial e confirme a sua presença!" />
+  <meta name="theme-color" content="#2e0f00" />
+  <!-- Open Graph / WhatsApp / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Conexão de Fé – Confirme a Sua Presença" />
+  <meta property="og:description" content="Adicione a sua foto ao cartaz oficial da Conexão de Fé e faça o download do seu avatar!" />
+  <meta property="og:image" content="flyer_template.png" />
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Conexão de Fé – Confirme a Sua Presença" />
+  <meta name="twitter:description" content="Adicione a sua foto ao cartaz oficial da Conexão de Fé e faça o download do seu avatar!" />
+  <meta name="twitter:image" content="flyer_template.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Cinzel:wght@700;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold:        #FFD700;
+      --gold-light:  #FFE87C;
+      --gold-dark:   #B8860B;
+      --red:         #C0392B;
+      --red-dark:    #8B0000;
+      --bg:          #0a0400;
+      --card-bg:     rgba(25, 10, 2, 0.7);
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Outfit', sans-serif;
+      background: radial-gradient(ellipse at 50% 0%, #2e0f00 0%, #0c0401 50%, #000000 100%);
+      color: #FFF8E7;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 36px 16px 60px;
+      overflow-x: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 26px;
+      animation: fadeDown 0.7s ease;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, var(--red-dark), var(--red));
+      border: 1px solid var(--gold-dark);
+      border-radius: 50px;
+      padding: 6px 20px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: var(--gold-light);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      box-shadow: 0 4px 14px rgba(192, 57, 43, 0.4);
+    }
+    .main-title {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.4rem, 5vw, 2.3rem);
+      font-weight: 900;
+      background: linear-gradient(180deg, #FFFFFF 0%, var(--gold) 55%, #FF8C00 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 18px rgba(255,140,0,0.6));
+      letter-spacing: 3px;
+      line-height: 1.15;
+    }
+    .sub-title {
+      font-size: 0.82rem;
+      color: var(--gold-light);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-top: 6px;
+      opacity: 0.85;
+    }
+
+    /* ── Canvas wrapper ── */
+    .canvas-wrapper {
+      position: relative;
+      width: min(440px, 92vw);
+      aspect-ratio: 1;
+      margin-bottom: 24px;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow:
+        0 0 45px rgba(255,160,0,0.3),
+        0 24px 60px rgba(0,0,0,0.85);
+      animation: fadeUp 0.8s ease 0.15s both;
+      cursor: pointer;
+      user-select: none;
+      touch-action: none;
+      border: 1px solid rgba(255, 215, 0, 0.25);
+      background: #000;
+    }
+    .canvas-wrapper.has-photo {
+      cursor: grab;
+    }
+    .canvas-wrapper.has-photo:active {
+      cursor: grabbing;
+    }
+
+    #previewCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Overlay hint before uploading */
+    .upload-hint-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(2px);
+      transition: opacity 0.35s ease;
+      pointer-events: none;
+    }
+    .upload-hint-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .hint-circle-pulse {
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      border: 3px dashed var(--gold);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,215,0,0.12);
+      animation: pulse 2s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(255,215,0,0.25); }
+      50% { transform: scale(1.06); box-shadow: 0 0 35px rgba(255,215,0,0.55); }
+    }
+    .hint-icon { font-size: 2.4rem; }
+    .hint-text {
+      font-size: 0.85rem;
+      color: var(--gold-light);
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-align: center;
+      line-height: 1.35;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+    }
+
+    /* ── Controls card ── */
+    .controls {
+      width: min(440px, 92vw);
+      background: var(--card-bg);
+      border: 1.5px solid rgba(255,215,0,0.2);
+      border-radius: 22px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      backdrop-filter: blur(14px);
+      animation: fadeUp 0.8s ease 0.3s both;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .section-label {
+      font-size: 0.72rem;
+      letter-spacing: 2px;
+      color: var(--gold-light);
+      text-transform: uppercase;
+      font-weight: 700;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    /* Upload button */
+    .btn-upload {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #FFC700, #FFA500, #FF8C00);
+      color: #000;
+      font-weight: 900;
+      font-size: 0.92rem;
+      letter-spacing: 1px;
+      padding: 14px 22px;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
+      box-shadow: 0 6px 24px rgba(255,165,0,0.45);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-upload::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%);
+      transform: translateX(-100%);
+      transition: transform 0.5s ease;
+    }
+    .btn-upload:hover::after { transform: translateX(100%); }
+    .btn-upload:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 32px rgba(255,165,0,0.65);
+    }
+    .btn-upload:active { transform: translateY(1px); }
+
+    #fileInput { display: none; }
+
+    /* Zoom & adjustments */
+    .adjust-section {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      background: rgba(0,0,0,0.3);
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,215,0,0.12);
+    }
+    .adjust-section.visible {
+      display: flex;
+    }
+
+    .zoom-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.7);
+    }
+    .zoom-val {
+      color: var(--gold);
+      font-weight: 800;
+      font-size: 0.85rem;
+    }
+
+    .zoom-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-z {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1.5px solid var(--gold-dark);
+      background: rgba(255,215,0,0.1);
+      color: var(--gold-light);
+      font-size: 1.3rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .btn-z:hover {
+      background: rgba(255,215,0,0.25);
+      transform: scale(1.08);
+    }
+    .btn-z:active { transform: scale(0.95); }
+
+    input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, var(--gold) var(--p, 50%), rgba(255,255,255,0.18) var(--p, 50%));
+      outline: none;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--gold-light), var(--gold-dark));
+      border: 2px solid #FFFFFF;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.18); }
+
+    .hint-drag {
+      font-size: 0.74rem;
+      color: var(--gold-light);
+      opacity: 0.8;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* Save & Preview button */
+    .btn-save {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: linear-gradient(135deg, var(--red-dark), var(--red), var(--red-dark));
+      border: 2px solid var(--gold-dark);
+      color: var(--gold-light);
+      font-weight: 900;
+      font-size: 0.95rem;
+      letter-spacing: 1px;
+      padding: 14px 22px;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 6px 24px rgba(192,57,43,0.45);
+    }
+    .btn-save.visible {
+      display: flex;
+    }
+    .btn-save:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 32px rgba(255,215,0,0.35);
+    }
+    .btn-save:active { transform: translateY(1px); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      backdrop-filter: blur(12px);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal-box {
+      background: linear-gradient(145deg, #1f0b01, #0c0401);
+      border: 1.8px solid var(--gold-dark);
+      border-radius: 22px;
+      padding: 26px 22px 22px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 0 70px rgba(255,140,0,0.3), 0 30px 80px rgba(0,0,0,0.85);
+      animation: popIn 0.3s cubic-bezier(.17,.67,.35,1.2);
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.85); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1rem;
+      font-weight: 900;
+      color: var(--gold-light);
+      letter-spacing: 3px;
+      margin-bottom: 16px;
+      text-shadow: 0 0 14px rgba(255,215,0,0.4);
+    }
+
+    #finalImg {
+      width: 100%;
+      max-width: 380px;
+      border-radius: 14px;
+      display: block;
+      margin: 0 auto 18px;
+      border: 2px solid var(--gold-dark);
+      box-shadow: 0 0 26px rgba(255,215,0,0.3);
+    }
+
+    .modal-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .dl-buttons-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-dl {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(135deg, var(--gold-dark), var(--gold), var(--gold-dark));
+      color: #000;
+      font-weight: 800;
+      font-size: 0.88rem;
+      letter-spacing: 0.5px;
+      padding: 13px 14px;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 18px rgba(255,215,0,0.4);
+    }
+    .btn-dl:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 26px rgba(255,215,0,0.6);
+    }
+    .btn-dl:active { transform: translateY(1px); }
+
+    .btn-close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.7);
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 11px 20px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 50px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn-close:hover {
+      background: rgba(255,255,255,0.16);
+      color: #FFF;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: linear-gradient(135deg, var(--gold-dark), var(--gold));
+      color: #000;
+      font-weight: 800;
+      font-size: 0.88rem;
+      padding: 12px 28px;
+      border-radius: 50px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.6);
+      transition: transform 0.4s cubic-bezier(.17,.67,.35,1.2);
+      z-index: 99999;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Animations ── */
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="badge">✝️ &nbsp; CHRIST EMBASSY · GRUPO ANGOLA</div>
+    <div class="main-title">CONEXÃO DE FÉ</div>
+    <div class="sub-title">Confirme a sua presença com o seu avatar</div>
+  </div>
+
+  <!-- Flyer Canvas Area -->
+  <div class="canvas-wrapper" id="canvasWrapper" title="Clique ou arraste uma foto aqui">
+    <canvas id="previewCanvas"></canvas>
+    <div class="upload-hint-overlay" id="hintOverlay">
+      <div class="hint-circle-pulse">
+        <div class="hint-icon">📸</div>
+      </div>
+      <div class="hint-text">Clique aqui ou no botão abaixo<br>para inserir a sua foto</div>
+    </div>
+  </div>
+
+  <!-- Controls Card -->
+  <div class="controls">
+    <p class="section-label">✨ Personalize o Seu Cartaz</p>
+
+    <!-- Upload Button -->
+    <button class="btn-upload" id="btnUploadTrigger">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      ENVIAR MINHA FOTO (PNG / JPG)
+    </button>
+    <input type="file" id="fileInput" accept="image/png, image/jpeg, image/jpg, image/webp, image/*" />
+
+    <!-- Zoom & Drag Controls -->
+    <div class="adjust-section" id="adjustSection">
+      <div class="zoom-label-row">
+        <span>🔍 Ajustar Zoom da Foto</span>
+        <span class="zoom-val" id="zoomVal">100%</span>
+      </div>
+      <div class="zoom-row">
+        <button class="btn-z" id="btnMinus" title="Diminuir">−</button>
+        <input type="range" id="zoomSlider" min="30" max="400" value="100" step="2" />
+        <button class="btn-z" id="btnPlus" title="Aumentar">+</button>
+      </div>
+      <div class="hint-drag">
+        <span>💡 Dica: Arraste a foto no cartaz para centralizar o rosto</span>
+      </div>
+    </div>
+
+    <!-- Save & Download Trigger -->
+    <button class="btn-save" id="btnSave">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 8v4l3 3"/>
+      </svg>
+      VER PRÉVIA E FAZER DOWNLOAD
+    </button>
+  </div>
+
+  <!-- Preview Modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal-box">
+      <div class="modal-title">✦ O SEU CARTAZ ESTÁ PRONTO ✦</div>
+      <img id="finalImg" src="" alt="Cartaz final" />
+      <div class="modal-actions">
+        <div class="dl-buttons-row">
+          <button class="btn-dl" id="btnDownloadPNG">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            BAIXAR PNG
+          </button>
+          <button class="btn-dl" id="btnDownloadJPG" style="background: linear-gradient(135deg, #FF9800, #F57C00);">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            BAIXAR JPG
+          </button>
+        </div>
+        <button class="btn-close" id="btnClose">✕ Voltar e Ajustar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ─── TEMPLATE CONFIGURATION ──────────────────────────────────────────────
+    // flyer_template.png has a true transparent circle cutout where the photo goes!
+    const FLYER_SRC = 'flyer_template.png';
+
+    // The circle center & radius in flyer pixels (flyer is 1024x1024)
+    const CIRCLE_CX = 496;
+    const CIRCLE_CY = 451;
+    const CIRCLE_R  = 111;
+
+    // ─── STATE ───────────────────────────────────────────────────────────────
+    const flyerImg = new Image();
+    let photoImg   = null;
+    let scale      = 1.0;
+    let photoOffX  = 0;
+    let photoOffY  = 0;
+
+    let dragging = false;
+    let dragStartX = 0, dragStartY = 0;
+    let lastOX = 0, lastOY = 0;
+
+    // ─── ELEMENTS ────────────────────────────────────────────────────────────
+    const wrapper          = document.getElementById('canvasWrapper');
+    const previewCanvas    = document.getElementById('previewCanvas');
+    const pCtx             = previewCanvas.getContext('2d');
+    const hintOverlay      = document.getElementById('hintOverlay');
+    const btnUploadTrigger = document.getElementById('btnUploadTrigger');
+    const fileInput        = document.getElementById('fileInput');
+    const adjustSection    = document.getElementById('adjustSection');
+    const zoomSlider       = document.getElementById('zoomSlider');
+    const zoomVal          = document.getElementById('zoomVal');
+    const btnMinus         = document.getElementById('btnMinus');
+    const btnPlus          = document.getElementById('btnPlus');
+    const btnSave          = document.getElementById('btnSave');
+    const modal            = document.getElementById('modal');
+    const finalImg         = document.getElementById('finalImg');
+    const btnDownloadPNG   = document.getElementById('btnDownloadPNG');
+    const btnDownloadJPG   = document.getElementById('btnDownloadJPG');
+    const btnClose         = document.getElementById('btnClose');
+    const toast            = document.getElementById('toast');
+
+    // ─── INITIALIZE FLYER ────────────────────────────────────────────────────
+    flyerImg.onload = () => {
+      previewCanvas.width  = flyerImg.naturalWidth || 1024;
+      previewCanvas.height = flyerImg.naturalHeight || 1024;
+      drawPreview();
+    };
+    flyerImg.onerror = () => {
+      // Fallback: try loading jpg if png not available
+      if (flyerImg.src.endsWith('flyer_template.png')) {
+        flyerImg.src = 'flyer_template.jpg';
+      } else {
+        showToast('⚠️ Erro ao carregar imagem do cartaz.');
+      }
+    };
+    flyerImg.src = FLYER_SRC;
+
+    // ─── DRAW PREVIEW ────────────────────────────────────────────────────────
+    function drawPreview() {
+      const W = previewCanvas.width || 1024;
+      const H = previewCanvas.height || 1024;
+      pCtx.clearRect(0, 0, W, H);
+
+      // LAYER 1: Participant Photo (drawn under the transparent frame)
+      if (photoImg) {
+        pCtx.save();
+        // Clip to slightly larger than circle radius so edges are hidden behind the gold ring
+        pCtx.beginPath();
+        pCtx.arc(CIRCLE_CX, CIRCLE_CY, CIRCLE_R + 6, 0, Math.PI * 2);
+        pCtx.clip();
+
+        const pw = photoImg.naturalWidth * scale;
+        const ph = photoImg.naturalHeight * scale;
+        const px = CIRCLE_CX - pw / 2 + photoOffX;
+        const py = CIRCLE_CY - ph / 2 + photoOffY;
+
+        pCtx.drawImage(photoImg, px, py, pw, ph);
+        pCtx.restore();
+      } else {
+        // Subtle dark placeholder circle before upload
+        pCtx.save();
+        pCtx.beginPath();
+        pCtx.arc(CIRCLE_CX, CIRCLE_CY, CIRCLE_R, 0, Math.PI * 2);
+        pCtx.fillStyle = '#1c0a02';
+        pCtx.fill();
+        pCtx.restore();
+      }
+
+      // LAYER 2: The Flyer Template (has transparent circle cutout)
+      if (flyerImg.complete && flyerImg.naturalWidth > 0) {
+        pCtx.drawImage(flyerImg, 0, 0, W, H);
+      }
+    }
+
+    // ─── UPLOAD PHOTO ────────────────────────────────────────────────────────
+    btnUploadTrigger.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    // Clicking the canvas when no photo is loaded triggers upload
+    wrapper.addEventListener('click', (e) => {
+      if (!photoImg && !dragging) {
+        fileInput.click();
+      }
+    });
+
+    // Drag and drop image onto canvas
+    wrapper.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      wrapper.style.borderColor = 'var(--gold)';
+    });
+    wrapper.addEventListener('dragleave', () => {
+      wrapper.style.borderColor = 'rgba(255, 215, 0, 0.25)';
+    });
+    wrapper.addEventListener('drop', (e) => {
+      e.preventDefault();
+      wrapper.style.borderColor = 'rgba(255, 215, 0, 0.25)';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        processFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files && fileInput.files[0]) {
+        processFile(fileInput.files[0]);
+      }
+    });
+
+    function processFile(file) {
+      if (!file) return;
+
+      // Allow any image file
+      const isImg = file.type.startsWith('image/') || /\.(png|jpe?g|webp|bmp|gif)$/i.test(file.name);
+      if (!isImg) {
+        showToast('⚠️ Por favor selecione uma imagem (PNG ou JPG)!');
+        fileInput.value = '';
+        return;
+      }
+
+      showToast('⏳ Carregando a sua foto...');
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          photoImg = img;
+          wrapper.classList.add('has-photo');
+
+          // Auto-fit: make the image fill the circle diameter with a comfortable margin
+          const minDim = Math.min(img.naturalWidth, img.naturalHeight);
+          scale = (CIRCLE_R * 2.2) / minDim;
+          photoOffX = 0;
+          photoOffY = 0;
+
+          // Set zoom slider
+          const pct = Math.min(400, Math.max(30, Math.round(scale * 100)));
+          zoomSlider.value = pct;
+          updateZoom();
+
+          drawPreview();
+
+          hintOverlay.classList.add('hidden');
+          adjustSection.classList.add('visible');
+          btnSave.classList.add('visible');
+          btnUploadTrigger.innerHTML = `
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            TROCAR DE FOTO
+          `;
+
+          showToast('✅ Foto carregada! Ajuste o zoom ou arraste para alinhar.');
+          fileInput.value = ''; // Reset so uploading same file again still fires change
+        };
+        img.onerror = () => {
+          showToast('⚠️ Erro ao abrir a imagem. Tente outro ficheiro.');
+          fileInput.value = '';
+        };
+        img.src = e.target.result;
+      };
+      reader.onerror = () => {
+        showToast('⚠️ Erro ao ler o ficheiro.');
+        fileInput.value = '';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // ─── ZOOM CONTROLS ───────────────────────────────────────────────────────
+    function updateZoom() {
+      scale = +zoomSlider.value / 100;
+      zoomVal.textContent = zoomSlider.value + '%';
+      const p = ((+zoomSlider.value - +zoomSlider.min) / (+zoomSlider.max - +zoomSlider.min)) * 100;
+      zoomSlider.style.setProperty('--p', p + '%');
+    }
+
+    zoomSlider.addEventListener('input', () => {
+      updateZoom();
+      drawPreview();
+    });
+
+    btnPlus.addEventListener('click', () => {
+      zoomSlider.value = Math.min(400, +zoomSlider.value + 15);
+      updateZoom();
+      drawPreview();
+    });
+
+    btnMinus.addEventListener('click', () => {
+      zoomSlider.value = Math.max(30, +zoomSlider.value - 15);
+      updateZoom();
+      drawPreview();
+    });
+
+    // Mouse scroll zoom on the canvas
+    wrapper.addEventListener('wheel', (e) => {
+      if (!photoImg) return;
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 10 : -10;
+      zoomSlider.value = Math.min(400, Math.max(30, +zoomSlider.value + delta));
+      updateZoom();
+      drawPreview();
+    }, { passive: false });
+
+    // ─── DRAG & REPOSITION ───────────────────────────────────────────────────
+    function screenToFlyer(clientX, clientY) {
+      const rect   = previewCanvas.getBoundingClientRect();
+      const scaleX = previewCanvas.width  / rect.width;
+      const scaleY = previewCanvas.height / rect.height;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top)  * scaleY
+      };
+    }
+
+    // Mouse events
+    wrapper.addEventListener('mousedown', (e) => {
+      if (!photoImg) return;
+      dragging = true;
+      const pos = screenToFlyer(e.clientX, e.clientY);
+      dragStartX = pos.x;
+      dragStartY = pos.y;
+      lastOX = photoOffX;
+      lastOY = photoOffY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const pos = screenToFlyer(e.clientX, e.clientY);
+      photoOffX = lastOX + (pos.x - dragStartX);
+      photoOffY = lastOY + (pos.y - dragStartY);
+      drawPreview();
+    });
+
+    window.addEventListener('mouseup', () => {
+      dragging = false;
+    });
+
+    // Touch events for mobile
+    wrapper.addEventListener('touchstart', (e) => {
+      if (!photoImg || e.touches.length !== 1) return;
+      dragging = true;
+      const pos = screenToFlyer(e.touches[0].clientX, e.touches[0].clientY);
+      dragStartX = pos.x;
+      dragStartY = pos.y;
+      lastOX = photoOffX;
+      lastOY = photoOffY;
+      e.preventDefault();
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+      if (!dragging || e.touches.length !== 1) return;
+      const pos = screenToFlyer(e.touches[0].clientX, e.touches[0].clientY);
+      photoOffX = lastOX + (pos.x - dragStartX);
+      photoOffY = lastOY + (pos.y - dragStartY);
+      drawPreview();
+      e.preventDefault();
+    }, { passive: false });
+
+    window.addEventListener('touchend', () => {
+      dragging = false;
+    });
+
+    // ─── EXPORT FULL RESOLUTION ──────────────────────────────────────────────
+    function renderFullCanvas() {
+      const exp  = document.createElement('canvas');
+      const W    = flyerImg.naturalWidth  || 1024;
+      const H    = flyerImg.naturalHeight || 1024;
+      exp.width  = W;
+      exp.height = H;
+      const ec   = exp.getContext('2d');
+
+      // Base dark background so JPEG exports never have black alpha artifacts
+      ec.fillStyle = '#0a0400';
+      ec.fillRect(0, 0, W, H);
+
+      // 1. Photo clipped to circle
+      if (photoImg) {
+        ec.save();
+        ec.beginPath();
+        ec.arc(CIRCLE_CX, CIRCLE_CY, CIRCLE_R + 6, 0, Math.PI * 2);
+        ec.clip();
+
+        const pw = photoImg.naturalWidth * scale;
+        const ph = photoImg.naturalHeight * scale;
+        const px = CIRCLE_CX - pw / 2 + photoOffX;
+        const py = CIRCLE_CY - ph / 2 + photoOffY;
+
+        ec.drawImage(photoImg, px, py, pw, ph);
+        ec.restore();
+      }
+
+      // 2. Flyer template on top
+      ec.drawImage(flyerImg, 0, 0, W, H);
+
+      return exp;
+    }
+
+    // Open Modal Preview
+    btnSave.addEventListener('click', () => {
+      if (!photoImg) {
+        showToast('⚠️ Por favor adicione a sua foto primeiro!');
+        return;
+      }
+      const expCanvas = renderFullCanvas();
+      finalImg.src = expCanvas.toDataURL('image/png');
+      modal.classList.add('open');
+    });
+
+    // Universal Blob Downloader
+    function downloadCartaz(format) {
+      const expCanvas = renderFullCanvas();
+      const isJpeg = (format === 'jpeg' || format === 'jpg');
+      const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
+      const extension = isJpeg ? 'jpg' : 'png';
+      const filename = `conexao de fe.${extension}`;
+
+      showToast('⏳ A preparar download...');
+
+      if (expCanvas.toBlob) {
+        expCanvas.toBlob((blob) => {
+          if (!blob) {
+            fallbackDataUrlDownload(expCanvas, filename, mimeType);
+            return;
+          }
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.style.display = 'none';
+          link.href = blobUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+
+          setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+          }, 1500);
+
+          modal.classList.remove('open');
+          showToast(`🎉 Cartaz baixado com sucesso: ${filename}!`);
+        }, mimeType, 0.96);
+      } else {
+        fallbackDataUrlDownload(expCanvas, filename, mimeType);
+      }
+    }
+
+    function fallbackDataUrlDownload(canvas, filename, mimeType) {
+      const dataUrl = canvas.toDataURL(mimeType, 0.96);
+      const link = document.createElement('a');
+      link.style.display = 'none';
+      link.href = dataUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => document.body.removeChild(link), 1000);
+      modal.classList.remove('open');
+      showToast(`🎉 Cartaz baixado: ${filename}!`);
+    }
+
+    // Download PNG
+    btnDownloadPNG.addEventListener('click', () => downloadCartaz('png'));
+
+    // Download JPG
+    btnDownloadJPG.addEventListener('click', () => downloadCartaz('jpg'));
+
+    btnClose.addEventListener('click', () => modal.classList.remove('open'));
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.remove('open');
+    });
+
+    // ─── TOAST NOTIFICATION ──────────────────────────────────────────────────
+    let toastTimer;
+    function showToast(msg) {
+      clearTimeout(toastTimer);
+      toast.textContent = msg;
+      toast.classList.add('show');
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+    }
+
+    updateZoom();
+  </script>
+</body>
+</html>

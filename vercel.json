@@ -5,6 +5,15 @@
   "framework": null,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/server.js" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/convencaodefe", "destination": "/convencaodefe/index.html" },
+    { "source": "/convencaodefe/", "destination": "/convencaodefe/index.html" },
+    { "source": "/convencaodefe/(.*)", "destination": "/convencaodefe/$1" },
+    { "source": "/convençaodefe", "destination": "/convencaodefe/index.html" },
+    { "source": "/convençaodefe/", "destination": "/convencaodefe/index.html" },
+    { "source": "/conexaodefe", "destination": "/convencaodefe/index.html" },
+    { "source": "/conexaodefe/", "destination": "/convencaodefe/index.html" },
+    { "source": "/conexãodefe", "destination": "/convencaodefe/index.html" },
+    { "source": "/conexãodefe/", "destination": "/convencaodefe/index.html" },
+    { "source": "/((?!api/|convencaodefe|convençaodefe|conexaodefe|conexãodefe).*)", "destination": "/index.html" }
   ]
 }
