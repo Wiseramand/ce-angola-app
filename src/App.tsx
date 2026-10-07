@@ -56,12 +56,13 @@ interface SystemState extends StreamConfig {
 interface AuthContextType {
   user: UserExtended | null;
   system: SystemState;
-  login: (credentials: { username: string; pass: string }) => Promise<void>;
-  adminLogin: (credentials: { username: string; pass: string }) => Promise<void>;
-  register: (userData: any) => Promise<void>;
+  login: (credentials: { username: string; pass: string }) => Promise<any>;
+  adminLogin: (credentials: { username: string; pass: string }) => Promise<any>;
+  register: (userData: any) => Promise<any>;
   logout: () => void;
   updateStreamConfig: (config: any) => Promise<void>;
   isLoading: boolean;
+  isInitialLoading: boolean;
   refreshSystem: () => Promise<void>;
 }
 
@@ -76,7 +77,8 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { t } = useTranslation();
   const [user, setUser] = useState<UserExtended | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const heartbeatRef = useRef<number | null>(null);
   const [system, setSystem] = useState<SystemState>({
     publicUrl: '',
@@ -112,12 +114,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('ce_session_user');
   };
 
+const getDeviceInfoString = () => {
+  const ua = navigator.userAgent;
+  let os = 'Dispositivo';
+  if (/windows/i.test(ua)) os = 'Windows';
+  else if (/macintosh|mac os x/i.test(ua)) os = 'macOS';
+  else if (/android/i.test(ua)) os = 'Android';
+  else if (/iphone/i.test(ua)) os = 'iPhone';
+  else if (/ipad/i.test(ua)) os = 'iPad';
+  else if (/linux/i.test(ua)) os = 'Linux';
+
+  let browser = 'Web';
+  if (/edg/i.test(ua)) browser = 'Edge';
+  else if (/chrome|crios/i.test(ua)) browser = 'Chrome';
+  else if (/firefox|fxios/i.test(ua)) browser = 'Firefox';
+  else if (/safari/i.test(ua) && !/chrome/i.test(ua)) browser = 'Safari';
+
+  return `${os} • ${browser}`;
+};
+
   const sendHeartbeat = async (userId: string, sessionId: string) => {
     try {
       const res = await fetch(`/api/heartbeat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: userId.replace('m-', ''), sessionId })
+        body: JSON.stringify({ userId, sessionId, deviceInfo: getDeviceInfoString() })
       });
       if (res.status === 401) {
         alert(t('common.session_terminated'));
@@ -132,14 +153,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data) {
         setSystem(prev => ({
           ...prev,
-          publicUrl: data.public_url || data.publicUrl,
-          publicUrl2: data.public_url2 || data.publicUrl2,
+          publicUrl: data.public_url || data.publicUrl || '',
+          publicUrl2: data.public_url2 || data.publicUrl2 || '',
           publicTitlePt: data.public_title_pt || data.publicTitlePt || '',
           publicTitleEn: data.public_title_en || data.publicTitleEn || '',
           publicDescriptionPt: data.public_description_pt || data.publicDescriptionPt || '',
           publicDescriptionEn: data.public_description_en || data.publicDescriptionEn || '',
-          privateUrl: data.private_url || data.privateUrl,
-          privateUrl2: data.private_url2 || data.privateUrl2,
+          privateUrl: data.private_url || data.privateUrl || '',
+          privateUrl2: data.private_url2 || data.privateUrl2 || '',
           privateTitlePt: data.private_title_pt || data.privateTitlePt || '',
           privateTitleEn: data.private_title_en || data.privateTitleEn || '',
           privateDescriptionPt: data.private_description_pt || data.privateDescriptionPt || '',
@@ -178,7 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(visitorUser);
         } catch (e) { localStorage.removeItem('ce_visitor_data'); }
       }
-      setIsLoading(false);
+      setIsInitialLoading(false);
     };
     init();
 
@@ -204,8 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (creds: { username: string; pass: string }) => {
     setIsLoading(true);
     try {
-      // Use email as username for consistency if needed, or update api service
-      const user = await api.auth.login(creds.username, creds.pass);
+      const user = await api.auth.login(creds.username, creds.pass, { deviceInfo: getDeviceInfoString() });
       setUser(user);
       localStorage.setItem('ce_session_user', JSON.stringify(user));
       // @ts-ignore
@@ -214,6 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // @ts-ignore
         heartbeatRef.current = window.setInterval(() => sendHeartbeat(user.id, user.sessionId), 10000);
       }
+      return user;
     } catch (err: any) {
       throw new Error(err.message || 'INVALID');
     } finally {
@@ -223,22 +244,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const adminLogin = async (creds: { username: string; pass: string }) => {
     setIsLoading(true);
-    if (creds.username === 'master_admin' && creds.pass === 'angola_faith_2025') {
-      const admin: UserExtended = { id: 'admin-1', fullName: t('common.super_admin'), email: 'admin@ceangola.org', phone: '900', country: 'Angola', address: 'Luanda', gender: 'Male', hasLiveAccess: true, role: 'admin' };
-      setUser(admin);
-      localStorage.setItem('ce_session_user', JSON.stringify(admin));
-    } else {
-      // Fallback to regular login if master admin fails
-      try {
-        await login(creds);
-      } catch (e) {
-        throw new Error('UNAUTHORIZED');
+    try {
+      if (creds.username === 'master_admin' && creds.pass === 'angola_faith_2025') {
+        const admin: UserExtended = { id: 'admin-1', fullName: t('common.super_admin'), email: 'admin@ceangola.org', phone: '900', country: 'Angola', address: 'Luanda', gender: 'Male', hasLiveAccess: true, role: 'admin' };
+        setUser(admin);
+        localStorage.setItem('ce_session_user', JSON.stringify(admin));
+        return admin;
+      } else {
+        const u = await login(creds);
+        return u;
       }
+    } catch (e) {
+      throw new Error('UNAUTHORIZED');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const register = async (data: any) => {
+    setIsLoading(true);
     try {
       const user = await api.auth.register(data.fullName, data.phone, data.country, data.countryCode, data.churchName);
       setUser(user);
@@ -248,6 +272,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (heartbeatRef.current) clearInterval(heartbeatRef.current);
         heartbeatRef.current = window.setInterval(() => sendHeartbeat(user.id, user.sessionId!), 10000);
       }
+      return user;
     } catch (e) {
       const sessionId = Math.random().toString(36).substring(2, 15);
       const visitorUser: UserExtended = { ...data, id: 'v-' + Date.now(), role: 'user', hasLiveAccess: false, sessionId };
@@ -256,6 +281,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       heartbeatRef.current = window.setInterval(() => sendHeartbeat(visitorUser.id, sessionId), 10000);
+      return visitorUser;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -265,17 +293,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, system, login, adminLogin, register, logout, isLoading, updateStreamConfig, refreshSystem }}>
+    <AuthContext.Provider value={{ user, system, login, adminLogin, register, logout, isLoading, isInitialLoading, updateStreamConfig, refreshSystem }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean; liveOnly?: boolean }> = ({ children, adminOnly, liveOnly }) => {
-  const { user, system, isLoading } = useAuth();
+  const { user, system, isInitialLoading } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  if (isLoading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><Loader2 className="text-ministry-gold animate-spin" size={48} /></div>;
+  if (isInitialLoading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><Loader2 className="text-ministry-gold animate-spin" size={48} /></div>;
   if (!user && (adminOnly || liveOnly)) return <Navigate to={adminOnly ? "/central-admin" : "/login"} replace />;
   if (adminOnly && user?.role !== 'admin') return <Navigate to="/" replace />;
 
@@ -296,7 +324,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean;
 
 // Componente de conteúdo que consome o useAuth
 const AppContent: React.FC = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isInitialLoading } = useAuth();
   const location = useLocation();
 
   // Scroll to top on every route change
@@ -309,7 +337,7 @@ const AppContent: React.FC = () => {
   const isAuthPath = location.pathname === '/login' || location.pathname === '/register';
   const hideGlobalNav = isAdminPath || isSchoolPath;
 
-  if (isLoading) {
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <Loader2 className="text-ministry-gold animate-spin" size={48} />

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, VideoOff, Loader2, Music } from 'lucide-react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { AlertCircle, VideoOff, Loader2, Music, RefreshCw } from 'lucide-react';
 
 interface UniversalPlayerProps {
   url: string;
@@ -12,22 +12,124 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOn
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isStalled, setIsStalled] = useState(false);
   const hlsRef = useRef<any>(null);
+  const watchdogRef = useRef<number | null>(null);
+  const retryCountRef = useRef(0);
+  const lastTimeRef = useRef(0);
+  const stalledCountRef = useRef(0);
+  const isMountedRef = useRef(true);
 
-  const getYouTubeId = (urlStr: string) => {
+  const getYouTubeId = (urlStr: string): string | null => {
     if (!urlStr) return null;
-    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
-    const match = urlStr.match(regExp);
-    return (match && match[7].length === 11) ? match[7] : null;
+    // Suporta: youtu.be/ID, /watch?v=ID, /embed/ID, /live/ID, /v/ID, /shorts/ID
+    const patterns = [
+      /[?&]v=([a-zA-Z0-9_-]{11})/,
+      /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+      /\/(?:embed|live|v|shorts)\/([a-zA-Z0-9_-]{11})/,
+    ];
+    for (const pattern of patterns) {
+      const match = urlStr.match(pattern);
+      if (match && match[1] && match[1].length === 11) return match[1];
+    }
+    return null;
   };
 
   const isYouTube = (urlStr: string) => {
     return (urlStr || '').includes('youtube.com') || (urlStr || '').includes('youtu.be');
   };
 
+  // Sincroniza para a ponta da live apenas se a defasagem for crítica (> 30s)
+  const syncToLiveEdge = useCallback(() => {
+    const video = videoRef.current;
+    const hls = hlsRef.current;
+    if (!video || !hls) return;
+
+    try {
+      if (typeof hls.liveSyncPosition === 'number' && hls.liveSyncPosition > 0) {
+        const drift = hls.liveSyncPosition - video.currentTime;
+        if (drift > 30) {
+          console.info(`[Player] Defasagem de ${drift.toFixed(1)}s detectada. Ajustando suavemente para a live.`);
+          video.currentTime = hls.liveSyncPosition;
+        }
+      }
+    } catch (e) { /* ignorar erros */ }
+  }, []);
+
+  // Watchdog suave: recupera o vídeo apenas se estiver genuinamente travado
+  const startWatchdog = useCallback((loadHls: () => void) => {
+    if (watchdogRef.current) clearInterval(watchdogRef.current);
+    watchdogRef.current = window.setInterval(() => {
+      const video = videoRef.current;
+      if (!video || !isMountedRef.current) return;
+
+      // Se o vídeo não está em pausa, não terminou, mas o tempo não avançou
+      if (!video.paused && !video.ended) {
+        if (video.currentTime === lastTimeRef.current && video.readyState <= 2) {
+          stalledCountRef.current++;
+          console.warn(`[Player] Detetado buffer/stall (${stalledCountRef.current * 4}s)`);
+
+          if (stalledCountRef.current === 1) {
+            setIsStalled(true);
+            const hls = hlsRef.current;
+            if (hls) {
+              try { hls.recoverMediaError(); } catch (e) { }
+            }
+            // Pula pequeno gap de buffer se existir
+            if (video.buffered && video.buffered.length > 0) {
+              const cur = video.currentTime;
+              for (let i = 0; i < video.buffered.length; i++) {
+                const bStart = video.buffered.start(i);
+                if (bStart > cur && (bStart - cur) <= 1.0) {
+                  video.currentTime = bStart + 0.1;
+                  break;
+                }
+              }
+            }
+          } else if (stalledCountRef.current >= 3) {
+            console.warn('[Player] Reconectando stream após pausa prolongada...');
+            stalledCountRef.current = 0;
+            setIsStalled(false);
+            if (hlsRef.current) {
+              try { hlsRef.current.destroy(); } catch (e) { }
+              hlsRef.current = null;
+            }
+            const delay = Math.min(1000 * Math.pow(2, retryCountRef.current), 10000);
+            retryCountRef.current++;
+            setTimeout(loadHls, delay);
+          }
+        } else {
+          // O vídeo está fluindo normalmente
+          if (stalledCountRef.current > 0) {
+            setIsStalled(false);
+            stalledCountRef.current = 0;
+          }
+          syncToLiveEdge();
+        }
+        lastTimeRef.current = video.currentTime;
+      }
+    }, 4000) as unknown as number;
+  }, [syncToLiveEdge]);
+
+  const applyQuality = useCallback((hls: any) => {
+    if (!hls || !hls.levels || hls.levels.length === 0) return;
+    if (quality === 'auto') { hls.currentLevel = -1; return; }
+    let targetHeight = quality === 'fhd' ? 1080 : quality === 'hd' ? 720 : 480;
+    let bestLevel = 0, minDiff = Infinity;
+    hls.levels.forEach((level: any, index: number) => {
+      const diff = Math.abs(level.height - targetHeight);
+      if (diff < minDiff) { minDiff = diff; bestLevel = index; }
+    });
+    hls.currentLevel = bestLevel;
+  }, [quality]);
+
   useEffect(() => {
+    isMountedRef.current = true;
     setError(null);
     setLoading(true);
+    setIsStalled(false);
+    retryCountRef.current = 0;
+    stalledCountRef.current = 0;
 
     if (!url || url.trim() === "") {
       setLoading(false);
@@ -36,94 +138,105 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOn
 
     if (!isYouTube(url)) {
       const loadHls = () => {
+        if (!isMountedRef.current) return;
         const Hls = (window as any).Hls;
         if (Hls && Hls.isSupported() && videoRef.current) {
           if (hlsRef.current) {
-            hlsRef.current.destroy();
+            try { hlsRef.current.destroy(); } catch (e) { }
           }
 
-          const hls = new Hls({ 
+          const hls = new Hls({
             enableWorker: true,
             autoStartLoad: true,
-            startLevel: -1, // Seleção automática e dinâmica da melhor qualidade
-            capLevelToPlayerSize: true, // Economiza banda não baixando resolução maior que a tela
-            lowLatencyMode: false, // Máxima fluidez e estabilidade
-            backBufferLength: 30, // 30s de buffer passado para liberar memória
-            maxBufferLength: 45, // 45s de buffer futuro: ideal para conexões móveis não esgotarem o cache
-            maxMaxBufferLength: 90,
+            startLevel: -1,
+            capLevelToPlayerSize: true,
+            lowLatencyMode: false,
+            backBufferLength: 30,
+            maxBufferLength: 30,
+            maxMaxBufferLength: 60,
             maxBufferSize: 60 * 1000 * 1000,
             maxBufferHole: 0.5,
             highBufferWatchdogPeriod: 2,
-            nudgeOffset: 0.15,
-            nudgeMaxRetry: 5,
-            liveSyncDurationCount: 4, // 4 segmentos de margem segura (evita colisão com encoder e previne travamento)
-            liveMaxLatencyDurationCount: 10, // Mantém latência baixa sem correr risco de buffer vazio
+            nudgeOffset: 0.2,
+            nudgeMaxRetry: 6,
+            liveSyncDurationCount: 3,
+            liveMaxLatencyDurationCount: 10,
             liveDurationInfinity: true,
-            startFragPrefetch: true, // Pré-carrega o próximo fragmento
-            manifestLoadingTimeOut: 15000,
+            startFragPrefetch: true,
+            manifestLoadingTimeOut: 20000,
             manifestLoadingMaxRetry: 6,
-            levelLoadingTimeOut: 15000,
+            manifestLoadingRetryDelay: 1000,
+            levelLoadingTimeOut: 20000,
             levelLoadingMaxRetry: 6,
-            fragLoadingTimeOut: 20000,
+            fragLoadingTimeOut: 25000,
             fragLoadingMaxRetry: 8,
-            fragLoadingRetryDelay: 1000,
+            fragLoadingRetryDelay: 800,
             fragLoadingMaxRetryTimeout: 64000,
-            abrBandWidthFactor: 0.75, // Margem de segurança de 25% contra oscilações de 4G/Wi-Fi
-            abrBandWidthUpFactor: 0.6,
-            abrEwmaDefaultEstimate: 600000 // Início rápido a 600 kbps
+            abrBandWidthFactor: 0.8,
+            abrBandWidthUpFactor: 0.7,
+            abrEwmaDefaultEstimate: 500000,
           });
-          
+
           hlsRef.current = hls;
           hls.loadSource(url);
           hls.attachMedia(videoRef.current);
-          
+
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            if (!isMountedRef.current) return;
             setLoading(false);
+            setError(null);
+            retryCountRef.current = 0;
             applyQuality(hls);
+            startWatchdog(loadHls);
             const playPromise = videoRef.current?.play();
             if (playPromise !== undefined) {
               playPromise.catch(() => {
-                // Se o navegador bloquear autoplay com som, ativa mudo para iniciar direto sem travar
                 if (videoRef.current) {
                   videoRef.current.muted = true;
-                  videoRef.current.play().catch(() => {});
+                  videoRef.current.play().catch(() => { });
                 }
               });
             }
           });
 
-          hls.on(Hls.Events.ERROR, (event: any, data: any) => {
+          hls.on(Hls.Events.FRAG_LOADED, () => {
+            // Cada fragmento carregado com sucesso: reset do contador de stall
+            stalledCountRef.current = 0;
+            if (isMountedRef.current) setIsStalled(false);
+          });
+
+          hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
+            if (!isMountedRef.current) return;
             if (data.fatal) {
               switch (data.type) {
                 case Hls.ErrorTypes.NETWORK_ERROR:
-                  console.warn("HLS Network Error, tentando recuperar conexão...", data);
+                  console.warn('[HLS] Erro de rede — retomando carga...', data.details);
                   hls.startLoad();
                   break;
                 case Hls.ErrorTypes.MEDIA_ERROR:
-                  console.warn("HLS Media Error, recuperando codec/buffer...", data);
+                  console.warn('[HLS] Erro de media — recuperando...', data.details);
                   hls.recoverMediaError();
                   break;
                 default:
-                  console.warn("HLS Fatal Error, reiniciando fluxo...", data);
-                  try {
-                    hls.destroy();
-                    setTimeout(loadHls, 1000);
-                  } catch (e) {
-                    setError("Sinal de transmissão instável.");
-                    setLoading(false);
-                  }
+                  console.warn('[HLS] Erro fatal — reiniciando em', retryCountRef.current + 1, 's');
+                  try { hls.destroy(); } catch (e) { }
+                  hlsRef.current = null;
+                  const delay = Math.min(1000 * Math.pow(2, retryCountRef.current), 20000);
+                  retryCountRef.current = Math.min(retryCountRef.current + 1, 5);
+                  setTimeout(loadHls, delay);
                   break;
               }
-            } else if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
-              // Destrava frames congelados saltando lacunas apenas quando houver dados carregados à frente
+            } else if (
+              data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR ||
+              data.details === Hls.ErrorDetails.BUFFER_SEEK_OVER_HOLE
+            ) {
               const video = videoRef.current;
               if (video && !video.paused && video.buffered && video.buffered.length > 0) {
                 const cur = video.currentTime;
                 for (let i = 0; i < video.buffered.length; i++) {
                   const start = video.buffered.start(i);
-                  const end = video.buffered.end(i);
-                  if (cur < start && (start - cur) <= 0.8) {
-                    video.currentTime = start + 0.05;
+                  if (cur < start && (start - cur) <= 1.5) {
+                    video.currentTime = start + 0.1;
                     break;
                   }
                 }
@@ -131,10 +244,16 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOn
             }
           });
         } else if (videoRef.current?.canPlayType('application/vnd.apple.mpegurl')) {
+          // Safari nativo
           videoRef.current.src = url;
-          videoRef.current.addEventListener('loadedmetadata', () => setLoading(false));
+          videoRef.current.addEventListener('loadedmetadata', () => {
+            if (isMountedRef.current) setLoading(false);
+          });
+          videoRef.current.play().catch(() => {
+            if (videoRef.current) { videoRef.current.muted = true; videoRef.current.play().catch(() => { }); }
+          });
         } else {
-          setError("Este navegador não suporta streaming HLS.");
+          setError('Este navegador não suporta streaming HLS.');
           setLoading(false);
         }
       };
@@ -144,6 +263,9 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOn
         script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
         script.async = true;
         script.onload = loadHls;
+        script.onerror = () => {
+          if (isMountedRef.current) { setError('Erro ao carregar player.'); setLoading(false); }
+        };
         document.body.appendChild(script);
       } else {
         loadHls();
@@ -153,51 +275,18 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOn
     }
 
     return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
+      isMountedRef.current = false;
+      if (watchdogRef.current) { clearInterval(watchdogRef.current); watchdogRef.current = null; }
+      if (hlsRef.current) { try { hlsRef.current.destroy(); } catch (e) { } hlsRef.current = null; }
     };
   }, [url]);
 
-  // Efeito para mudar a qualidade em tempo real (HLS apenas)
+  // Mudar qualidade em tempo real
   useEffect(() => {
-    if (hlsRef.current) {
-      applyQuality(hlsRef.current);
-    }
-  }, [quality]);
+    if (hlsRef.current) applyQuality(hlsRef.current);
+  }, [quality, applyQuality]);
 
-  const applyQuality = (hls: any) => {
-    if (!hls || !hls.levels || hls.levels.length === 0) return;
-    
-    if (quality === 'auto') {
-      hls.currentLevel = -1;
-      return;
-    }
-
-    // Mapear HD, FHD, SD para os níveis disponíveis
-    // hls.levels é um array de objetos com height
-    let targetHeight = 0;
-    if (quality === 'fhd') targetHeight = 1080;
-    else if (quality === 'hd') targetHeight = 720;
-    else if (quality === 'sd') targetHeight = 480;
-
-    // Encontrar o nível mais próximo (preferindo o menor ou igual)
-    let bestLevel = 0;
-    let minDiff = Infinity;
-
-    hls.levels.forEach((level: any, index: number) => {
-      const diff = Math.abs(level.height - targetHeight);
-      if (diff < minDiff) {
-        minDiff = diff;
-        bestLevel = index;
-      }
-    });
-
-    hls.currentLevel = bestLevel;
-  };
-
-  if (!url || url.trim() === "") {
+  if (!url || url.trim() === '') {
     return (
       <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 m-0 border-4 border-dashed border-white/5 text-center p-12">
         <VideoOff size={60} className="text-white/10 mb-6" />
@@ -215,6 +304,14 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOn
         <div className="absolute inset-0 z-30 bg-slate-950 flex flex-col items-center justify-center space-y-4">
           <Loader2 className="text-ministry-gold animate-spin" size={48} />
           <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Sintonizando Canal...</span>
+        </div>
+      )}
+
+      {/* Indicador de reconexão silenciosa */}
+      {isStalled && !loading && (
+        <div className="absolute top-4 right-4 z-40 flex items-center space-x-2 bg-black/70 px-3 py-2 rounded-full border border-yellow-500/30">
+          <RefreshCw size={12} className="text-yellow-400 animate-spin" />
+          <span className="text-[9px] font-black text-yellow-400 uppercase tracking-widest">Reconectando...</span>
         </div>
       )}
 
@@ -244,14 +341,13 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOn
                     <span className="text-[10px] font-black text-white uppercase tracking-[0.4em]">Emissão apenas Áudio</span>
                     <div className="flex items-center space-x-1.5 h-4">
                       {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                        <div 
-                          key={i} 
-                          className="w-1 bg-ministry-gold rounded-full transition-all duration-300" 
-                          style={{ 
-                            height: `${Math.random() * 100}%`,
+                        <div
+                          key={i}
+                          className="w-1 bg-ministry-gold rounded-full"
+                          style={{
                             animation: `audioWave 1.2s ease-in-out infinite`,
-                            animationDelay: `${i * 0.1}s`
-                          }} 
+                            animationDelay: `${i * 0.15}s`
+                          }}
                         />
                       ))}
                     </div>
@@ -271,7 +367,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ url, title, isAudioOn
       )}
       <style>{`
         @keyframes audioWave {
-          0%, 100% { height: 20%; }
+          0%, 100% { height: 15%; }
           50% { height: 100%; }
         }
       `}</style>

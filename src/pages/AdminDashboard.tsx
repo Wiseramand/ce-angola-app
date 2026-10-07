@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Users, Video, Shield, RefreshCw, ArrowLeft, UserPlus, FileSpreadsheet, Printer, X, Save, Calendar, Clock, Filter, Edit2, Trash2, Share2, Copy, Mail, MessageCircle, ExternalLink,
-  LogOut, Radio, LayoutDashboard, Search, Settings, Check, ShieldAlert, Key, Loader2, Play, GraduationCap
+  LogOut, Radio, LayoutDashboard, Search, Settings, Check, ShieldAlert, Key, Loader2, Play, GraduationCap, MapPin, Globe, Laptop, History
 } from 'lucide-react';
 import { useAuth } from '../App';
 import Logo from '../components/Logo';
@@ -17,6 +17,12 @@ interface ManagedUser {
   has_live_access?: boolean;
   is_online?: boolean;
   last_seen?: string;
+  session_started_at?: string;
+  duration_seconds?: number;
+  ip_address?: string;
+  location?: string;
+  device_info?: string;
+  current_session_id?: string;
 }
 
 interface Visitor {
@@ -104,6 +110,19 @@ const AdminDashboard: React.FC = () => {
 
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [newUser, setNewUser] = useState({ fullname: '', username: '', password: '', has_live_access: false });
+  const [showMemberCredsModal, setShowMemberCredsModal] = useState(false);
+  const [memberCredsData, setMemberCredsData] = useState<{
+    name: string;
+    username: string;
+    password?: string;
+    exclusiveLink: string;
+    loginLink: string;
+  } | null>(null);
+  const [showUserLogsModal, setShowUserLogsModal] = useState(false);
+  const [userLogs, setUserLogs] = useState<any[]>([]);
+  const [selectedLogsUser, setSelectedLogsUser] = useState<ManagedUser | null>(null);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [streamForm, setStreamForm] = useState({
     public_url: '',
     public_url2: '',
@@ -188,7 +207,14 @@ const AdminDashboard: React.FC = () => {
         alert("Membro atualizado com sucesso!");
       } else {
         await api.admin.createUser(newUser);
-        alert("Membro criado com sucesso!");
+        setMemberCredsData({
+          name: newUser.fullname,
+          username: newUser.username,
+          password: newUser.password,
+          exclusiveLink: getExclusiveVideoLink(),
+          loginLink: getLoginLink()
+        });
+        setShowMemberCredsModal(true);
       }
       setShowUserModal(false);
       setEditingUser(null);
@@ -247,23 +273,106 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const getLoginLink = () => `${window.location.origin}/login`;
+  const getLoginLink = () => `${window.location.origin}/#/login`;
+  const getExclusiveVideoLink = () => `${window.location.origin}/#/live`;
+
+  const formatDuration = (seconds?: number) => {
+    if (!seconds || seconds <= 0) return 'Menos de 1 min';
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hrs > 0) return `${hrs}h ${mins}m`;
+    if (mins > 0) return `${mins}m ${secs}s`;
+    return `${secs}s`;
+  };
+
+  const copyToClipboard = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 2500);
+  };
+
+  const getFullShareMessage = (data: { name: string; username: string; password?: string; exclusiveLink: string; loginLink: string }) => {
+    return `🕊️ Christ Embassy Angola • Acesso Exclusivo à Transmissão
+
+Olá ${data.name}, aqui estão as suas credenciais para aceder à transmissão exclusiva:
+
+🔗 Link Direto da Página do Vídeo:
+${data.exclusiveLink}
+
+👤 Utilizador: ${data.username}
+🔑 Senha: ${data.password || '******'}
+
+⚠️ Importante: Por questões de segurança, estes dados são pessoais e só podem ser usados num único dispositivo ou navegador por vez.
+
+Seja bem-vindo e Deus o abençoe!`;
+  };
+
+  const handleOpenCredentials = (u: ManagedUser | { fullname: string; username: string; password?: string }) => {
+    const name = 'name' in u ? u.name : u.fullname;
+    setMemberCredsData({
+      name,
+      username: u.username,
+      password: u.password,
+      exclusiveLink: getExclusiveVideoLink(),
+      loginLink: getLoginLink()
+    });
+    setShowMemberCredsModal(true);
+  };
 
   const shareViaWhatsApp = (u: ManagedUser) => {
-    const text = `Olá ${u.name}, aqui estão as suas credenciais de acesso exclusivo:\n\nLink: ${getLoginLink()}\nUsuário: ${u.username}\nSenha: ${u.password}\n\nSeja bem-vindo!`;
+    const text = getFullShareMessage({
+      name: u.name,
+      username: u.username,
+      password: u.password,
+      exclusiveLink: getExclusiveVideoLink(),
+      loginLink: getLoginLink()
+    });
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const shareViaEmail = (u: ManagedUser) => {
-    const subject = "Suas Credenciais de Acesso - Christ Embassy Angola";
-    const body = `Olá ${u.name},\n\nAqui estão as suas credenciais para a área exclusiva da Christ Embassy Angola:\n\nLink de Acesso: ${getLoginLink()}\nUsuário: ${u.username}\nSenha: ${u.password}\n\nDeus o abençoe!`;
+    const subject = "Suas Credenciais de Acesso Exclusivo - Christ Embassy Angola";
+    const body = getFullShareMessage({
+      name: u.name,
+      username: u.username,
+      password: u.password,
+      exclusiveLink: getExclusiveVideoLink(),
+      loginLink: getLoginLink()
+    });
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const copyCredentials = (u: ManagedUser) => {
-    const text = `Acesso Exclusivo:\nLink: ${getLoginLink()}\nUsuário: ${u.username}\nSenha: ${u.password}`;
-    navigator.clipboard.writeText(text);
-    alert("Credenciais copiadas!");
+    handleOpenCredentials(u);
+  };
+
+  const handleDisconnectUser = async (u: ManagedUser) => {
+    if (!confirm(`Deseja desconectar a sessão de ${u.name}? Isto irá libertar os dados de login para que possam ser usados novamente.`)) return;
+    setIsRefreshing(true);
+    try {
+      await api.admin.disconnectUser(u.id);
+      alert(`Sessão de ${u.name} desconectada com sucesso. Os logins já podem ser utilizados.`);
+      await loadData();
+    } catch (e) {
+      alert("Erro ao desconectar sessão.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleViewUserLogs = async (u: ManagedUser) => {
+    setSelectedLogsUser(u);
+    setShowUserLogsModal(true);
+    setLogsLoading(true);
+    try {
+      const logs = await api.admin.getUserLogs(u.id);
+      setUserLogs(logs || []);
+    } catch (e) {
+      console.error("Erro ao carregar logs", e);
+    } finally {
+      setLogsLoading(false);
+    }
   };
 
   const exportVisitors = () => {
@@ -728,89 +837,162 @@ const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left border-b">
-                    <th className="px-8 py-5">{t('admin.full_name')}</th>
-                    <th className="px-8 py-5">{t('admin.username')}</th>
-                    <th className="px-8 py-5">{t('admin.password')}</th>
-                    <th className="px-8 py-5">{t('common.exclusive_access')}</th>
-                    <th className="px-8 py-5">Estado na Live</th>
-                    <th className="px-8 py-5">{t('admin.actions')}</th>
-                    <th className="px-8 py-5 text-right">{t('admin.share')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {(() => {
-                    const filtered = users.filter(u =>
-                      (u.name || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
-                      (u.username || '').toLowerCase().includes(memberSearch.toLowerCase())
-                    );
-                    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-                    const page = Math.min(memberPage, Math.max(0, totalPages - 1));
-                    const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b">
+                      <th className="px-6 py-5">{t('admin.full_name')}</th>
+                      <th className="px-6 py-5">{t('admin.password')}</th>
+                      <th className="px-6 py-5">{t('common.exclusive_access')}</th>
+                      <th className="px-6 py-5">Sessão & Tempo Conectado</th>
+                      <th className="px-6 py-5">IP & Localização</th>
+                      <th className="px-6 py-5">Segurança da Sessão</th>
+                      <th className="px-6 py-5">{t('admin.actions')}</th>
+                      <th className="px-6 py-5 text-right">Credenciais & Partilha</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(() => {
+                      const filtered = users.filter(u =>
+                        (u.name || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
+                        (u.username || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
+                        (u.ip_address || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
+                        (u.location || '').toLowerCase().includes(memberSearch.toLowerCase())
+                      );
+                      const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+                      const page = Math.min(memberPage, Math.max(0, totalPages - 1));
+                      const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-                    if (paged.length === 0) {
-                      return <tr><td colSpan={7} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_members')}</td></tr>;
-                    }
+                      if (paged.length === 0) {
+                        return <tr><td colSpan={8} className="px-8 py-10 text-center text-slate-400 font-bold uppercase text-xs">{t('admin.no_members')}</td></tr>;
+                      }
 
-                    return paged.map(u => (
-                      <tr key={u.id} className="hover:bg-slate-50 transition">
-                        <td className="px-8 py-6 font-bold text-ministry-blue uppercase text-xs">{u.name}</td>
-                        <td className="px-8 py-6 font-mono text-sm text-slate-500">{u.username}</td>
-                        <td className="px-8 py-6 font-mono text-sm text-slate-500">{u.password}</td>
-                        <td className="px-8 py-6 text-xs font-bold">
-                          {u.has_live_access ? (
-                            <span className="text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">
-                              {t('common.yes') || 'Sim'}
-                            </span>
-                          ) : (
-                            <span className="text-red-500 bg-red-50 px-3 py-1 rounded-full border border-red-200">
-                              {t('common.no') || 'Não'}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-8 py-6">
-                          {u.is_online ? (
-                            <span className="inline-flex items-center space-x-2 px-3 py-1 bg-green-50 text-green-600 rounded-full border border-green-200 text-[10px] font-black uppercase tracking-wider shadow-sm">
-                              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                              <span>Conectado (Ao Vivo)</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center space-x-2 px-3 py-1 bg-slate-50 text-slate-400 rounded-full text-[10px] font-black uppercase tracking-wider">
-                              <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                              <span>Desconectado</span>
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-8 py-6">
-                          <div className="flex space-x-2">
-                            <button onClick={() => handleEditUser(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar">
-                              <Edit2 size={16} />
-                            </button>
-                            <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar">
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6 text-right">
-                          <div className="flex justify-end space-x-2">
-                            <button onClick={() => shareViaWhatsApp(u)} className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition" title="WhatsApp">
-                              <MessageCircle size={16} />
-                            </button>
-                            <button onClick={() => shareViaEmail(u)} className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition" title="Email">
-                              <Mail size={16} />
-                            </button>
-                            <button onClick={() => copyCredentials(u)} className="p-2 text-ministry-gold hover:bg-gold-50 rounded-lg transition" title="Copiar">
-                              <Copy size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ));
-                  })()}
-                </tbody>
-              </table>
+                      return paged.map(u => (
+                        <tr key={u.id} className="hover:bg-slate-50 transition">
+                          <td className="px-6 py-5">
+                            <div className="font-bold text-ministry-blue uppercase text-xs">{u.name}</div>
+                            <div className="font-mono text-[11px] text-slate-400 font-bold">@{u.username}</div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-mono text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-md">{u.password}</span>
+                              <button 
+                                onClick={() => copyToClipboard(u.password || '', `pwd-${u.id}`)}
+                                className="text-slate-400 hover:text-ministry-gold transition p-1"
+                                title="Copiar Senha"
+                              >
+                                {copiedField === `pwd-${u.id}` ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 text-xs font-bold">
+                            {u.has_live_access ? (
+                              <span className="text-green-600 bg-green-50 px-2.5 py-1 rounded-full border border-green-200 text-[10px] uppercase font-black">
+                                {t('common.yes') || 'Sim'}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200 text-[10px] uppercase font-black">
+                                {t('common.no') || 'Não'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-5">
+                            {u.is_online ? (
+                              <div className="space-y-1">
+                                <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 bg-green-50 text-green-600 rounded-full border border-green-200 text-[10px] font-black uppercase tracking-wider">
+                                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                                  <span>Conectado Agora</span>
+                                </span>
+                                <div className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
+                                  <Clock size={12} className="text-green-600" />
+                                  <span>Conectado há: <strong className="text-ministry-blue">{formatDuration(u.duration_seconds)}</strong></span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 bg-slate-100 text-slate-400 rounded-full text-[10px] font-black uppercase tracking-wider">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                                  <span>Desconectado</span>
+                                </span>
+                                {u.duration_seconds && u.duration_seconds > 0 ? (
+                                  <div className="text-[10px] font-bold text-slate-400">
+                                    Última sessão: {formatDuration(u.duration_seconds)}
+                                  </div>
+                                ) : null}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="space-y-1 text-xs">
+                              <div className="flex items-center space-x-1.5 font-mono text-[11px] font-bold text-slate-700">
+                                <Globe size={13} className="text-ministry-gold flex-shrink-0" />
+                                <span>{u.ip_address && u.ip_address !== 'N/A' ? u.ip_address : '—'}</span>
+                              </div>
+                              <div className="flex items-center space-x-1.5 text-[11px] font-bold text-slate-500">
+                                <MapPin size={13} className="text-red-400 flex-shrink-0" />
+                                <span>{u.location && u.location !== 'N/A' ? u.location : 'Angola'}</span>
+                              </div>
+                              {u.device_info && u.device_info !== 'N/A' && (
+                                <div className="flex items-center space-x-1.5 text-[10px] font-bold text-slate-400">
+                                  <Laptop size={12} className="text-slate-400 flex-shrink-0" />
+                                  <span className="truncate max-w-[150px]">{u.device_info}</span>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="flex flex-col space-y-1.5">
+                              {u.is_online && (
+                                <button
+                                  onClick={() => handleDisconnectUser(u)}
+                                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 shadow-sm"
+                                  title="Liberta a sessão do utilizador se precisar de entrar noutro dispositivo"
+                                >
+                                  <LogOut size={12} className="text-amber-600" />
+                                  <span>Libertar Sessão</span>
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleViewUserLogs(u)}
+                                className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center space-x-1.5 transition"
+                                title="Ver histórico de conexões deste utilizador"
+                              >
+                                <History size={12} className="text-slate-400" />
+                                <span>Histórico</span>
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="flex space-x-2">
+                              <button onClick={() => handleEditUser(u)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar">
+                                <Edit2 size={16} />
+                              </button>
+                              <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar">
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 text-right">
+                            <div className="flex justify-end space-x-2">
+                              <button 
+                                onClick={() => handleOpenCredentials(u)} 
+                                className="px-3 py-2 bg-ministry-gold/10 hover:bg-ministry-gold hover:text-white text-ministry-gold border border-ministry-gold/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition flex items-center space-x-1 shadow-sm"
+                                title="Ver Credenciais e Link Direto da Live"
+                              >
+                                <Key size={14} />
+                                <span>Ver Acesso</span>
+                              </button>
+                              <button onClick={() => shareViaWhatsApp(u)} className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition" title="Partilhar por WhatsApp">
+                                <MessageCircle size={18} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
               {(() => {
                 const filtered = users.filter(u =>
                   (u.name || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
@@ -982,6 +1164,212 @@ const AdminDashboard: React.FC = () => {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )
+        }
+
+        {
+          showMemberCredsModal && memberCredsData && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ministry-blue/90 backdrop-blur-md animate-in fade-in duration-300">
+              <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-8 md:p-10 shadow-2xl relative animate-in zoom-in duration-300 border border-slate-100">
+                <button 
+                  onClick={() => setShowMemberCredsModal(false)} 
+                  className="absolute top-6 right-6 text-slate-400 hover:text-ministry-blue p-2 rounded-full hover:bg-slate-100 transition"
+                >
+                  <X size={24} />
+                </button>
+
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className="w-10 h-10 rounded-2xl bg-ministry-gold/10 text-ministry-gold flex items-center justify-center">
+                    <Key size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Credenciais & Acesso Exclusivo</h2>
+                    <p className="text-xs text-slate-400 font-bold uppercase">Christ Embassy Angola</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 mb-6">
+                  <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Membro Beneficiário</div>
+                  <div className="text-base font-black text-ministry-blue mt-0.5">{memberCredsData.name}</div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Utilizador */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Utilizador / ID</div>
+                      <div className="font-mono text-sm font-bold text-slate-800 mt-0.5">{memberCredsData.username}</div>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(memberCredsData.username, 'user')}
+                      className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:border-ministry-gold hover:text-ministry-gold rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm"
+                    >
+                      {copiedField === 'user' ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                      <span>{copiedField === 'user' ? 'Copiado!' : 'Copiar'}</span>
+                    </button>
+                  </div>
+
+                  {/* Senha */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Senha de Acesso</div>
+                      <div className="font-mono text-sm font-bold text-slate-800 mt-0.5">{memberCredsData.password || '******'}</div>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(memberCredsData.password || '', 'pwd')}
+                      className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:border-ministry-gold hover:text-ministry-gold rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm"
+                    >
+                      {copiedField === 'pwd' ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                      <span>{copiedField === 'pwd' ? 'Copiado!' : 'Copiar'}</span>
+                    </button>
+                  </div>
+
+                  {/* Link Direto do Vídeo / Live */}
+                  <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-200/60 flex items-center justify-between">
+                    <div className="max-w-[70%]">
+                      <div className="text-[10px] font-black uppercase text-amber-700 tracking-wider flex items-center space-x-1">
+                        <span>Link Direto da Página do Vídeo (Live)</span>
+                      </div>
+                      <div className="font-mono text-xs text-slate-700 truncate mt-0.5 font-bold">{memberCredsData.exclusiveLink}</div>
+                    </div>
+                    <div className="flex items-center space-x-1.5">
+                      <a 
+                        href={memberCredsData.exclusiveLink} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="p-2 bg-white text-slate-500 hover:text-ministry-blue rounded-xl border border-slate-200 shadow-sm" 
+                        title="Abrir Link"
+                      >
+                        <ExternalLink size={14} />
+                      </a>
+                      <button
+                        onClick={() => copyToClipboard(memberCredsData.exclusiveLink, 'excl-link')}
+                        className="px-3 py-1.5 bg-ministry-gold text-white hover:bg-ministry-blue rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm"
+                      >
+                        {copiedField === 'excl-link' ? <Check size={14} /> : <Copy size={14} />}
+                        <span>{copiedField === 'excl-link' ? 'Copiado!' : 'Copiar'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Banner de Segurança */}
+                <div className="mt-5 p-3.5 bg-blue-50/60 rounded-2xl border border-blue-100 flex items-start space-x-3 text-xs text-slate-600">
+                  <ShieldAlert size={18} className="text-ministry-blue flex-shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    <strong className="text-ministry-blue">Proteção de Dispositivo Único:</strong> Se o membro tentar utilizar estes acessos num segundo navegador ou aparelho ao mesmo tempo, o sistema alertará que os logins já estão em uso.
+                  </p>
+                </div>
+
+                {/* Ações de Partilha */}
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={() => {
+                      copyToClipboard(getFullShareMessage(memberCredsData), 'all');
+                    }}
+                    className="w-full py-4 bg-ministry-blue text-white rounded-2xl font-black uppercase text-[11px] tracking-wider hover:bg-ministry-gold transition flex items-center justify-center space-x-2 shadow-lg"
+                  >
+                    {copiedField === 'all' ? <Check size={16} /> : <Copy size={16} />}
+                    <span>{copiedField === 'all' ? 'Tudo Copiado!' : 'Copiar Mensagem Completa'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const text = getFullShareMessage(memberCredsData);
+                      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                    }}
+                    className="w-full py-4 bg-green-600 text-white rounded-2xl font-black uppercase text-[11px] tracking-wider hover:bg-green-700 transition flex items-center justify-center space-x-2 shadow-lg"
+                  >
+                    <MessageCircle size={16} />
+                    <span>Enviar no WhatsApp</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        {
+          showUserLogsModal && selectedLogsUser && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ministry-blue/90 backdrop-blur-md animate-in fade-in duration-300">
+              <div className="bg-white w-full max-w-3xl rounded-[2.5rem] p-8 md:p-10 shadow-2xl relative animate-in zoom-in duration-300 border border-slate-100 max-h-[90vh] flex flex-col">
+                <button 
+                  onClick={() => setShowUserLogsModal(false)} 
+                  className="absolute top-6 right-6 text-slate-400 hover:text-ministry-blue p-2 rounded-full hover:bg-slate-100 transition"
+                >
+                  <X size={24} />
+                </button>
+
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-50 text-ministry-blue flex items-center justify-center">
+                    <History size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-ministry-blue uppercase tracking-tight">Histórico de Conexões & IP</h2>
+                    <p className="text-xs text-slate-400 font-bold uppercase">{selectedLogsUser.name} (@{selectedLogsUser.username})</p>
+                  </div>
+                </div>
+
+                <div className="overflow-y-auto flex-1 pr-2">
+                  {logsLoading ? (
+                    <div className="py-16 text-center">
+                      <Loader2 size={32} className="animate-spin text-ministry-gold mx-auto mb-2" />
+                      <p className="text-xs font-bold text-slate-400 uppercase">A carregar registros...</p>
+                    </div>
+                  ) : userLogs.length === 0 ? (
+                    <div className="py-16 text-center text-slate-400 text-xs font-bold uppercase bg-slate-50 rounded-2xl border border-slate-100">
+                      Nenhum histórico de conexão registrado para este membro.
+                    </div>
+                  ) : (
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b">
+                          <th className="px-4 py-3">Início</th>
+                          <th className="px-4 py-3">Tempo Conectado</th>
+                          <th className="px-4 py-3">IP</th>
+                          <th className="px-4 py-3">Localização</th>
+                          <th className="px-4 py-3">Dispositivo</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {userLogs.map((log: any) => (
+                          <tr key={log.id} className="hover:bg-slate-50 transition">
+                            <td className="px-4 py-3 font-bold text-slate-700">
+                              <div>{new Date(log.started_at).toLocaleDateString()}</div>
+                              <div className="text-[10px] text-slate-400">{new Date(log.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                            </td>
+                            <td className="px-4 py-3 font-bold text-ministry-blue">
+                              {formatDuration(log.duration_seconds)}
+                              {!log.ended_at && (
+                                <span className="ml-1 text-[9px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full border border-green-200">Ao Vivo</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-slate-600 font-bold">
+                              {log.ip_address || '—'}
+                            </td>
+                            <td className="px-4 py-3 text-slate-600 font-bold">
+                              {log.location || 'Angola'}
+                            </td>
+                            <td className="px-4 py-3 text-slate-500 text-[11px] font-medium">
+                              {log.device_info || '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+                  <button
+                    onClick={() => setShowUserLogsModal(false)}
+                    className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold uppercase transition"
+                  >
+                    Fechar
+                  </button>
+                </div>
               </div>
             </div>
           )

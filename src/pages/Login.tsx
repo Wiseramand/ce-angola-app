@@ -22,13 +22,21 @@ const Login: React.FC = () => {
     const normalizedUsername = formData.username.toLowerCase().trim();
 
     try {
-      await login({ username: normalizedUsername, pass: formData.pass });
-      navigate(from, { replace: true });
+      const loggedUser = await login({ username: normalizedUsername, pass: formData.pass });
+      if (loggedUser?.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else if (loggedUser?.hasLiveAccess) {
+        navigate('/live', { replace: true });
+      } else {
+        navigate('/live-tv', { replace: true });
+      }
     } catch (err: any) {
       if (err.message === 'BLOCKED') {
         setError(t('auth.error_blocked'));
       } else if (err.message === 'INVALID_CREDENTIALS' || err.message === 'INVALID') {
         setError(t('auth.error_invalid_credentials'));
+      } else if (err.message) {
+        setError(err.message);
       } else {
         setError(t('auth.error_connection_failed'));
         console.error("Login Error:", err);
@@ -37,7 +45,14 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-6 relative">
+      <button 
+        onClick={() => navigate('/')} 
+        className="absolute top-6 left-6 flex items-center space-x-2 text-gray-400 hover:text-white transition font-bold text-xs uppercase tracking-wider"
+      >
+        <ArrowLeft size={18} />
+        <span>{t('common.home', 'Início')}</span>
+      </button>
       <div className="max-w-md w-full">
         <div className="bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-white/5 relative p-12">
           <div className="absolute inset-0 opacity-10">

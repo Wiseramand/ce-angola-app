@@ -68,7 +68,7 @@ const Footer: React.FC = () => {
           </div>
         </div>
         <div className="mt-16 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 text-sm text-gray-400 font-bold uppercase tracking-widest">
-          <p>© {new Date().getFullYear()} Christ Embassy Angola. {t('footer.all_rights')}</p>
+          <p>© 2026 Christ Embassy Angola. Todos os direitos reservados. Entidade Cristã Registada.</p>
 
           <div className="flex items-center space-x-8">
             <button
@@ -78,10 +78,6 @@ const Footer: React.FC = () => {
               <Globe size={16} />
               <span>{i18n.language.toUpperCase()}</span>
             </button>
-            <div className="flex items-center space-x-6">
-              <a href="#/central-admin" className="hover:text-white transition">{t('footer.admin')}</a>
-              <a href="#" className="hover:text-white transition">{t('footer.webmail')}</a>
-            </div>
           </div>
         </div>
       </div>

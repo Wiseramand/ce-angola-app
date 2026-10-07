@@ -87,7 +87,7 @@ export const api = {
 
   // --- AUTHENTICATION ---
   auth: {
-    login: async (email: string, password: string): Promise<User> => {
+    login: async (email: string, password: string, clientData?: any): Promise<User> => {
       if (!USE_BACKEND) {
         if (email === 'admin@christembassy.org' && password === 'admin123') {
           return { id: 'admin-1', fullName: 'Pastor Administrator', email, role: UserRole.ADMIN, phone: '', country: '', address: '', gender: 'Male', hasLiveAccess: true };
@@ -99,7 +99,7 @@ export const api = {
         let res = await fetch(`${CURRENT_API_URL}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({ email, username: email, password })
+          body: JSON.stringify({ email, username: email, password, ...(clientData || {}) })
         });
 
         const data = await res.json();
@@ -291,6 +291,24 @@ export const api = {
       await fetch(`${CURRENT_API_URL}/admin/users?id=${id}`, {
         method: 'DELETE'
       });
+    },
+    disconnectUser: async (userId: string): Promise<any> => {
+      if (!USE_BACKEND) return { success: true };
+      const res = await fetch(`${CURRENT_API_URL}/admin/disconnect-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      return await res.json();
+    },
+    getUserLogs: async (userId?: string): Promise<any[]> => {
+      if (!USE_BACKEND) return [];
+      const url = userId 
+        ? `${CURRENT_API_URL}/admin/user-logs?userId=${encodeURIComponent(userId)}&t=${Date.now()}`
+        : `${CURRENT_API_URL}/admin/user-logs?t=${Date.now()}`;
+      const res = await fetch(url);
+      if (res.ok) return await res.json();
+      return [];
     }
   },
 

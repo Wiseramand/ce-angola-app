@@ -54,7 +54,25 @@ const initDb = async () => {
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         user_id TEXT,
-        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ip_address TEXT,
+        location TEXT,
+        device_info TEXT
+      );
+      CREATE TABLE IF NOT EXISTS user_session_logs (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT,
+        username TEXT,
+        fullname TEXT,
+        session_id TEXT,
+        ip_address TEXT,
+        location TEXT,
+        device_info TEXT,
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ended_at TIMESTAMP,
+        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        duration_seconds INTEGER DEFAULT 0
       );
       CREATE TABLE IF NOT EXISTS school_requests (
         id SERIAL PRIMARY KEY,
@@ -214,6 +232,7 @@ const initDb = async () => {
 
     // Garantir colunas da tabela visitors
     const visitorMigrations = [
+      "ALTER TABLE visitors ADD COLUMN IF NOT EXISTS user_id TEXT",
       "ALTER TABLE visitors ADD COLUMN IF NOT EXISTS country_code TEXT",
       "ALTER TABLE visitors ADD COLUMN IF NOT EXISTS church_name TEXT",
       "ALTER TABLE visitors ADD COLUMN IF NOT EXISTS city TEXT",
@@ -247,6 +266,16 @@ const initDb = async () => {
       VALUES ('Professor Lucas', 'prof_lucas', 'faith2025', 'teacher', 'active', TRUE)
       ON CONFLICT (username) DO UPDATE SET password = 'faith2025', role = 'teacher'
     `);
+    // Garantir colunas da tabela sessions e user_session_logs
+    const sessionMigrations = [
+      "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+      "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip_address TEXT",
+      "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS location TEXT",
+      "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS device_info TEXT"
+    ];
+    for (const mig of sessionMigrations) {
+      try { await pool.query(mig); } catch (e) { }
+    }
   } catch (e) {
     console.error("DB Init Error:", e);
     dbInitPromise = null;
@@ -254,6 +283,82 @@ const initDb = async () => {
   })();
   return dbInitPromise;
 };
+
+const geoCache = new Map();
+
+function getClientIp(req, body = {}) {
+  if (body.clientIp && typeof body.clientIp === 'string' && body.clientIp.length < 45) {
+    return body.clientIp.trim();
+  }
+  if (req.headers) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+      const first = forwarded.split(',')[0].trim();
+      if (first) return first;
+    }
+    const realIp = req.headers['x-real-ip'];
+    if (realIp) return realIp.trim();
+    const cfIp = req.headers['cf-connecting-ip'];
+    if (cfIp) return cfIp.trim();
+  }
+  const sock = req.socket?.remoteAddress || req.connection?.remoteAddress || req.ip || '';
+  const clean = sock.replace(/^.*:/, '').trim();
+  return clean || '127.0.0.1';
+}
+
+function getClientDevice(req, body = {}) {
+  if (body.deviceInfo && typeof body.deviceInfo === 'string') {
+    return body.deviceInfo.slice(0, 80);
+  }
+  const ua = req.headers ? (req.headers['user-agent'] || '') : '';
+  if (!ua) return 'Navegador Web';
+  let os = 'Dispositivo';
+  if (/windows/i.test(ua)) os = 'Windows';
+  else if (/macintosh|mac os x/i.test(ua)) os = 'macOS';
+  else if (/android/i.test(ua)) os = 'Android';
+  else if (/iphone/i.test(ua)) os = 'iPhone';
+  else if (/ipad/i.test(ua)) os = 'iPad';
+  else if (/linux/i.test(ua)) os = 'Linux';
+
+  let browser = 'Web';
+  if (/edg/i.test(ua)) browser = 'Edge';
+  else if (/chrome|crios/i.test(ua)) browser = 'Chrome';
+  else if (/firefox|fxios/i.test(ua)) browser = 'Firefox';
+  else if (/safari/i.test(ua) && !/chrome/i.test(ua)) browser = 'Safari';
+
+  return `${os} • ${browser}`;
+}
+
+async function getClientLocation(req, ip, body = {}) {
+  if (body.clientLocation && typeof body.clientLocation === 'string') {
+    return body.clientLocation.slice(0, 100);
+  }
+  if (req.headers) {
+    const city = req.headers['x-vercel-ip-city'] ? decodeURIComponent(req.headers['x-vercel-ip-city']) : '';
+    const country = req.headers['x-vercel-ip-country'] || req.headers['cf-ipcountry'] || '';
+    if (city && country) return `${city}, ${country}`;
+    if (country) return country;
+  }
+  if (!ip || ip === '127.0.0.1' || ip === '::1' || ip === 'localhost' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
+    return 'Rede Local (Angola)';
+  }
+  if (geoCache.has(ip)) return geoCache.get(ip);
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1200);
+    const res = await fetch(`http://ip-api.com/json/${ip}?fields=status,city,country`, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === 'success' && (data.city || data.country)) {
+        const loc = [data.city, data.country].filter(Boolean).join(', ');
+        geoCache.set(ip, loc);
+        return loc;
+      }
+    }
+  } catch (e) { }
+  return 'Angola';
+}
 
 async function getRequestBody(req) {
   // 1. Se o body já foi parseado (Vercel/Connect/Express)
@@ -295,6 +400,17 @@ async function getRequestBody(req) {
 }
 
 export default async function handler(req, res) {
+  if (!res.status) {
+    res.status = function (code) { this.statusCode = code; return this; };
+  }
+  if (!res.json) {
+    res.json = function (data) {
+      this.setHeader('Content-Type', 'application/json');
+      this.end(JSON.stringify(data));
+      return this;
+    };
+  }
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE, PUT');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -498,10 +614,30 @@ export default async function handler(req, res) {
         const { userId, sessionId } = await getRequestBody(req);
         if (sessionId) {
           await pool.query("DELETE FROM sessions WHERE id = $1", [sessionId]).catch(() => {});
+          await pool.query(
+            `UPDATE user_session_logs 
+             SET ended_at = CURRENT_TIMESTAMP,
+                 last_seen = CURRENT_TIMESTAMP,
+                 duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER)
+             WHERE session_id = $1`,
+            [sessionId]
+          ).catch(() => {});
         }
         if (userId) {
-          const rawId = String(userId).replace('m-', '');
-          await pool.query("DELETE FROM sessions WHERE user_id = $1 OR user_id = $2", [rawId, 'm-' + rawId]).catch(() => {});
+          const uid = String(userId).trim();
+          const rawId = uid.replace('m-', '').replace('v-', '');
+          await pool.query(
+            "DELETE FROM sessions WHERE user_id = $1 OR user_id = $2 OR user_id = ('m-' || $2) OR user_id = ('v-' || $2)",
+            [uid, rawId]
+          ).catch(() => {});
+          await pool.query(
+            `UPDATE user_session_logs 
+             SET ended_at = CURRENT_TIMESTAMP,
+                 last_seen = CURRENT_TIMESTAMP,
+                 duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER)
+             WHERE (user_id = $1 OR user_id = $2 OR user_id = ('m-' || $2)) AND ended_at IS NULL`,
+            [uid, rawId]
+          ).catch(() => {});
         }
         return res.status(200).json({ success: true });
       }
@@ -509,13 +645,34 @@ export default async function handler(req, res) {
 
     if (path.endsWith('/heartbeat')) {
       if (req.method === 'POST') {
-        const { userId, sessionId } = await getRequestBody(req);
+        const b = await getRequestBody(req);
+        const { userId, sessionId } = b;
         if (sessionId) {
-          const rawId = String(userId || 'visitor').replace('m-', '');
+          const uid = String(userId || 'visitor').trim();
+          const ip = getClientIp(req, b);
+          const device = getClientDevice(req, b);
+          const location = await getClientLocation(req, ip, b);
+
           await pool.query(
-            "INSERT INTO sessions (id, user_id, last_seen) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET last_seen = CURRENT_TIMESTAMP, user_id = $2",
-            [sessionId, rawId]
+            `INSERT INTO sessions (id, user_id, last_seen, created_at, ip_address, location, device_info) 
+             VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $3, $4, $5) 
+             ON CONFLICT (id) DO UPDATE SET 
+               last_seen = CURRENT_TIMESTAMP, 
+               user_id = $2,
+               ip_address = COALESCE(NULLIF($3, ''), sessions.ip_address),
+               location = COALESCE(NULLIF($4, ''), sessions.location),
+               device_info = COALESCE(NULLIF($5, ''), sessions.device_info)`,
+            [sessionId, uid, ip, location, device]
           );
+
+          await pool.query(
+            `UPDATE user_session_logs 
+             SET last_seen = CURRENT_TIMESTAMP,
+                 duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER)
+             WHERE session_id = $1`,
+            [sessionId]
+          ).catch(() => {});
+
           return res.status(200).json({ success: true });
         }
         return res.status(400).json({ error: 'Session ID required' });
@@ -527,7 +684,6 @@ export default async function handler(req, res) {
       if (req.method === 'GET') {
         const channel = queryParams.get('channel') || 'public';
         try {
-          // Garantir que a coluna timestamp existe (compatibilidade com ambas as versões da tabela)
           await pool.query("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP").catch(() => {});
           const r = await pool.query(
             "SELECT id::text, user_id, username, text, channel, COALESCE(timestamp, created_at, CURRENT_TIMESTAMP) as timestamp, COALESCE(created_at, timestamp, CURRENT_TIMESTAMP) as created_at FROM chat_messages WHERE channel = $1 ORDER BY COALESCE(timestamp, created_at, CURRENT_TIMESTAMP) ASC LIMIT 100",
@@ -564,21 +720,31 @@ export default async function handler(req, res) {
     // REGISTO DE VISITANTE
     if (req.method === 'POST' && path.endsWith('/register') && !path.endsWith('/school/register')) {
       const b = await getRequestBody(req);
-      const fullName = b.fullName || b.fullname || b.name || 'Visitante';
+      const fullName = (b.fullName || b.fullname || b.name || 'Visitante').trim();
+      const phone = (b.phone || '').trim();
+      const country = (b.country || 'Angola').trim();
+      const countryCode = (b.countryCode || b.country_code || '+244').trim();
+      const churchName = (b.churchName || b.church_name || '').trim();
+
       const r = await pool.query(
         "INSERT INTO visitors (fullname, phone, country, country_code, church_name) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-        [fullName, b.phone || '', b.country || 'Angola', b.countryCode || '+244', b.churchName || '']
+        [fullName, phone, country, countryCode, churchName]
       );
       const visitorDbId = r.rows[0]?.id;
       const sessionId = Math.random().toString(36).substring(2, 15);
       const userId = 'v-' + (visitorDbId || Date.now());
+
+      await pool.query("UPDATE visitors SET user_id = $1 WHERE id = $2", [userId, visitorDbId]).catch(() => {});
 
       await pool.query(
         "INSERT INTO sessions (id, user_id, last_seen) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET last_seen = CURRENT_TIMESTAMP, user_id = $2",
         [sessionId, userId]
       ).catch(() => {});
 
-      return res.status(200).json({ success: true, user: { id: userId, fullName, role: 'user', sessionId } });
+      return res.status(200).json({
+        success: true,
+        user: { id: userId, fullName, role: 'user', sessionId, country, countryCode, churchName, phone, hasLiveAccess: false }
+      });
     }
 
     // LOGIN DE MEMBROS (Inclui Admin Master)
@@ -592,9 +758,15 @@ export default async function handler(req, res) {
       }
 
       if (identifier === 'master_admin' && password === 'angola_faith_2025') {
+        const sessionId = Math.random().toString(36).substring(2, 15);
+        await pool.query(
+          "INSERT INTO sessions (id, user_id, last_seen) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET last_seen = CURRENT_TIMESTAMP, user_id = $2",
+          [sessionId, 'admin-1']
+        ).catch(() => {});
+
         return res.status(200).json({ 
           success: true,
-          user: { id: 'admin-1', role: 'admin', fullName: 'Administrador Master', hasLiveAccess: true } 
+          user: { id: 'admin-1', role: 'admin', fullName: 'Administrador Master', hasLiveAccess: true, sessionId } 
         });
       }
 
@@ -604,25 +776,68 @@ export default async function handler(req, res) {
       );
       if (r.rows.length > 0) {
         const u = r.rows[0];
+        const memberUserId = 'm-' + u.id;
+
+        // Limpar sessões inativas (sem heartbeat há mais de 45 segundos)
+        await pool.query("DELETE FROM sessions WHERE last_seen < NOW() - INTERVAL '45 seconds'").catch(() => {});
+
+        // 1. Verificação de Segurança: Sessão Ativa noutro dispositivo ou navegador
+        const activeCheck = await pool.query(
+          "SELECT id, ip_address, location, device_info, last_seen FROM sessions WHERE (user_id = $1 OR user_id = $2) AND last_seen > NOW() - INTERVAL '40 seconds'",
+          [memberUserId, String(u.id)]
+        );
+
+        if (activeCheck.rows.length > 0) {
+          return res.status(409).json({ 
+            error: 'Os logins já estão a ser utilizados noutro dispositivo ou navegador. Por favor, contacte o administrador.',
+            code: 'SESSION_ALREADY_ACTIVE'
+          });
+        }
+
+        const ip = getClientIp(req, b);
+        const device = getClientDevice(req, b);
+        const location = await getClientLocation(req, ip, b);
         const sessionId = Math.random().toString(36).substring(2, 15);
 
-        // 1. Regista sessão ativa em sessions
+        // Regista sessão ativa em sessions com dados de IP, localização e dispositivo
         await pool.query(
-          "INSERT INTO sessions (id, user_id, last_seen) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET last_seen = CURRENT_TIMESTAMP, user_id = $2",
-          [sessionId, String(u.id)]
+          `INSERT INTO sessions (id, user_id, last_seen, created_at, ip_address, location, device_info) 
+           VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $3, $4, $5)
+           ON CONFLICT (id) DO UPDATE SET last_seen = CURRENT_TIMESTAMP, user_id = $2, ip_address = $3, location = $4, device_info = $5`,
+          [sessionId, memberUserId, ip, location, device]
         ).catch(() => {});
 
-        // 2. Regista o acesso na tabela visitors para que o parceiro apareça na lista de visitantes
+        // Regista nos logs históricos de sessão
         await pool.query(
-          "INSERT INTO visitors (fullname, phone, country, country_code, church_name) VALUES ($1, $2, $3, $4, $5)",
-          [u.fullname || u.username, u.phone || '', u.country || 'Angola', '+244', 'Membro / Parceiro Registado']
+          `INSERT INTO user_session_logs (user_id, username, fullname, session_id, ip_address, location, device_info, started_at, last_seen, duration_seconds)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)`,
+          [memberUserId, u.username, u.fullname || u.username, sessionId, ip, location, device]
         ).catch(() => {});
+
+        // 2. Regista/atualiza o parceiro na tabela de visitantes para que apareça no registro de visitantes
+        try {
+          const existingVis = await pool.query("SELECT id FROM visitors WHERE user_id = $1", [memberUserId]);
+          if (existingVis.rows.length > 0) {
+            await pool.query(
+              "UPDATE visitors SET fullname = $1, created_at = CURRENT_TIMESTAMP WHERE user_id = $2",
+              [u.fullname || u.username, memberUserId]
+            );
+          } else {
+            await pool.query(
+              "INSERT INTO visitors (fullname, phone, country, country_code, church_name, user_id) VALUES ($1, $2, $3, $4, $5, $6)",
+              [u.fullname || u.username, u.phone || '', 'Angola', '+244', 'Membro / Parceiro', memberUserId]
+            );
+          }
+        } catch (e) {
+          console.error("Erro ao registrar visitante membro:", e);
+        }
 
         return res.status(200).json({
           success: true,
           user: {
-            id: 'm-' + u.id,
-            fullName: u.fullname,
+            id: memberUserId,
+            fullName: u.fullname || u.username,
+            username: u.username,
             role: u.role || 'user',
             hasLiveAccess: !!u.has_live_access,
             country: 'Angola',
@@ -650,11 +865,66 @@ export default async function handler(req, res) {
             ELSE FALSE 
           END as is_online
         FROM visitors v
-        LEFT JOIN sessions s ON (s.user_id = ('v-' || v.id::text) OR s.user_id = v.id::text)
+        LEFT JOIN sessions s ON (
+          s.user_id = ('v-' || v.id::text) 
+          OR s.user_id = v.id::text 
+          OR (v.user_id IS NOT NULL AND (s.user_id = v.user_id OR s.user_id = REPLACE(v.user_id, 'm-', '')))
+        )
         GROUP BY v.id, v.fullname, v.phone, v.country, v.country_code, v.church_name, v.created_at
         ORDER BY is_online DESC, v.created_at DESC
       `);
       return res.status(200).json(r.rows);
+    }
+
+    // AUDITORIA E HISTÓRICO DE SESSÕES
+    if (path.endsWith('/admin/user-logs')) {
+      if (req.method === 'GET') {
+        const userId = queryParams.get('userId');
+        let r;
+        if (userId) {
+          const uid = String(userId).trim();
+          const rawId = uid.replace('m-', '').replace('v-', '');
+          r = await pool.query(
+            `SELECT id, user_id, username, fullname, session_id, ip_address, location, device_info, started_at, last_seen, ended_at, duration_seconds 
+             FROM user_session_logs 
+             WHERE user_id = $1 OR user_id = $2 OR user_id = ('m-' || $2)
+             ORDER BY started_at DESC LIMIT 50`,
+            [uid, rawId]
+          );
+        } else {
+          r = await pool.query(
+            `SELECT id, user_id, username, fullname, session_id, ip_address, location, device_info, started_at, last_seen, ended_at, duration_seconds 
+             FROM user_session_logs 
+             ORDER BY started_at DESC LIMIT 100`
+          );
+        }
+        return res.status(200).json(r.rows);
+      }
+    }
+
+    // DESCONECTAR / LIBERTAR SESSÃO DE UTILIZADOR
+    if (path.endsWith('/admin/disconnect-user')) {
+      if (req.method === 'POST') {
+        const { userId } = await getRequestBody(req);
+        if (!userId) return res.status(400).json({ error: 'userId obrigatório' });
+        const uid = String(userId).trim();
+        const rawId = uid.replace('m-', '').replace('v-', '');
+
+        await pool.query(
+          "DELETE FROM sessions WHERE user_id = $1 OR user_id = $2 OR user_id = ('m-' || $2) OR user_id = ('v-' || $2)",
+          [uid, rawId]
+        );
+        await pool.query(
+          `UPDATE user_session_logs 
+           SET ended_at = CURRENT_TIMESTAMP,
+               last_seen = CURRENT_TIMESTAMP,
+               duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER)
+           WHERE (user_id = $1 OR user_id = $2 OR user_id = ('m-' || $2) OR user_id = ('v-' || $2)) AND ended_at IS NULL`,
+          [uid, rawId]
+        ).catch(() => {});
+
+        return res.status(200).json({ success: true, message: 'Sessão desconectada com sucesso.' });
+      }
     }
 
     if (path.endsWith('/admin/users')) {
@@ -668,12 +938,44 @@ export default async function handler(req, res) {
             u.has_live_access,
             u.created_at,
             MAX(s.last_seen) as last_seen,
+            MIN(s.created_at) as session_started_at,
             CASE 
-              WHEN MAX(s.last_seen) > NOW() - interval '35 seconds' THEN TRUE 
+              WHEN MAX(s.last_seen) > NOW() - interval '40 seconds' THEN TRUE 
               ELSE FALSE 
-            END as is_online
+            END as is_online,
+            MAX(s.ip_address) as current_ip,
+            MAX(s.location) as current_location,
+            MAX(s.device_info) as current_device,
+            MAX(s.id) as current_session_id,
+            CASE 
+              WHEN MAX(s.last_seen) > NOW() - interval '40 seconds' THEN 
+                GREATEST(0, EXTRACT(EPOCH FROM (NOW() - MIN(s.created_at)))::INTEGER)
+              ELSE 
+                COALESCE(
+                  (SELECT l.duration_seconds FROM user_session_logs l WHERE (l.user_id = u.id::text OR l.user_id = ('m-' || u.id::text)) ORDER BY l.id DESC LIMIT 1),
+                  0
+                )
+            END as duration_seconds,
+            COALESCE(
+              MAX(s.ip_address),
+              (SELECT l.ip_address FROM user_session_logs l WHERE (l.user_id = u.id::text OR l.user_id = ('m-' || u.id::text)) ORDER BY l.id DESC LIMIT 1),
+              'N/A'
+            ) as ip_address,
+            COALESCE(
+              MAX(s.location),
+              (SELECT l.location FROM user_session_logs l WHERE (l.user_id = u.id::text OR l.user_id = ('m-' || u.id::text)) ORDER BY l.id DESC LIMIT 1),
+              'N/A'
+            ) as location,
+            COALESCE(
+              MAX(s.device_info),
+              (SELECT l.device_info FROM user_session_logs l WHERE (l.user_id = u.id::text OR l.user_id = ('m-' || u.id::text)) ORDER BY l.id DESC LIMIT 1),
+              'N/A'
+            ) as device_info
           FROM managed_users u
-          LEFT JOIN sessions s ON (s.user_id = u.id::text OR s.user_id = ('m-' || u.id::text))
+          LEFT JOIN sessions s ON (
+            (s.user_id = u.id::text OR s.user_id = ('m-' || u.id::text))
+            AND s.last_seen > NOW() - interval '40 seconds'
+          )
           GROUP BY u.id, u.fullname, u.username, u.password, u.has_live_access, u.created_at
           ORDER BY is_online DESC, u.created_at DESC
         `);
