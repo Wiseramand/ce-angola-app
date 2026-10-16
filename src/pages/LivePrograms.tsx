@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
 import { Send, Heart, Shield, MessageSquare } from 'lucide-react';
 import { useAuth } from '../App';
 import { ChatMessage } from '../types';
 import UniversalPlayer from '../components/UniversalPlayer';
+import DonationModal from '../components/DonationModal';
 import { api } from '../services/api';
 
 const LivePrograms: React.FC = () => {
@@ -14,6 +14,7 @@ const LivePrograms: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [activePlayer, setActivePlayer] = useState<'p1' | 'p2' | 'audio'>('p1');
   const [quality, setQuality] = useState<'fhd' | 'hd' | 'sd' | 'auto'>('auto');
+  const [showDonationModal, setShowDonationModal] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isMounted = useRef(true);
 
@@ -129,10 +130,13 @@ const LivePrograms: React.FC = () => {
                 </button>
               </div>
             </div>
-            <Link to="/donations" className="flex items-center space-x-4 px-12 py-7 bg-ministry-gold text-white font-black text-2xl shadow-2xl hover:bg-white hover:text-ministry-blue transition-all">
+            <button
+              onClick={() => setShowDonationModal(true)}
+              className="flex items-center space-x-4 px-12 py-7 bg-ministry-gold text-white font-black text-2xl shadow-2xl hover:bg-white hover:text-ministry-blue transition-all"
+            >
               <Heart size={28} fill="currentColor" />
               <span>{t('live.partner_button')}</span>
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -193,6 +197,12 @@ const LivePrograms: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <DonationModal
+        isOpen={showDonationModal}
+        onClose={() => setShowDonationModal(false)}
+        defaultType="offering"
+      />
     </div>
   );
 };

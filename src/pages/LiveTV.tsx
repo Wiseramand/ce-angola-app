@@ -5,6 +5,7 @@ import { Send, MessageSquare, Heart } from 'lucide-react';
 import { useAuth } from '../App';
 import { ChatMessage } from '../types';
 import UniversalPlayer from '../components/UniversalPlayer';
+import DonationModal from '../components/DonationModal';
 import { api } from '../services/api';
 
 const LiveTV: React.FC = () => {
@@ -14,6 +15,7 @@ const LiveTV: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [activePlayer, setActivePlayer] = useState<'p1' | 'p2' | 'audio'>('p1');
   const [quality, setQuality] = useState<'fhd' | 'hd' | 'sd' | 'auto'>('auto');
+  const [showDonationModal, setShowDonationModal] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isMounted = useRef(true);
 
@@ -133,10 +135,13 @@ const LiveTV: React.FC = () => {
                 </button>
               </div>
             </div>
-            <Link to="/donations" className="flex items-center space-x-4 px-12 py-6 bg-ministry-gold text-white font-black text-xl hover:scale-105 transition-all shadow-2xl">
+            <button
+              onClick={() => setShowDonationModal(true)}
+              className="flex items-center space-x-4 px-12 py-6 bg-ministry-gold text-white font-black text-xl hover:scale-105 transition-all shadow-2xl"
+            >
               <Heart size={24} fill="white" />
               <span>{t('live.faith_seed')}</span>
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -214,6 +219,12 @@ const LiveTV: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <DonationModal
+        isOpen={showDonationModal}
+        onClose={() => setShowDonationModal(false)}
+        defaultType="seeds"
+      />
     </div>
   );
 };
