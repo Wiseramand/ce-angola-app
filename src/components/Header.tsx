@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { useTranslation } from 'react-i18next';
-import { Menu, X, LogOut, LayoutDashboard, Radio, Lock, Tv, Globe, Presentation } from 'lucide-react';
+import { Menu, X, LogOut, LayoutDashboard, Radio, Lock, Tv, Globe, Presentation, Church } from 'lucide-react';
 import Logo from './Logo';
 
 const Header: React.FC = () => {
@@ -52,6 +52,7 @@ const Header: React.FC = () => {
             <NavLink to="/">{t('common.home')}</NavLink>
             <NavLink to="/live-tv" icon={Tv} className="text-ministry-blue">{t('nav.live')}</NavLink>
             <NavLink to="/founder">{t('nav.founder')}</NavLink>
+            <NavLink to="/churches" icon={Church}>{t('nav.churches')}</NavLink>
             <NavLink to="/partnerships">{t('nav.partnerships')}</NavLink>
 
             {/* Exclusive Menu Item - Icon Only */}
@@ -158,6 +159,7 @@ const Header: React.FC = () => {
             <NavLink to="/">{t('common.home')}</NavLink>
             <NavLink to="/live-tv" icon={Tv}>{t('nav.live')}</NavLink>
             <NavLink to="/founder">{t('nav.founder')}</NavLink>
+            <NavLink to="/churches" icon={Church}>{t('nav.churches')}</NavLink>
             <NavLink to="/partnerships">{t('nav.partnerships')}</NavLink>
             <NavLink to="/live" icon={Lock} className="text-ministry-gold font-bold">{t('common.exclusive_access')}</NavLink>
             <NavLink to="/school/login" icon={Presentation} className="text-ministry-blue font-bold">{t('nav.foundation_school')}</NavLink>

@@ -40,7 +40,13 @@
         "donations": "Doações",
         "online_giving": "Ofertas Online",
         "foundation_school": "Escola de Fundação",
-        "live_tv": "Live TV"
+        "live_tv": "Live TV",
+        "churches": "Igrejas"
+    },
+    "churches": {
+        "title": "As nossas Igrejas",
+        "subtitle": "Congregações",
+        "description": "Encontre a Christ Embassy mais próxima de si e faça parte de uma comunidade vibrante de fé, amor e crescimento espiritual em Angola."
     },
     "footer": {
         "quick_links": "Links Rápidos",

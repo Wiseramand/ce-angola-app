@@ -23,6 +23,7 @@ import { ShieldAlert, Loader2 } from 'lucide-react';
 import { api } from './services/api';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import ContactUs from './pages/ContactUs';
+import Churches from './pages/Churches';
 import SchoolLogin from './pages/SchoolLogin';
 import TeacherLogin from './pages/TeacherLogin';
 import SchoolRegister from './pages/SchoolRegister';
@@ -335,6 +336,7 @@ const AppContent: React.FC = () => {
   const isAdminPath = location.pathname === '/central-admin' || location.pathname === '/admin';
   const isSchoolPath = location.pathname.startsWith('/school');
   const isAuthPath = location.pathname === '/login' || location.pathname === '/register';
+  const isPublicPath = location.pathname === '/churches';
   const hideGlobalNav = isAdminPath || isSchoolPath;
 
   if (isInitialLoading) {
@@ -345,8 +347,8 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Se não houver utilizador e não for a rota de login/registo, admin ou escola, obriga a identificação (Welcome)
-  if (!user && !isAdminPath && !isSchoolPath && !isAuthPath) {
+  // Se não houver utilizador e não for uma rota pública, login/registo, admin ou escola, obriga a identificação (Welcome)
+  if (!user && !isAdminPath && !isSchoolPath && !isAuthPath && !isPublicPath) {
     return <Welcome />;
   }
 
@@ -359,6 +361,7 @@ const AppContent: React.FC = () => {
           <Route path="/live-tv" element={<LiveTV />} />
           <Route path="/live" element={<ProtectedRoute liveOnly><LivePrograms /></ProtectedRoute>} />
           <Route path="/partnerships" element={<Partnerships />} />
+          <Route path="/churches" element={<Churches />} />
           <Route path="/donations" element={<Donations />} />
           <Route path="/founder" element={<Founder />} />
           <Route path="/central-admin" element={<AdminLogin />} />

@@ -40,7 +40,13 @@
         "donations": "Donations",
         "online_giving": "Online Giving",
         "foundation_school": "Foundation School",
-        "live_tv": "Live TV"
+        "live_tv": "Live TV",
+        "churches": "Churches"
+    },
+    "churches": {
+        "title": "Our Churches",
+        "subtitle": "Congregations",
+        "description": "Find the Christ Embassy nearest to you and become part of a vibrant community of faith, love and spiritual growth in Angola."
     },
     "footer": {
         "quick_links": "Quick Links",
