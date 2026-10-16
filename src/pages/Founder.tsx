@@ -55,6 +55,44 @@ const Founder: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 border-t border-gray-100">
+          <div className="flex flex-col lg:flex-row gap-20 items-start">
+            <div className="lg:w-1/2 lg:sticky lg:top-32">
+              <div className="relative group">
+                <div className="absolute -inset-4 bg-ministry-blue/20 rounded-[3rem] blur-3xl group-hover:bg-ministry-blue/30 transition duration-700"></div>
+                <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl border-[12px] border-white bg-gray-50">
+                  <img
+                    src="/assets/pst-charles.png"
+                    alt="Pastor Charles Ricardo Okorodudu"
+                    className="w-full aspect-[4/5] object-cover object-top transition duration-700 group-hover:scale-105"
+                    onError={(e) => {
+                      const img = e.target as HTMLImageElement;
+                      img.style.display = 'none';
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:w-1/2 space-y-12">
+              <div className="animate-in fade-in slide-in-from-right duration-700">
+                <span className="text-ministry-gold font-black uppercase tracking-[0.3em] text-xs mb-4 block">Grupo Angola</span>
+                <h2 className="text-4xl md:text-5xl font-display font-black text-ministry-blue leading-[0.95] tracking-tighter">Pastor Charles Ricardo Okorodudu</h2>
+                <div className="w-24 h-2.5 bg-ministry-gold mt-8 rounded-full shadow-[0_0_15px_rgba(197,160,89,0.5)]"></div>
+              </div>
+
+              <div className="prose prose-xl text-gray-600 max-w-none space-y-8 font-light leading-relaxed">
+                <p className="text-2xl font-bold text-gray-900 leading-snug">
+                  Pastor do Grupo Angola e representante da LoveWorld em Angola.
+                </p>
+                <p>
+                  O Pastor Charles Ricardo Okorodudu é um homem de fé, visão e profundo amor por Deus. Com uma vida dedicada à obra do Senhor, tem inspirado e liderado vidas com paixão, excelência e compromisso com a expansão do Evangelho.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
