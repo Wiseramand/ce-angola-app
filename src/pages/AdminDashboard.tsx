@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -142,6 +142,13 @@ const AdminDashboard: React.FC = () => {
   });
   const [settingsLang, setSettingsLang] = useState<'pt' | 'en'>('pt');
 
+  // Evita que o polling de 5s sobrescreva o formulário enquanto o admin edita os links dos canais
+  const streamFormDirtyRef = useRef(false);
+  const updateStreamForm = (patch: Partial<typeof streamForm>) => {
+    streamFormDirtyRef.current = true;
+    setStreamForm(prev => ({ ...prev, ...patch }));
+  };
+
   const loadData = async () => {
     setIsRefreshing(true);
     try {
@@ -153,7 +160,7 @@ const AdminDashboard: React.FC = () => {
 
       if (usersData) setUsers(usersData);
       if (visitorsData) setVisitors(visitorsData);
-      if (sData) {
+      if (sData && !streamFormDirtyRef.current) {
         setStreamForm({
           public_url: sData.public_url || '',
           public_url2: sData.public_url2 || '',
@@ -396,6 +403,7 @@ Seja bem-vindo e Deus o abençoe!`;
     setIsRefreshing(true);
     try {
       await api.system.updateConfig(streamForm);
+      streamFormDirtyRef.current = false;
       alert('Canais atualizados!');
       await updateStreamConfig(streamForm);
     } catch (e) {
@@ -1041,18 +1049,18 @@ Seja bem-vindo e Deus o abençoe!`;
                     </div>
                     <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">{t('admin.streams.public_channel')}</h3>
                   </div>
-                  <InputField label={t('admin.streams.url_main')} value={streamForm.public_url} onChange={v => setStreamForm({ ...streamForm, public_url: v })} />
-                  <InputField label={t('admin.streams.url_support')} value={streamForm.public_url2} onChange={v => setStreamForm({ ...streamForm, public_url2: v })} />
+                  <InputField label={t('admin.streams.url_main')} value={streamForm.public_url} onChange={v => updateStreamForm({ public_url: v })} />
+                  <InputField label={t('admin.streams.url_support')} value={streamForm.public_url2} onChange={v => updateStreamForm({ public_url2: v })} />
                   
                   {settingsLang === 'pt' ? (
                     <>
-                      <InputField label={t('admin.streams.title_pt')} value={streamForm.public_title_pt} onChange={v => setStreamForm({ ...streamForm, public_title_pt: v })} />
-                      <InputField label={t('admin.streams.desc_pt')} value={streamForm.public_description_pt} onChange={v => setStreamForm({ ...streamForm, public_description_pt: v })} />
+                      <InputField label={t('admin.streams.title_pt')} value={streamForm.public_title_pt} onChange={v => updateStreamForm({ public_title_pt: v })} />
+                      <InputField label={t('admin.streams.desc_pt')} value={streamForm.public_description_pt} onChange={v => updateStreamForm({ public_description_pt: v })} />
                     </>
                   ) : (
                     <>
-                      <InputField label={t('admin.streams.title_en')} value={streamForm.public_title_en} onChange={v => setStreamForm({ ...streamForm, public_title_en: v })} />
-                      <InputField label={t('admin.streams.desc_en')} value={streamForm.public_description_en} onChange={v => setStreamForm({ ...streamForm, public_description_en: v })} />
+                      <InputField label={t('admin.streams.title_en')} value={streamForm.public_title_en} onChange={v => updateStreamForm({ public_title_en: v })} />
+                      <InputField label={t('admin.streams.desc_en')} value={streamForm.public_description_en} onChange={v => updateStreamForm({ public_description_en: v })} />
                     </>
                   )}
                 </div>
@@ -1064,18 +1072,18 @@ Seja bem-vindo e Deus o abençoe!`;
                     </div>
                     <h3 className="text-xl font-black text-ministry-blue uppercase tracking-tight">{t('admin.streams.partner_channel')}</h3>
                   </div>
-                  <InputField label={t('admin.streams.url_main')} value={streamForm.private_url} onChange={v => setStreamForm({ ...streamForm, private_url: v })} />
-                  <InputField label={t('admin.streams.url_support')} value={streamForm.private_url2} onChange={v => setStreamForm({ ...streamForm, private_url2: v })} />
+                  <InputField label={t('admin.streams.url_main')} value={streamForm.private_url} onChange={v => updateStreamForm({ private_url: v })} />
+                  <InputField label={t('admin.streams.url_support')} value={streamForm.private_url2} onChange={v => updateStreamForm({ private_url2: v })} />
                   
                   {settingsLang === 'pt' ? (
                     <>
-                      <InputField label={t('admin.streams.title_pt')} value={streamForm.private_title_pt} onChange={v => setStreamForm({ ...streamForm, private_title_pt: v })} />
-                      <InputField label={t('admin.streams.desc_pt')} value={streamForm.private_description_pt} onChange={v => setStreamForm({ ...streamForm, private_description_pt: v })} />
+                      <InputField label={t('admin.streams.title_pt')} value={streamForm.private_title_pt} onChange={v => updateStreamForm({ private_title_pt: v })} />
+                      <InputField label={t('admin.streams.desc_pt')} value={streamForm.private_description_pt} onChange={v => updateStreamForm({ private_description_pt: v })} />
                     </>
                   ) : (
                     <>
-                      <InputField label={t('admin.streams.title_en')} value={streamForm.private_title_en} onChange={v => setStreamForm({ ...streamForm, private_title_en: v })} />
-                      <InputField label={t('admin.streams.desc_en')} value={streamForm.private_description_en} onChange={v => setStreamForm({ ...streamForm, private_description_en: v })} />
+                      <InputField label={t('admin.streams.title_en')} value={streamForm.private_title_en} onChange={v => updateStreamForm({ private_title_en: v })} />
+                      <InputField label={t('admin.streams.desc_en')} value={streamForm.private_description_en} onChange={v => updateStreamForm({ private_description_en: v })} />
                     </>
                   )}
                 </div>
@@ -1085,7 +1093,7 @@ Seja bem-vindo e Deus o abençoe!`;
                     <span className="text-[11px] font-black text-ministry-blue uppercase tracking-widest block">{t('admin.streams.restrict_area')}</span>
                     <span className="text-[9px] text-slate-400 font-bold uppercase mt-1">{t('admin.streams.restrict_desc')}</span>
                   </div>
-                  <button onClick={() => setStreamForm({ ...streamForm, is_private_mode: !streamForm.is_private_mode })} className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_private_mode ? 'bg-ministry-gold shadow-[0_0_15px_rgba(197,160,89,0.5)]' : 'bg-slate-300'}`}>
+                  <button onClick={() => updateStreamForm({ is_private_mode: !streamForm.is_private_mode })} className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_private_mode ? 'bg-ministry-gold shadow-[0_0_15px_rgba(197,160,89,0.5)]' : 'bg-slate-300'}`}>
                     <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${streamForm.is_private_mode ? 'left-7' : 'left-1'}`} />
                   </button>
                 </div>
@@ -1102,12 +1110,12 @@ Seja bem-vindo e Deus o abençoe!`;
                         <span className="text-[11px] font-black text-red-600 uppercase tracking-widest block">{t('admin.school.teacher_live')}</span>
                         <span className="text-[9px] text-red-400 font-bold uppercase mt-1">{t('admin.school.teacher_live_desc')}</span>
                       </div>
-                      <button onClick={() => setStreamForm({ ...streamForm, is_teacher_live: !streamForm.is_teacher_live })} className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_teacher_live ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-slate-300'}`}>
+                      <button onClick={() => updateStreamForm({ is_teacher_live: !streamForm.is_teacher_live })} className={`w-14 h-8 rounded-full relative transition duration-300 ${streamForm.is_teacher_live ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-slate-300'}`}>
                         <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${streamForm.is_teacher_live ? 'left-7' : 'left-1'}`} />
                       </button>
                     </div>
                     {streamForm.is_teacher_live && (
-                      <InputField label={t('admin.school.teacher_name_label')} value={streamForm.live_teacher_name} onChange={v => setStreamForm({ ...streamForm, live_teacher_name: v })} placeholder="Ex: Pr. Lucas" />
+                      <InputField label={t('admin.school.teacher_name_label')} value={streamForm.live_teacher_name} onChange={v => updateStreamForm({ live_teacher_name: v })} placeholder="Ex: Pr. Lucas" />
                     )}
                   </div>
                 </div>
